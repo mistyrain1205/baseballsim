@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>リアルタイム・野球対決シミュレーター</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #1a4a75;
+            margin-bottom: 30px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .card h2 {
+            margin-top: 0;
+            color: #2c5282;
+            border-bottom: 2px solid #edf2f7;
+            padding-bottom: 8px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: #3182ce;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1em;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #2b6cb0;
+        }
+        .result-box {
+            margin-top: 30px;
+            padding: 20px;
+            background: #ebf8ff;
+            border-left: 5px solid #3182ce;
+            border-radius: 4px;
+        }
+        .result-title {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #2b6cb0;
+            margin-bottom: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background: #edf2f7;
+        }
+        .log {
+            background: #2d3748;
+            color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>野球対決シミュレーター (球数・打球詳細対応)</h1>
+
+    <div class="grid">
+        <div class="card">
+            <h2>投手データ</h2>
+            <div class="form-group">
+                <label>現在の球数</label>
+                <input type="number" id="p_balls" value="85" min="0">
+            </div>
+            <div class="form-group">
+                <label>基準四死球率 (%)</label>
+                <input type="number" id="p_bb" value="8.0" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>球数による四死球率の増加係数<br><small>(100球を超えたら1球ごとに加算される%)</small></label>
+                <input type="number" id="p_fatigue" value="0.05" step="0.01">
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>打者データ</h2>
+            <div class="form-group">
+                <label>対戦ごとの打席数 (1〜5打席目)</label>
+                <input type="number" id="b_order" value="3" min="1" max="5">
+            </div>
+            <div class="form-group">
+                <label>基準四死球率 (%)</label>
+                <input type="number" id="b_bb" value="10.0" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>打席回数による四死球率の上昇係数<br><small>(目が慣れることによる1打席ごとの上昇%)</small></label>
+                <input type="number" id="b_eye" value="0.5" step="0.1">
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 25px;">
+        <h2>打球タイプ・ポジション配分設定 (%)</h2>
+        <p style="font-size: 0.85em; color: #666; margin-top: -10px;">※各グループの合計が100%になるようにしてください。</p>
+        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 0;">
+            <div>
+                <label>ゴロ (Grounder) %</label>
+                <input type="number" id="hit_gb" value="45">
+            </div>
+            <div>
+                <label>フライ (Flyball) %</label>
+                <input type="number" id="hit_fb" value="35">
+            </div>
+            <div>
+                <label>ライナー (LineDrive) %</label>
+                <input type="number" id="hit_ld" value="20">
+            </div>
+        </div>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;">
+        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 0;">
+            <div>
+                <label>左翼方向 (プル/流し) %</label>
+                <input type="number" id="dir_left" value="35">
+            </div>
+            <div>
+                <label>中堅方向 (センター) %</label>
+                <input type="number" id="dir_center" value="40">
+            </div>
+            <div>
+                <label>右翼方向 (流し/プル) %</label>
+                <input type="number" id="dir_right" value="25">
+            </div>
+        </div>
+    </div>
+
+    <button onclick="simulateMatch()">対決をシミュレートする</button>
+
+    <div class="result-box" id="resultArea" style="display:none;">
+        <div class="result-title">【シミュレーション結果】</div>
+        <table>
+            <tr>
+                <th>補正後 投手四死球率</th>
+                <td id="res_p_bb">0%</td>
+                <th>補正後 打者四死球率</th>
+                <td id="res_b_bb">0%</td>
+            </tr>
+            <tr style="background: #fff5f5; font-weight: bold;">
+                <th>この対戦での四死球確率</th>
+                <td id="res_final_bb" style="color: #e53e3e;">0%</td>
+                <th>フィールドに飛ぶ確率</th>
+                <td id="res_final_bip">0%</td>
+            </tr>
+        </table>
+
+        <h3 style="margin-top: 20px; color: #2b6cb0;">今回の対決結果</h3>
+        <div class="log" id="simLog">ここに結果のテキストが表示されます。</div>
+    </div>
+</div>
+
+<script>
+function simulateMatch() {
+    // --- 1. 入力値の取得 ---
+    const p_balls = parseFloat(document.getElementById('p_balls').value);
+    const p_bb_base = parseFloat(document.getElementById('p_bb').value) / 100;
+    const p_fatigue = parseFloat(document.getElementById('p_fatigue').value) / 100;
+
+    const b_order = parseInt(document.getElementById('b_order').value);
+    const b_bb_base = parseFloat(document.getElementById('b_bb').value) / 100;
+    const b_eye = parseFloat(document.getElementById('b_eye').value) / 100;
+
+    const gb_p = parseFloat(document.getElementById('hit_gb').value);
+    const fb_p = parseFloat(document.getElementById('hit_fb').value);
+    const ld_p = parseFloat(document.getElementById('hit_ld').value);
+
+    const dir_l = parseFloat(document.getElementById('dir_left').value);
+    const dir_c = parseFloat(document.getElementById('dir_center').value);
+    const dir_r = parseFloat(document.getElementById('dir_right').value);
+
+    // リーグ平均の四死球率 (基準値)
+    const league_bb = 0.08;
+
+    // --- 2. 指標による四死球率の補正 ---
+    // 投手：100球を超えたら球数に応じて四死球率が上昇
+    let p_bb_calc = p_bb_base;
+    if (p_balls > 100) {
+        p_bb_calc += (p_balls - 100) * p_fatigue;
+    }
+    
+    // 打者：打席数（順巡り）が増えるほど目が慣れて四死球率が上昇
+    let b_bb_calc = b_bb_base + ((b_order - 1) * b_eye);
+
+    // --- 3. 対数オッズ（Log-5改良版）による最終四死球確率の計算 ---
+    const numerator = (p_bb_calc * b_bb_calc) / league_bb;
+    const denominator = numerator + ((1 - p_bb_calc) * (1 - b_bb_calc) / (1 - league_bb));
+    const final_bb_probability = numerator / denominator;
+
+    // 画面表示用に変換
+    document.getElementById('res_p_bb').innerText = (p_bb_calc * 100).toFixed(2) + "%";
+    document.getElementById('res_b_bb').innerText = (b_bb_calc * 100).toFixed(2) + "%";
+    document.getElementById('res_final_bb').innerText = (final_bb_probability * 100).toFixed(2) + "%";
+    document.getElementById('res_final_bip').innerText = ((1 - final_bb_probability) * 100).toFixed(2) + "%";
+
+    // --- 4. 確率に基づいたダイスロール（対決シミュレート） ---
+    const random_outcome = Math.random();
+    let resultText = "";
+
+    if (random_outcome < final_bb_probability) {
+        // 四死球発生
+        resultText = "▶ 【四死球】 投手がフォアボール（またはデッドボール）を与えました。ランナー一塁。";
+    } else {
+        // フィールドに打球が飛んだ場合 (BIP)
+        resultText = "▶ 【打球発生】 バットに当たり、フィールドに打球が飛びました！\n\n";
+
+        // 打球種類の決定
+        const rand_type = Math.random() * (gb_p + fb_p + ld_p);
+        let type_res = "";
+        if (rand_type < gb_p) {
+            type_res = "ゴロ (Grounder)";
+        } else if (rand_type < gb_p + fb_p) {
+            type_res = "フライ (Flyball)";
+        } else {
+            type_res = "ライナー (Line Drive)";
+        }
+
+        // 打球方向・ポジションの決定
+        const rand_dir = Math.random() * (dir_l + dir_c + dir_r);
+        let dir_res = "";
+        let position = "";
+
+        if (rand_dir < dir_l) {
+            dir_res = "レフト方向（左翼）";
+            position = (type_res.includes("ゴロ")) ? "サード（三塁手）またはショート（遊撃手）" : "レフト（左翼手）";
+        } else if (rand_dir < dir_l + dir_c) {
+            dir_res = "センター方向（中堅）";
+            position = (type_res.includes("ゴロ")) ? "ピッチャー（投手）またはセカンド/ショート" : "センター（中堅手）";
+        } else {
+            dir_res = "ライト方向（右翼）";
+            position = (type_res.includes("ゴロ")) ? "ファースト（一塁手）またはセカンド（二塁手）" : "ライト（右翼手）";
+        }
+
+        resultText += `【打球種類】: ${type_res}\n`;
+        resultText += `【打球方向】: ${dir_res}\n`;
+        resultText += `【該当ポジション】: ${position} 付近への打球です。`;
+    }
+
+    // 結果ログの出力
+    document.getElementById('simLog').innerText = resultText;
+    document.getElementById('resultArea').style.display = "block";
+}
+</script>
+
+</body>
+</html>
