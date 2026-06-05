@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>リアルタイム・野球対決シミュレーター (球数連動版)</title>
+    <title>リアルタイム・野球対決シミュレーター (球履歴対応版)</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -60,7 +60,6 @@
             border-radius: 4px;
             box-sizing: border-box;
         }
-        /* 球数インジケーター */
         .pitch-counter-box {
             display: flex;
             align-items: center;
@@ -157,12 +156,12 @@
 <body>
 
 <div class="container">
-    <h1>野球対決シミュレーター (球数カウント対応)</h1>
+    <h1>野球対決シミュレーター (球数履歴表示対応)</h1>
 
     <div class="pitch-counter-box">
         <div>
             <span style="font-weight: bold; color: #7b341e;">【投手ステータス】</span>
-            <br><small style="color: #718096;">対決ごとに1打席あたりの球数（ランダム4〜6球）が加算されます</small>
+            <br><small style="color: #718096;">対決ごとに1打席の1球ごとの流れがシミュレートされます</small>
         </div>
         <div>
             現在の総球数: <span class="pitch-count-display" id="display_balls">85</span> 球
@@ -173,7 +172,7 @@
         <div class="card">
             <h2>投手設定</h2>
             <div class="form-group">
-                <label>初期球数（ここからスタート）</label>
+                <label>初期球数</label>
                 <input type="number" id="p_balls" value="85" min="0" onchange="updateInitialBalls()">
             </div>
             <div class="form-group">
@@ -258,10 +257,10 @@
         <div class="result-title">【シミュレーション結果】</div>
         <table>
             <tr>
-                <th>この対戦時点の球数</th>
+                <th>この打席開始時の球数</th>
                 <td id="res_current_balls" style="font-weight: bold; color: #dd6b20;">85球</td>
-                <th>この1打席の球数</th>
-                <td id="res_added_balls">0球</td>
+                <th>この1打席の総消費球数</th>
+                <td id="res_added_balls" style="font-weight: bold; color: #4a5568;">0球</td>
             </tr>
             <tr>
                 <th>補正後 投手四死球率</th>
@@ -282,19 +281,17 @@
 </div>
 
 <script>
-// 現在の球数を保持するグローバル変数
 let currentBalls = 85;
 
-// 入力フォームの初期球数が変わったら表示も変える関数
 function updateInitialBalls() {
     currentBalls = parseFloat(document.getElementById('p_balls').value);
     document.getElementById('display_balls').innerText = currentBalls;
 }
 
 function simulateMatch() {
-    // --- 1. 今回の打席でかかった球数をランダム生成 (4〜6球) ---
-    // 四死球や打席の平均的な球数として設定
-    const addedBalls = Math.floor(Math.random() * 3) + 4; 
+    // --- 1. 今回の打席の決着球数をランダム生成 (1〜6球目) ---
+    // 初球打ち（1球目）から粘って6球目など、ドラマ性を持たせます
+    const addedBalls = Math.floor(Math.random() * 6) + 1; 
     
     // --- 2. 入力値の取得 ---
     const p_bb_base = parseFloat(document.getElementById('p_bb').value) / 100;
@@ -334,19 +331,33 @@ function simulateMatch() {
     const final_bb_probability = numerator / denominator;
 
     // 表に結果をセット
-    document.getElementById('res_current_balls').innerText = currentBalls + "球";
-    document.getElementById('res_added_balls').innerText = "+" + addedBalls + "球";
+    document.getElementById('res_current_balls').innerText = currentBalls + "球目から";
+    document.getElementById('res_added_balls').innerText = addedBalls + "球で決着";
     document.getElementById('res_p_bb').innerText = (p_bb_calc * 100).toFixed(2) + "%";
     document.getElementById('res_b_bb').innerText = (b_bb_calc * 100).toFixed(2) + "%";
     document.getElementById('res_final_bb').innerText = (final_bb_probability * 100).toFixed(2) + "%";
     document.getElementById('res_final_bip').innerText = ((1 - final_bb_probability) * 100).toFixed(2) + "%";
 
-    // --- 4. 対決シミュレート ---
+    // --- 4. 1球ごとのカウント履歴の作成 ---
+    let historyText = "📋 【打席内の投球履歴】\n";
+    for (let i = 1; i < addedBalls; i++) {
+        let ballNum = currentBalls + i;
+        // 決着前の球の描写（ファウル、ストライク、ボールを適当に）
+        let r = Math.random();
+        let pitchResult = r < 0.4 ? "ボール" : (r < 0.7 ? "ストライク" : "ファウル");
+        historyText += `  ${i}球目 (通算${ballNum}球目): ${pitchResult}\n`;
+    }
+    
+    // 決着の球（通算〇球目）
+    let finalBallNum = currentBalls + addedBalls;
+    historyText += `👉 ${addedBalls}球目 (通算${finalBallNum}球目): `;
+
+    // --- 5. 対決シミュレート（決着球のイベント） ---
     const random_outcome = Math.random();
     let resultText = "";
 
     if (random_outcome < final_bb_probability) {
-        resultText = "🟢 【結果】 四死球 (Walk)\n投手がコントロールを乱したか、打者がよく見極めて出塁しました。";
+        resultText = historyText + "🟢 【結果】 四死球 (Walk)\n投手がコントロールを乱したか、打者がよく見極めて出塁しました。";
     } else {
         // 打球の発生と守備処理
         const rand_type = Math.random() * (gb_p + fb_p + ld_p);
@@ -402,14 +413,14 @@ function simulateMatch() {
             playResult = `アウト (Out)\n${currentFielder}(UZR: ${positionUzr > 0 ? '+' : ''}${positionUzr})${outAction}`;
         }
 
-        resultText = `⚾ 【打球発生】\n`;
-        resultText += `打球種類: ${hitTypeJa} [${hitType}]\n`;
-        resultText += `打球方向: ${dirJa}\n`;
-        resultText += `----------------------------------------\n`;
+        resultText = historyText + `バットを振った！【打球発生】\n`;
+        resultText += `  打球種類: ${hitTypeJa} [${hitType}]\n`;
+        resultText += `  打球方向: ${dirJa}\n`;
+        resultText += `  ----------------------------------------\n  `;
         resultText += playResult;
     }
 
-    // --- 5. 次の対決に向けて球数を加算 ---
+    // --- 6. 次の対決に向けて球数を加算 ---
     currentBalls += addedBalls;
     document.getElementById('display_balls').innerText = currentBalls;
 
