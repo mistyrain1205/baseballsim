@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>本格派・プロ野球6球団ペナンシミュレーター & エディタ (完全修正版)</title>
+    <title>本格派・プロ野球6球団ペナンシミュレーター & エディタ (打高調整版)</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -211,8 +211,8 @@ function initializeLeagueData() {
                 currentPos: pos,
                 bb: isStamen ? [11, 9, 12, 15, 10, 8, 7, 7, 5][i-1] : 7.0,
                 so: isStamen ? [14, 16, 15, 20, 18, 22, 23, 25, 30][i-1] : 22.0,
-                barrel: isStamen ? [6, 7, 15, 22, 13, 10, 8, 6, 4][i-1] : 6.0,
-                isop: isStamen ? [10, 12, 24, 36, 18, 16, 14, 9, 5][i-1] : 12,
+                barrel: isStamen ? [7, 8, 16, 24, 14, 11, 9, 7, 5][i-1] : 6.0, // 全体的なバレル率を底上げ
+                isop: isStamen ? [12, 15, 26, 40, 20, 18, 15, 11, 6][i-1] : 12, // 長打出やすさのベースを底上げ
                 uzr: isStamen ? [3, 4, 1.5, 1.0, 3.5, 0, 1, 0.5, 0][i-1] : 0,
                 err: 2.0,
                 stats: { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 }
@@ -227,10 +227,10 @@ function initializeLeagueData() {
                 role: isStarter ? "先発" : (i === 12 ? "守護神" : "リリーフ"),
                 currentPos: "投手",
                 originalPos: "投手",
-                h9: isStarter ? 65 + i : 70 + (i-5),
-                k9: isStarter ? 70 - i : 75 + (i-5),
+                h9: isStarter ? 60 + i : 65 + (i-5), // 投手の被安打抑制H/9能力をマイルドに（ヒットが出やすく）
+                k9: isStarter ? 65 - i : 70 + (i-5), // 奪三振補正もややマイルドに（バットに当たりやすく）
                 bb9: isStarter ? 70 : 65,
-                hr9: isStarter ? 65 : 70,
+                hr9: isStarter ? 60 : 65,
                 staMax: isStarter ? 95 : 35,
                 staCurrent: isStarter ? 95 : 35,
                 stats: { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0 }
@@ -312,17 +312,18 @@ function executeMatchLogic(away, home) {
         currentInningOutsAway = 0;
         currentInningOutsHome = 0;
 
-        // 表の攻撃
+        // 表の攻撃 (AWAY攻撃 vs HOME投手)
         let outs = 0; let bases = [false, false, false];
         while (outs < 3) {
             let needChange = false;
             if (inning <= 5) {
-                if (pitchCountHome >= curPitcherHome.staMax || curPitcherHomeErInMatch >= 5) needChange = true;
+                // 打高に対応するため、失点基準をやや厳しめ（炎上時は早め交代）に設定
+                if (pitchCountHome >= curPitcherHome.staMax || curPitcherHomeErInMatch >= 6) needChange = true;
             } else {
                 if (curPitcherHome.role === "先発") {
-                    if (pitchCountHome >= curPitcherHome.staMax || curPitcherHomeErInMatch >= 3) needChange = true;
+                    if (pitchCountHome >= curPitcherHome.staMax || curPitcherHomeErInMatch >= 4) needChange = true;
                 } else {
-                    if (currentInningOutsHome >= 3 || curPitcherHomeErInMatch >= 2 || pitchCountHome >= curPitcherHome.staMax) needChange = true;
+                    if (currentInningOutsHome >= 3 || curPitcherHomeErInMatch >= 3 || pitchCountHome >= curPitcherHome.staMax) needChange = true;
                 }
             }
 
@@ -353,8 +354,10 @@ function executeMatchLogic(away, home) {
             }
 
             b.stats.ab++; pitchCountHome += 4;
-            let bbP = (b.bb/100) + ((100 - curPitcherHome.bb9)*0.0006);
-            let soP = (b.so/100) + (curPitcherHome.k9*0.001);
+            
+            // 係数をスケールダウン（投手の能力が支配的になりすぎないように調整）
+            let bbP = (b.bb/100) + ((100 - curPitcherHome.bb9)*0.0004);
+            let soP = (b.so/100) + (curPitcherHome.k9*0.0007);
             let rand = Math.random();
             
             if(rand < bbP) {
@@ -372,12 +375,13 @@ function executeMatchLogic(away, home) {
                 let rand_type = Math.random() * (gb_p + fb_p + ld_p);
                 let hitType = rand_type < gb_p ? "GB" : (rand_type < gb_p + fb_p ? "FB" : "LD");
                 
-                let baseHitChance = hitType === "GB" ? 0.28 : (hitType === "FB" ? 0.22 : 0.72);
-                let h9Effect = (55 - curPitcherHome.h9) * 0.0015; 
-                let finalHitChance = Math.max(0.12, Math.min(0.90, baseHitChance + h9Effect));
+                // 【調整】ベース安打確率をさらに上方修正（打高化）
+                let baseHitChance = hitType === "GB" ? 0.32 : (hitType === "FB" ? 0.28 : 0.76);
+                let h9Effect = (55 - curPitcherHome.h9) * 0.0012; 
+                let finalHitChance = Math.max(0.18, Math.min(0.92, baseHitChance + h9Effect));
 
                 if(Math.random() < finalHitChance) {
-                    let hr9Reduction = (curPitcherHome.hr9 / 100) * 0.5; 
+                    let hr9Reduction = (curPitcherHome.hr9 / 100) * 0.4; 
                     let finalBarrel = (b.barrel / 100) * (1 - hr9Reduction);
                     
                     let kind = "1B";
@@ -385,7 +389,9 @@ function executeMatchLogic(away, home) {
                         kind = "HR";
                         b.stats.hr++;
                     } else {
-                        kind = Math.random() < 0.22 ? "2B" : "1B";
+                        // 【調整】長打指標(IsoP)の反映度を強化（2Bが出やすく）
+                        let extraBaseChance = 0.15 + (b.isop * 0.003);
+                        kind = Math.random() < extraBaseChance ? "2B" : "1B";
                     }
                     
                     b.stats.hits++;
@@ -400,17 +406,17 @@ function executeMatchLogic(away, home) {
             awayOrder = (awayOrder + 1) % (currentBatters.length || 9);
         }
 
-        // 裏の攻撃
+        // 裏の攻撃 (HOME攻撃 vs AWAY投手)
         outs = 0; bases = [false, false, false];
         while (outs < 3) {
             let needChange = false;
             if (inning <= 5) {
-                if (pitchCountAway >= curPitcherAway.staMax || curPitcherAwayErInMatch >= 5) needChange = true;
+                if (pitchCountAway >= curPitcherAway.staMax || curPitcherAwayErInMatch >= 6) needChange = true;
             } else {
                 if (curPitcherAway.role === "先発") {
-                    if (pitchCountAway >= curPitcherAway.staMax || curPitcherAwayErInMatch >= 3) needChange = true;
+                    if (pitchCountAway >= curPitcherAway.staMax || curPitcherAwayErInMatch >= 4) needChange = true;
                 } else {
-                    if (currentInningOutsAway >= 3 || curPitcherAwayErInMatch >= 2 || pitchCountAway >= curPitcherAway.staMax) needChange = true;
+                    if (currentInningOutsAway >= 3 || curPitcherAwayErInMatch >= 3 || pitchCountAway >= curPitcherAway.staMax) needChange = true;
                 }
             }
 
@@ -460,12 +466,12 @@ function executeMatchLogic(away, home) {
                 let rand_type = Math.random() * (gb_p + fb_p + ld_p);
                 let hitType = rand_type < gb_p ? "GB" : (rand_type < gb_p + fb_p ? "FB" : "LD");
                 
-                let baseHitChance = hitType === "GB" ? 0.28 : (hitType === "FB" ? 0.22 : 0.72);
+                let baseHitChance = hitType === "GB" ? 0.32 : (hitType === "FB" ? 0.28 : 0.76);
                 let h9Effect = (55 - curPitcherAway.h9) * 0.0015;
-                let finalHitChance = Math.max(0.12, Math.min(0.90, baseHitChance + h9Effect));
+                let finalHitChance = Math.max(0.18, Math.min(0.92, baseHitChance + h9Effect));
 
                 if(Math.random() < finalHitChance) {
-                    let hr9Reduction = (curPitcherAway.hr9 / 100) * 0.5;
+                    let hr9Reduction = (curPitcherAway.hr9 / 100) * 0.4;
                     let finalBarrel = (b.barrel / 100) * (1 - hr9Reduction);
                     
                     let kind = "1B";
@@ -473,7 +479,8 @@ function executeMatchLogic(away, home) {
                         kind = "HR";
                         b.stats.hr++;
                     } else {
-                        kind = Math.random() < 0.22 ? "2B" : "1B";
+                        let extraBaseChance = 0.15 + (b.isop * 0.003);
+                        kind = Math.random() < extraBaseChance ? "2B" : "1B";
                     }
                     
                     b.stats.hits++;
