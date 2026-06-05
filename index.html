@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>リアルタイム・野球対決シミュレーター (スタッツ拡張版)</title>
+    <title>本格派・野球試合シミュレーター (HOME vs AWAY)</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -13,7 +13,7 @@
             padding: 20px;
         }
         .container {
-            max-width: 950px;
+            max-width: 1000px;
             margin: 0 auto;
             background: white;
             padding: 30px;
@@ -23,8 +23,41 @@
         h1 {
             text-align: center;
             color: #1a4a75;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
+        /* スコアボード */
+        .scoreboard {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+            background: #1a202c;
+            color: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .scoreboard th, .scoreboard td {
+            border: 1px solid #4a5568;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .scoreboard th { background: #2d3748; color: #a0aec0; }
+        .scoreboard td.runs { color: #ecc94b; font-size: 1.2em; }
+
+        /* 試合中継ステータス表示 */
+        .game-status-box {
+            display: flex;
+            justify-content: space-between;
+            background: #fffaf0;
+            border: 2px solid #feebc8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .status-item { font-size: 1.1em; }
+        .diamond { color: #4a5568; font-size: 1.2em; }
+
         .grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -42,109 +75,33 @@
             color: #2c5282;
             border-bottom: 2px solid #edf2f7;
             padding-bottom: 8px;
-            font-size: 1.3em;
+            font-size: 1.2em;
         }
-        .form-group {
-            margin-bottom: 12px;
-        }
-        label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-            font-size: 0.9em;
-        }
+        .form-group { margin-bottom: 10px; }
+        label { display: block; font-weight: bold; margin-bottom: 3px; font-size: 0.85em; }
         input[type="number"] {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #cbd5e0;
-            border-radius: 4px;
-            box-sizing: border-box;
+            width: 100%; padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px; box-sizing: border-box;
         }
-        .pitch-counter-box {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #fffaf0;
-            border: 2px solid #feebc8;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
+        
+        .btn-play {
+            display: block; width: 100%; padding: 15px; background: #2b6cb0; color: white;
+            border: none; border-radius: 6px; font-size: 1.3em; cursor: pointer; font-weight: bold;
+            transition: background 0.2s; margin-bottom: 15px;
         }
-        .pitch-count-display {
-            font-size: 2em;
-            font-weight: bold;
-            color: #dd6b20;
-        }
-        button {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            background: #2f855a;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 1.3em;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.2s;
+        .btn-play:hover { background: #2c5282; }
+        .btn-reset {
+            display: block; width: 100%; padding: 8px; background: #e53e3e; color: white;
+            border: none; border-radius: 6px; font-size: 0.9em; cursor: pointer; font-weight: bold;
             margin-bottom: 25px;
         }
-        button:hover {
-            background: #22543d;
-        }
+
         .result-box {
-            margin-top: 30px;
-            padding: 25px;
-            background: #f7fafc;
-            border: 2px solid #cbd5e0;
-            border-radius: 8px;
-        }
-        .result-title {
-            font-weight: bold;
-            font-size: 1.4em;
-            color: #2b6cb0;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #cbd5e0;
-            padding-bottom: 5px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-            background: white;
-        }
-        th, td {
-            border: 1px solid #e2e8f0;
-            padding: 10px;
-            text-align: center;
-        }
-        th {
-            background: #edf2f7;
+            margin-top: 25px; padding: 25px; background: #f7fafc; border: 2px solid #cbd5e0; border-radius: 8px;
         }
         .log {
-            background: #1a202c;
-            color: #fff;
-            padding: 20px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 1.1em;
-            line-height: 1.6;
-            margin-top: 15px;
-            white-space: pre-wrap;
-        }
-        .defense-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-        }
-        .defense-cell {
-            background: #fff;
-            border: 1px solid #cbd5e0;
-            padding: 8px;
-            border-radius: 6px;
-        }
-        .defense-cell label {
-            color: #2f855a;
+            background: #1a202c; color: #fff; padding: 20px; border-radius: 6px;
+            font-family: monospace; font-size: 1.1em; line-height: 1.6; margin-top: 15px;
+            white-space: pre-wrap; max-height: 400px; overflow-y: auto;
         }
         .hit-badge { background: #e53e3e; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
         .barrel-badge { background: #d69e2e; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
@@ -154,321 +111,336 @@
 <body>
 
 <div class="container">
-    <h1>野球対決シミュレーター (バレル率・失策指標対応)</h1>
+    <h1>本格派・野球試合シミュレーター</h1>
 
-    <div class="pitch-counter-box">
-        <div>
-            <span style="font-weight: bold; color: #7b341e;">【投手ステータス】</span>
-            <br><small style="color: #718096;">バレル率による長打判定と、野手のエラー率が結果に影響します</small>
-        </div>
-        <div>
-            現在の総球数: <span class="pitch-count-display" id="display_balls">85</span> 球
-        </div>
+    <table class="scoreboard">
+        <thead>
+            <tr>
+                <th style="width: 150px;">チーム</th>
+                <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th>
+                <th style="width: 60px; background: #2d3748;">R</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>AWAY (先攻)</td>
+                <td id="a1">-</td><td id="a2">-</td><td id="a3">-</td><td id="a4">-</td><td id="a5">-</td><td id="a6">-</td><td id="a7">-</td><td id="a8">-</td><td id="a9">-</td>
+                <td id="away_runs" class="runs">0</td>
+            </tr>
+            <tr>
+                <td>HOME (後攻)</td>
+                <td id="h1">-</td><td id="h2">-</td><td id="h3">-</td><td id="h4">-</td><td id="h5">-</td><td id="h6">-</td><td id="h7">-</td><td id="h8">-</td><td id="h9">-</td>
+                <td id="home_runs" class="runs">0</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="game-status-box">
+        <div class="status-item" id="current_inning_text">試合前</div>
+        <div class="status-item" id="outs_text">0 アウト</div>
+        <div class="status-item" id="pitcher_status_text">先発投手: 0球</div>
+        <div class="status-item diamond" id="runners_text">◆ ◆ ◆ (ランナーなし)</div>
     </div>
+
+    <button class="btn-play" id="play_btn" onclick="playNextHalfInning()">次のイニングの攻撃を開始</button>
+    <button class="btn-reset" onclick="resetGame()">試合をリセット</button>
 
     <div class="grid">
         <div class="card">
-            <h2>投手設定</h2>
-            <div class="form-group">
-                <label>初期球数</label>
-                <input type="number" id="p_balls" value="85" min="0" onchange="updateInitialBalls()">
-            </div>
-            <div class="form-group">
-                <label>基準四死球率 (%)</label>
-                <input type="number" id="p_bb" value="8.0" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>被バレル率補正値<br><small>(打者のバレル率に掛け合わせる倍率。1.0で標準)</small></label>
-                <input type="number" id="p_barrel_factor" value="1.0" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>100球超の四死球率増加係数 (1球ごと%)</label>
-                <input type="number" id="p_fatigue" value="0.05" step="0.01">
-            </div>
+            <h2>打撃・チーム基準設定</h2>
+            <div class="form-group"><label>基準四死球率 (%)</label><input type="number" id="base_bb" value="8.0" step="0.1"></div>
+            <div class="form-group"><label>バレル率 (Barrel%)</label><input type="number" id="base_barrel" value="10.0" step="0.1"></div>
+            <div class="form-group"><label>ゴロ (GB) %</label><input type="number" id="hit_gb" value="45"></div>
+            <div class="form-group"><label>フライ (FB) %</label><input type="number" id="hit_fb" value="35"></div>
+            <div class="form-group"><label>ライナー (LD) %</label><input type="number" id="hit_ld" value="20"></div>
         </div>
 
         <div class="card">
-            <h2>打者設定</h2>
-            <div class="form-group">
-                <label>対戦ごとの打席数 (1〜5打席目)</label>
-                <input type="number" id="b_order" value="3" min="1" max="5">
-            </div>
-            <div class="form-group">
-                <label>基準四死球率 (%)</label>
-                <input type="number" id="b_bb" value="10.0" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>バレル率 (Barrel%)<br><small>(フライ・ライナー時にホームラン級になる確率 %)</small></label>
-                <input type="number" id="b_barrel" value="12.5" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>打席回数による四死球率上昇係数</label>
-                <input type="number" id="b_eye" value="0.5" step="0.1">
-            </div>
+            <h2>投手・守備基準設定</h2>
+            <div class="form-group"><label>先発投手 100球超の四死球率増加係数 (1球ごと%)</label><input type="number" id="p_fatigue" value="0.05" step="0.01"></div>
+            <div class="form-group"><label>リリーフ投手 四死球率補正値 (先発の何倍コントロールが良いか。0.9で優秀)</label><input type="number" id="reliefe_factor" value="0.9" step="0.1"></div>
+            <div class="form-group"><label>野手平均 UZR (守備範囲。高いほど安打阻止)</label><input type="number" id="team_uzr" value="2.0" step="0.5"></div>
+            <div class="form-group"><label>野手平均 エラー率 (%)</label><input type="number" id="team_err" value="2.5" step="0.1"></div>
         </div>
     </div>
-
-    <div class="card" style="margin-bottom: 25px;">
-        <h2>打球タイプ・方向配分設定 (%)</h2>
-        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 10px;">
-            <div><label>ゴロ (GB) %</label><input type="number" id="hit_gb" value="45"></div>
-            <div><label>フライ (FB) %</label><input type="number" id="hit_fb" value="35"></div>
-            <div><label>ライナー (LD) %</label><input type="number" id="hit_ld" value="20"></div>
-        </div>
-        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 0;">
-            <div><label>左翼方向 %</label><input type="number" id="dir_left" value="35"></div>
-            <div><label>中堅方向 %</label><input type="number" id="dir_center" value="40"></div>
-            <div><label>右翼方向 %</label><input type="number" id="dir_right" value="25"></div>
-        </div>
-    </div>
-
-    <div class="card" style="margin-bottom: 25px; background: #f0fff4; border-color: #c6f6d5;">
-        <h2>野手陣の守備指標・エラー率設定</h2>
-        <p style="font-size: 0.85em; color: #4a5568; margin-top: -10px;">UZR: 守備範囲の広さ(0が平均) / エラー率: 打球を処理する際に失策する確率(%)</p>
-        
-        <div class="defense-grid">
-            <div class="defense-cell">
-                <label>三塁手 (3B)</label>
-                <small>UZR</small><input type="number" id="uzr_3b" value="5.0" step="0.5">
-                <small>エラー率%</small><input type="number" id="err_3b" value="4.5" step="0.1">
-            </div>
-            <div class="defense-cell">
-                <label>遊撃手 (SS)</label>
-                <small>UZR</small><input type="number" id="uzr_ss" value="10.0" step="0.5">
-                <small>エラー率%</small><input type="number" id="err_ss" value="3.8" step="0.1">
-            </div>
-            <div class="defense-cell">
-                <label>左翼手 (LF)</label>
-                <small>UZR</small><input type="number" id="uzr_lf" value="-2.0" step="0.5">
-                <small>エラー率%</small><input type="number" id="err_lf" value="1.5" step="0.1">
-            </div>
-            <div class="defense-cell">
-                <label>投手 (P)</label>
-                <small>UZR</small><input type="number" id="uzr_p" value="0.0" step="0.5">
-                <small>エラー率%</small><input type="number" id="err_p" value="2.0" step="0.1">
-            </div>
-            <div class="defense-cell">
-                <label>二塁手 (2B)</label>
-                <small>UZR</small><input type="number" id="uzr_2b" value="3.0" step="0.5">
-                <small>エラー率%</small><input type="number" id="err_2b" value="3.2" step="0.1">
-            </div>
-            <div class="defense-cell">
-                <label>中堅手 (CF)</label>
-                <small>UZR</small><input type="number" id="uzr_cf" value="8.0" step="0.5">
-                <small>エラー率%</small><input type="number" id="err_cf" value="1.0" step="0.1">
-            </div>
-            <div class="defense-cell">
-                <label>一塁手 (1B)</label>
-                <small>UZR</small><input type="number" id="uzr_1b" value="-1.0" step="0.5">
-                <small>エラー率%</small><input type="number" id="err_1b" value="2.5" step="0.1">
-            </div>
-            <div></div> <div class="defense-cell">
-                <label>右翼手 (RF)</label>
-                <small>UZR</small><input type="number" id="uzr_rf" value="-4.0" step="0.5">
-                <small>エラー率%</small><input type="number" id="err_rf" value="2.0" step="0.1">
-            </div>
-        </div>
-    </div>
-
-    <button onclick="simulateMatch()">対決をシミュレートする</button>
 
     <div class="result-box" id="resultArea" style="display:none;">
-        <div class="result-title">【シミュレーション結果】</div>
-        <table>
-            <tr>
-                <th>この打席開始時の球数</th>
-                <td id="res_current_balls" style="font-weight: bold; color: #dd6b20;">85球から</td>
-                <th>この1打席の総消費球数</th>
-                <td id="res_added_balls" style="font-weight: bold; color: #4a5568;">0球で決着</td>
-            </tr>
-            <tr>
-                <th>補正後 投手四死球率</th>
-                <td id="res_p_bb">0%</td>
-                <th>算出された最終バレル率</th>
-                <td id="res_final_barrel" style="color: #d69e2e; font-weight: bold;">0%</td>
-            </tr>
-            <tr style="background: #ebf8ff; font-weight: bold;">
-                <th>この対戦での四死球確率</th>
-                <td id="res_final_bb" style="color: #c53030;">0%</td>
-                <th>フィールドに飛ぶ確率</th>
-                <td id="res_final_bip">0%</td>
-            </tr>
-        </table>
-
+        <div class="result-title" id="log_title">イニング実況</div>
         <div class="log" id="simLog"></div>
     </div>
 </div>
 
 <script>
-let currentBalls = 85;
+// --- 試合進行管理用の状態変数 ---
+let inning = 1;         // 1〜9イニング
+let isTop = true;       // true=表(AWAYの攻撃), false=裏(HOMEの攻撃)
+let gameOver = false;
 
-function updateInitialBalls() {
-    currentBalls = parseFloat(document.getElementById('p_balls').value);
-    document.getElementById('display_balls').innerText = currentBalls;
+let awayScore = [0,0,0,0,0,0,0,0,0];
+let homeScore = [0,0,0,0,0,0,0,0,0];
+
+// 投手状態 (AWAY側、HOME側)
+let pitcherState = {
+    away: { name: "AWAY先発", balls: 0, runsAllowed: 0, isRelief: false, inningsPitchedThisRelief: 0 },
+    home: { name: "HOME先発", balls: 0, runsAllowed: 0, isRelief: false, inningsPitchedThisRelief: 0 }
+};
+
+function resetGame() {
+    inning = 1; isTop = true; gameOver = false;
+    awayScore = [0,0,0,0,0,0,0,0,0]; homeScore = [0,0,0,0,0,0,0,0,0];
+    pitcherState = {
+        away: { name: "AWAY先発", balls: 0, runsAllowed: 0, isRelief: false, inningsPitchedThisRelief: 0 },
+        home: { name: "HOME先発", balls: 0, runsAllowed: 0, isRelief: false, inningsPitchedThisRelief: 0 }
+    };
+    for(let i=1; i<=9; i++) {
+        document.getElementById(`a${i}`).innerText = "-";
+        document.getElementById(`h${i}`).innerText = "-";
+    }
+    document.getElementById("away_runs").innerText = "0";
+    document.getElementById("home_runs").innerText = "0";
+    document.getElementById("current_inning_text").innerText = "試合前";
+    document.getElementById("outs_text").innerText = "0 アウト";
+    document.getElementById("pitcher_status_text").innerText = "先発投手: 0球";
+    document.getElementById("runners_text").innerText = "◆ ◆ ◆ (ランナーなし)";
+    document.getElementById("play_btn").innerText = "次のイニングの攻撃を開始";
+    document.getElementById("play_btn").disabled = false;
+    document.getElementById("simLog").innerText = "";
+    document.getElementById("resultArea").style.display = "none";
 }
 
-function simulateMatch() {
-    const addedBalls = Math.floor(Math.random() * 6) + 1; 
+function playNextHalfInning() {
+    if (gameOver) return;
+
+    let offenseTeam = isTop ? "AWAY" : "HOME";
+    let defenseTeam = isTop ? "HOME" : "AWAY";
+    let currentPitcher = isTop ? pitcherState.home : pitcherState.away; // 攻撃の裏にいるのが防御側の投手
+
+    // --- 【継投判定①】リリーフがすでに1イニング投げ切っていたら自動交代 (回またぎなし) ---
+    if (currentPitcher.isRelief && currentPitcher.inningsPitchedThisRelief >= 1) {
+        currentPitcher.name = `${defenseTeam}リリーフ`;
+        currentPitcher.balls = 0;
+        currentPitcher.inningsPitchedThisRelief = 0;
+        alert(`${defenseTeam}は新しいリリーフ投手を投入します（回またぎ回避）。`);
+    }
+
+    let logText = `=== ${inning}回${isTop ? '表' : '裏'} 【${offenseTeam}の攻撃】 (投手: ${currentPitcher.name}, 通算${currentPitcher.balls}球) ===\n`;
     
-    // 値の取得
-    const p_bb_base = parseFloat(document.getElementById('p_bb').value) / 100;
-    const p_fatigue = parseFloat(document.getElementById('p_fatigue').value) / 100;
-    const p_barrel_factor = parseFloat(document.getElementById('p_barrel_factor').value);
+    let outs = 0;
+    let bases = [false, false, false]; // 一塁, 二塁, 三塁
+    let inningRuns = 0;
 
-    const b_order = parseInt(document.getElementById('b_order').value);
-    const b_bb_base = parseFloat(document.getElementById('b_bb').value) / 100;
-    const b_barrel = parseFloat(document.getElementById('b_barrel').value) / 100;
-    const b_eye = parseFloat(document.getElementById('b_eye').value) / 100;
-
+    // パラメータ取得
+    const base_bb = parseFloat(document.getElementById('base_bb').value) / 100;
+    const base_barrel = parseFloat(document.getElementById('base_barrel').value) / 100;
     const gb_p = parseFloat(document.getElementById('hit_gb').value);
     const fb_p = parseFloat(document.getElementById('hit_fb').value);
     const ld_p = parseFloat(document.getElementById('hit_ld').value);
+    const team_uzr = parseFloat(document.getElementById('team_uzr').value);
+    const team_err = parseFloat(document.getElementById('team_err').value) / 100;
+    const p_fatigue = parseFloat(document.getElementById('p_fatigue').value) / 100;
+    const reliefe_factor = parseFloat(document.getElementById('reliefe_factor').value);
 
-    const dir_l = parseFloat(document.getElementById('dir_left').value);
-    const dir_c = parseFloat(document.getElementById('dir_center').value);
-    const dir_r = parseFloat(document.getElementById('dir_right').value);
+    // 1半イニングのシミュレート（3アウトになるまで）
+    while (outs < 3) {
+        // 現在ピンチ（得点圏にランナーがいる）かどうかの判定
+        let isScoringPosition = bases[1] || bases[2];
 
-    const uzr = {
-        'P': parseFloat(document.getElementById('uzr_p').value), '1B': parseFloat(document.getElementById('uzr_1b').value),
-        '2B': parseFloat(document.getElementById('uzr_2b').value), '3B': parseFloat(document.getElementById('uzr_3b').value),
-        'SS': parseFloat(document.getElementById('uzr_ss').value), 'LF': parseFloat(document.getElementById('uzr_lf').value),
-        'CF': parseFloat(document.getElementById('uzr_cf').value), 'RF': parseFloat(document.getElementById('uzr_rf').value)
-    };
-    
-    const errRates = {
-        'P': parseFloat(document.getElementById('err_p').value) / 100, '1B': parseFloat(document.getElementById('err_1b').value) / 100,
-        '2B': parseFloat(document.getElementById('err_2b').value) / 100, '3B': parseFloat(document.getElementById('err_3b').value) / 100,
-        'SS': parseFloat(document.getElementById('err_ss').value) / 100, 'LF': parseFloat(document.getElementById('err_lf').value) / 100,
-        'CF': parseFloat(document.getElementById('err_cf').value) / 100, 'RF': parseFloat(document.getElementById('err_rf').value) / 100
-    };
-
-    const league_bb = 0.08;
-
-    // 確率計算
-    let p_bb_calc = p_bb_base + (currentBalls > 100 ? (currentBalls - 100) * p_fatigue : 0);
-    let b_bb_calc = b_bb_base + ((b_order - 1) * b_eye);
-
-    const numerator = (p_bb_calc * b_bb_calc) / league_bb;
-    const denominator = numerator + ((1 - p_bb_calc) * (1 - b_bb_calc) / (1 - league_bb));
-    const final_bb_probability = numerator / denominator;
-
-    // 最終バレル率（打者のバレル率 × 投手の被バレル倍率）
-    const final_barrel_prob = b_barrel * p_barrel_factor;
-
-    // 表への表示
-    document.getElementById('res_current_balls').innerText = currentBalls + "球目から";
-    document.getElementById('res_added_balls').innerText = addedBalls + "球で決着";
-    document.getElementById('res_p_bb').innerText = (p_bb_calc * 100).toFixed(2) + "%";
-    document.getElementById('res_final_barrel').innerText = (final_barrel_prob * 100).toFixed(1) + "%";
-    document.getElementById('res_final_bb').innerText = (final_bb_probability * 100).toFixed(2) + "%";
-    document.getElementById('res_final_bip').innerText = ((1 - final_bb_probability) * 100).toFixed(2) + "%";
-
-    // 履歴テキスト生成
-    let historyText = "📋 【打席内の投球履歴】\n";
-    for (let i = 1; i < addedBalls; i++) {
-        let ballNum = currentBalls + i;
-        let r = Math.random();
-        let pitchResult = r < 0.4 ? "ボール" : (r < 0.7 ? "ストライク" : "ファウル");
-        historyText += `  ${i}球目 (通算${ballNum}球目): ${pitchResult}\n`;
-    }
-    let finalBallNum = currentBalls + addedBalls;
-    historyText += `👉 ${addedBalls}球目 (通算${finalBallNum}球目): `;
-
-    // イベント判定
-    const random_outcome = Math.random();
-    let resultText = "";
-
-    if (random_outcome < final_bb_probability) {
-        resultText = historyText + "🟢 【結果】 四死球 (Walk)\n投手がコントロールを乱したか、打者がよく見極めて出塁しました。";
-    } else {
-        // 打球発生
-        const rand_type = Math.random() * (gb_p + fb_p + ld_p);
-        let hitType = ""; let hitTypeJa = "";
-        if (rand_type < gb_p) { hitType = "GB"; hitTypeJa = "ゴロ"; }
-        else if (rand_type < gb_p + fb_p) { hitType = "FB"; hitTypeJa = "フライ"; }
-        else { hitType = "LD"; hitTypeJa = "ライナー"; }
-
-        // バレル判定 (フライ・ライナー時のみ)
-        let isBarrel = false;
-        if ((hitType === "FB" || hitType === "LD") && Math.random() < final_barrel_prob) {
-            isBarrel = true;
+        // --- 【継投判定②】先発が100球以上投げていてピンチを迎えたら即リリーフへ交代 ---
+        if (!currentPitcher.isRelief && currentPitcher.balls >= 100 && isScoringPosition) {
+            logText += `\n🚨 【投手交代】先発が100球を超え、ピンチを迎えたためノックアウト！ リリーフ投手をマウンドに送ります。\n\n`;
+            currentPitcher.name = `${defenseTeam}リリーフ`;
+            currentPitcher.balls = 0;
+            currentPitcher.isRelief = true;
+            currentPitcher.inningsPitchedThisRelief = 0;
+            currentPitcher.runsAllowed = 0; 
         }
 
-        const rand_dir = Math.random() * (dir_l + dir_c + dir_r);
-        let dirJa = ""; let targetPosition = ""; 
+        // 消費球数算出 (1〜6球)
+        let abBalls = Math.floor(Math.random() * 6) + 1;
+        currentPitcher.balls += abBalls;
 
-        if (rand_dir < dir_l) {
-            dirJa = "レフト（左翼）方向";
-            targetPosition = (hitType === "GB") ? "3B" : "LF"; 
-        } else if (rand_dir < dir_l + dir_c) {
-            dirJa = "センター（中堅）方向";
-            if (hitType === "GB") {
-                let r = Math.random(); targetPosition = r < 0.2 ? "P" : (r < 0.6 ? "SS" : "2B");
-            } else {
-                targetPosition = "CF";
-            }
-        } else {
-            dirJa = "ライト（右翼）方向";
-            targetPosition = (hitType === "GB") ? "1B" : "RF"; 
+        // 四死球確率の計算（投手特性・疲労反映）
+        let p_bb_calc = base_bb;
+        if (currentPitcher.isRelief) {
+            p_bb_calc = base_bb * reliefe_factor; // リリーフはコントロールが良い
+        } else if (currentPitcher.balls > 100) {
+            p_bb_calc += (currentPitcher.balls - 100) * p_fatigue; // 先発の疲労
         }
 
-        let positionNameMap = {'P':'投手','1B':'一塁手','2B':'二塁手','3B':'三塁手','SS':'遊撃手','LF':'左翼手','CF':'中堅手','RF':'右翼手'};
-        let currentFielder = positionNameMap[targetPosition];
-        let positionUzr = uzr[targetPosition];
-        let positionErrRate = errRates[targetPosition];
+        // 簡易対数オッズ（同能力対決を想定し投手の補正のみ反映）
+        let final_bb_prob = Math.max(0.02, Math.min(0.4, p_bb_calc));
 
-        let playResult = "";
+        logText += `[通算${currentPitcher.balls}球目] `;
 
-        if (isBarrel) {
-            // バレル打球は強制的に超特大ヒット/ホームラン級
-            let barrelOutcome = Math.random() > 0.4 ? "ホームラン（本塁打）" : "フェンス直撃の二塁打";
-            playResult = `🔥 <span class="barrel-badge">バレル打球 (Barrel!)</span>\n打球速度と角度が完璧！${currentFielder}の頭上を遥かに超える、非の打ち所がない【 ${barrelOutcome} 】になりました！`;
+        if (Math.random() < final_bb_prob) {
+            // 四死球で出塁
+            logText += `🟢 四死球: 出塁します。\n`;
+            let runsGained = advanceRunners(bases, "BB");
+            inningRuns += runsGained;
+            currentPitcher.runsAllowed += runsGained;
         } else {
-            // 通常のヒット判定
-            let baseHitChance = 0;
-            if (hitType === "GB") baseHitChance = 0.24; 
-            if (hitType === "FB") baseHitChance = 0.15; 
-            if (hitType === "LD") baseHitChance = 0.68; 
-
-            let defenseCorrection = - (positionUzr * 0.005);
-            let finalHitChance = Math.max(0.02, Math.min(0.98, baseHitChance + defenseCorrection));
-
-            if (Math.random() < finalHitChance) {
-                // ヒット
-                playResult = `🔥 <span class="hit-badge">ヒット (Hit)</span>\n${currentFielder}(UZR: ${positionUzr > 0 ? '+' : ''}${positionUzr})の守備範囲を破る当たり。安打になりました。`;
+            // 打球発生
+            let rand_type = Math.random() * (gb_p + fb_p + ld_p);
+            let hitType = rand_type < gb_p ? "GB" : (rand_type < gb_p + fb_p ? "FB" : "LD");
+            
+            // バレル判定
+            if ((hitType === "FB" || hitType === "LD") && Math.random() < base_barrel) {
+                logText += `🔥 <span class="barrel-badge">バレル炸裂!!</span> 特大の本塁打！\n`;
+                let runsGained = advanceRunners(bases, "HR");
+                inningRuns += runsGained;
+                currentPitcher.runsAllowed += runsGained;
             } else {
-                // 守備が追いついた！しかしここでエラー判定
-                // ゴロやライナーはフライに比べてエラーが起きやすいように少し補正
-                let errModifier = hitType === "GB" ? 1.2 : (hitType === "LD" ? 1.0 : 0.5);
-                let finalErrChance = positionErrRate * errModifier;
+                // 通常打球の安打・アウト・エラー判定
+                let baseHitChance = hitType === "GB" ? 0.24 : (hitType === "FB" ? 0.15 : 0.68);
+                let defenseCorrection = - (team_uzr * 0.005);
+                let finalHitChance = Math.max(0.02, Math.min(0.95, baseHitChance + defenseCorrection));
 
-                if (Math.random() < finalErrChance) {
-                    // エラー発生
-                    let errAction = hitType === "GB" ? "がゴロをファンブル、または一塁悪送球！" : "が目測を誤ってグラブに当てながらも落球！";
-                    playResult = `⚠️ <span class="error-badge">失策 (Error)</span>\n${currentFielder}が打球に追いつきましたが、${errAction} 打者走者はエラーにより出塁！`;
+                if (Math.random() < finalHitChance) {
+                    // ヒット
+                    let hitKind = Math.random() < 0.2 ? "2B" : "1B"; // 2割で二塁打
+                    logText += `🔥 <span class="hit-badge">ヒット [${hitType}]</span>: 快音を残して安打！\n`;
+                    let runsGained = advanceRunners(bases, hitKind);
+                    inningRuns += runsGained;
+                    currentPitcher.runsAllowed += runsGained;
                 } else {
-                    // 通常アウト
-                    let outAction = "";
-                    if (hitType === "GB") outAction = "がゴロを軽快にさばいてファーストアウト！";
-                    if (hitType === "FB") outAction = "が落下点に入り、がっちり掴んでフライアウト！";
-                    if (hitType === "LD") outAction = "が鋭いライナーを正面正面でがっちりキャッチ！";
-                    playResult = `アウト (Out)\n${currentFielder}(UZR: ${positionUzr > 0 ? '+' : ''}${positionUzr})${outAction}`;
+                    // 守備範囲内。エラー判定
+                    if (Math.random() < team_err) {
+                        logText += `⚠️ <span class="error-badge">失策 (Error)</span>: 守備陣が手につき落球、または悪送球！出塁。\n`;
+                        let runsGained = advanceRunners(bases, "1B");
+                        inningRuns += runsGained;
+                        currentPitcher.runsAllowed += runsGained;
+                    } else {
+                        // 通常アウト
+                        outs++;
+                        logText += `❌ アウト (${outs}アウト) [${hitType}]\n`;
+                    }
                 }
             }
         }
 
-        resultText = historyText + `バットを振った！【打球発生】\n`;
-        resultText += `  打球種類: ${hitTypeJa} [${hitType}]\n`;
-        resultText += `  打球方向: ${dirJa}\n`;
-        resultText += `  ----------------------------------------\n  `;
-        resultText += playResult;
+        // --- 【継投判定③】合計6失点（先発・リリーフ問わず）でノックアウトされ強制交代 ---
+        if (currentPitcher.runsAllowed >= 6) {
+            logText += `\n💥 【投手ノックアウト】合計6失点に達したため、緊急の投手交代を行います！\n\n`;
+            currentPitcher.name = `${defenseTeam}リリーフ`;
+            currentPitcher.balls = 0;
+            currentPitcher.isRelief = true;
+            currentPitcher.inningsPitchedThisRelief = 0;
+            currentPitcher.runsAllowed = 0; 
+        }
     }
 
-    currentBalls += addedBalls;
-    document.getElementById('display_balls').innerText = currentBalls;
+    // イニング終了処理
+    logText += `\nチェンジ！ このイニングの得点: ${inningRuns}\n`;
 
-    document.getElementById('simLog').innerHTML = resultText;
-    document.getElementById('resultArea').style.display = "block";
+    // スコアの記録
+    if (isTop) {
+        awayScore[inning - 1] = inningRuns;
+        document.getElementById(`a${inning}`).innerText = inningRuns;
+    } else {
+        homeScore[inning - 1] = inningRuns;
+        document.getElementById(`h${inning}`).innerText = inningRuns;
+    }
+
+    // 総得点の更新
+    let totalAway = awayScore.reduce((a,b)=>a+b, 0);
+    let totalHome = homeScore.reduce((a,b)=>a+b, 0);
+    document.getElementById("away_runs").innerText = totalAway;
+    document.getElementById("home_runs").innerText = totalHome;
+
+    // リリーフのイニング消化カウントをプラス（1イニング終了）
+    if (currentPitcher.isRelief) {
+        currentPitcher.inningsPitchedThisRelief++;
+    }
+
+    // --- 【継投判定④】先発が105球以上投げてイニングを終えたら、次のイニングからリリーフへ交代 ---
+    if (!currentPitcher.isRelief && currentPitcher.balls >= 105) {
+        currentPitcher.name = `${defenseTeam}リリーフ`;
+        currentPitcher.balls = 0;
+        currentPitcher.isRelief = true;
+        currentPitcher.inningsPitchedThisRelief = 0;
+        currentPitcher.runsAllowed = 0;
+        logText += `\n📢 【次イニング予告】${defenseTeam}の先発投手は105球を超えたため、このイニングでマウンドを降ります。次からリリーフが登板します。\n`;
+    }
+
+    // ログ画面への反映
+    document.getElementById("simLog").innerHTML = logText;
+    document.getElementById("resultArea").style.display = "block";
+
+    // 試合終了判定（9回裏終了、またはサヨナラなど）
+    checkGameOver(totalAway, totalHome);
+
+    // 次のイニングへ進める処理
+    if (!gameOver) {
+        if (isTop) {
+            isTop = false; // 裏の攻撃へ
+        } else {
+            isTop = true; inning++; // 次の回の表へ
+        }
+        updateStatusDisplay();
+    }
+}
+
+// ランナーを進める処理関数（得点数を返す）
+function advanceRunners(bases, hitKind) {
+    let runs = 0;
+    if (hitKind === "BB") {
+        // 押し出しの判定
+        if (bases[0] && bases[1] && bases[2]) { runs++; }
+        else if (bases[0] && bases[1]) { bases[2] = true; }
+        else if (bases[0]) { bases[1] = true; }
+        bases[0] = true;
+    } else if (hitKind === "1B") {
+        if (bases[2]) { runs++; bases[2] = false; }
+        if (bases[1]) { bases[2] = true; bases[1] = false; }
+        if (bases[0]) { bases[1] = true; }
+        bases[0] = true;
+    } else if (hitKind === "2B") {
+        if (bases[2]) { runs++; bases[2] = false; }
+        if (bases[1]) { runs++; bases[1] = false; }
+        if (bases[0]) { bases[2] = true; bases[0] = false; }
+        bases[1] = true;
+    } else if (hitKind === "HR") {
+        runs += 1 + (bases[0]?1:0) + (bases[1]?1:0) + (bases[2]?1:0);
+        bases[0] = false; bases[1] = false; bases[2] = false;
+    }
+    return runs;
+}
+
+function updateStatusDisplay() {
+    document.getElementById("current_inning_text").innerText = `${inning}回${isTop ? '表' : '裏'}`;
+    document.getElementById("outs_text").innerText = "0 アウト";
+    let nextPitcher = isTop ? pitcherState.home : pitcherState.away;
+    document.getElementById("pitcher_status_text").innerText = `対戦投手: ${nextPitcher.name} (${nextPitcher.balls}球)`;
+    document.getElementById("runners_text").innerText = "◆ ◆ ◆ (ランナーなし)";
+    document.getElementById("play_btn").innerText = `${inning}回${isTop ? '表 (AWAY攻撃)' : '裏 (HOME攻撃)'} をシミュレート`;
+}
+
+function checkGameOver(away, home) {
+    // 9回表終了時にHOMEが勝っている、または9回裏終了時
+    if (inning >= 9) {
+        if (isTop && home > away) {
+            endGame(`試合終了！ ${home} - ${away} で HOMEチームの勝利！ (9回表コールド)`);
+            return;
+        }
+        if (!isTop) {
+            if (home > away) {
+                endGame(`試合終了！ ${home} - ${away} で HOMEチームのサヨナラ勝利！`);
+            } else if (away > home) {
+                endGame(`試合終了！ ${away} - ${home} で AWAYチームの勝利！`);
+            } else {
+                endGame(`試合終了！ ${away} - ${home} で 引き分けです！`);
+            }
+            return;
+        }
+    }
+}
+
+function endGame(message) {
+    gameOver = true;
+    document.getElementById("current_inning_text").innerText = "試合終了";
+    document.getElementById("play_btn").innerText = "試合が終了しました";
+    document.getElementById("play_btn").disabled = true;
+    document.getElementById("simLog").innerHTML += `\n👑 <b>${message}</b>`;
 }
 </script>
 
