@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>本格派・プロ野球6球団ペナンシミュレーター & エディタ (無限ループ完全修正版)</title>
+    <title>本格派・プロ野球6球団ペナンシミュレーター & エディタ (超高速・安定版)</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -233,21 +233,33 @@ function initializeLeagueData() {
     }
 }
 
-function getSchedulePattern(roundCount) {
-    const pairings = [
-        [[0,1], [2,3], [4,5]],
-        [[0,2], [1,4], [3,5]],
-        [[0,3], [1,5], [2,4]],
-        [[0,4], [2,5], [1,3]],
-        [[0,5], [1,2], [3,4]]
-    ];
-    return pairings[roundCount % 5];
+// 【完全修正】動的に破綻のないスケジュール(総当たり対戦ペア)を生成するアルゴリズム
+function getDynamicSchedule(roundCount) {
+    let numTeams = 6;
+    let totalRounds = numTeams - 1; // 1つの周期は5節
+    let currentRound = roundCount % totalRounds;
+
+    let pairings = [];
+    let list = [0, 1, 2, 3, 4, 5];
+
+    // ロビンラウンド(円環シフト)法による対戦決定
+    for (let i = 0; i < numTeams / 2; i++) {
+        let awayIdx = (currentRound + i) % (numTeams - 1);
+        let homeIdx = (numTeams - 1 - i + currentRound) % (numTeams - 1);
+        
+        if (i === 0) {
+            homeIdx = numTeams - 1; // 最後のチーム(5)を固定位置にする
+        }
+        pairings.push([list[awayIdx], list[homeIdx]]);
+    }
+    return pairings;
 }
 
 function simulateRound() {
     if(totalGamesPlayed >= MAX_GAMES) return null;
     
-    let pattern = getSchedulePattern(totalGamesPlayed);
+    // 動的スケジュールから本日の対戦カードを破綻なく取得
+    let pattern = getDynamicSchedule(totalGamesPlayed);
     let roundResults = [];
 
     pattern.forEach(pair => {
@@ -267,7 +279,6 @@ function simulateRound() {
     return roundResults;
 }
 
-// 【完全修正】無限ループを確実に根絶した試合ロジック
 function executeMatchLogic(away, home) {
     let pAway = away.pitchers.filter(p => p.role === "先発")[away.rotationIdx % 5];
     let pHome = home.pitchers.filter(p => p.role === "先発")[home.rotationIdx % 5];
@@ -297,7 +308,7 @@ function executeMatchLogic(away, home) {
         currentInningOutsAway = 0;
         currentInningOutsHome = 0;
 
-        // 表の攻撃 (AWAY攻撃 vs HOME投手)
+        // 表の攻撃
         let outs = 0; let bases = [false, false, false];
         while (outs < 3) {
             let needChange = false;
@@ -326,11 +337,9 @@ function executeMatchLogic(away, home) {
                 }
             }
             
-            // スタメンをフィルタリングして安全に取得
             let currentBatters = away.batters.filter(bat => bat.role !== "控え" && bat.role.includes("番"));
             let b = currentBatters[awayOrder];
             
-            // 安全装置：もしバッターがいなければ強制的にアウトにして次の打席へ進む（無限ループ防止）
             if(!b) {
                 outs++;
                 curPitcherHome.stats.ipOuts++;
@@ -340,7 +349,6 @@ function executeMatchLogic(away, home) {
             }
 
             b.stats.ab++; pitchCountHome += 4;
-            
             let bbP = (b.bb/100) + ((100 - curPitcherHome.bb9)*0.0006);
             let soP = (b.so/100) + (curPitcherHome.k9*0.001);
             let rand = Math.random();
@@ -388,7 +396,7 @@ function executeMatchLogic(away, home) {
             awayOrder = (awayOrder + 1) % (currentBatters.length || 9);
         }
 
-        // 裏の攻撃 (HOME攻撃 vs AWAY投手)
+        // 裏の攻撃
         outs = 0; bases = [false, false, false];
         while (outs < 3) {
             let needChange = false;
