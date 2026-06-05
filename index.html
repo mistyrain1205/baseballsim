@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>本格派・プロ野球6球団ペナンシミュレーター & エディタ (投手登板数修正版)</title>
+    <title>本格派・プロ野球6球団ペナンシミュレーター & エディタ (投打バランス最適化版)</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -204,7 +204,7 @@ function initializeLeagueData() {
                 currentPos: pos,
                 bb: isStamen ? [11, 9, 12, 15, 10, 8, 7, 7, 5][i-1] : 7.0,
                 so: isStamen ? [14, 16, 15, 20, 18, 22, 23, 25, 30][i-1] : 22.0,
-                barrel: isStamen ? [5, 6, 14, 21, 11, 9, 7, 5, 3][i-1] : 6.0,
+                barrel: isStamen ? [6, 7, 15, 22, 13, 10, 8, 6, 4][i-1] : 6.0, // バレル率のベースを微増調整
                 isop: isStamen ? [10, 12, 24, 36, 18, 16, 14, 9, 5][i-1] : 12,
                 uzr: isStamen ? [3, 4, 1.5, 1.0, 3.5, 0, 1, 0.5, 0][i-1] : 0,
                 err: 2.0,
@@ -220,13 +220,12 @@ function initializeLeagueData() {
                 role: isStarter ? "先発" : (i === 12 ? "守護神" : "リリーフ"),
                 currentPos: "投手",
                 originalPos: "投手",
-                h9: isStarter ? 70 + i : 75 + (i-5),
-                k9: isStarter ? 75 - i : 80 + (i-5),
+                h9: isStarter ? 65 + i : 70 + (i-5), // 投手の初期被安打抑制を現実的に少しマイルドに調整
+                k9: isStarter ? 70 - i : 75 + (i-5),
                 bb9: isStarter ? 70 : 65,
                 hr9: isStarter ? 65 : 70,
                 staMax: isStarter ? 95 : 35,
                 staCurrent: isStarter ? 95 : 35,
-                // ipOuts: 防御率計算がバグらないよう、投球回数を内部で「アウト数」で厳密に管理
                 stats: { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0 }
             });
         }
@@ -258,10 +257,9 @@ function simulateRound() {
         roundResults.push(res);
     });
 
-    // リカバーススタミナ回復
     teams.forEach(t => {
         t.pitchers.forEach(p => {
-            if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + 6);
+            if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + 8);
         });
     });
 
@@ -269,6 +267,7 @@ function simulateRound() {
     return roundResults;
 }
 
+// 投打バランスを最適化した試合計算ロジック
 function executeMatchLogic(away, home) {
     let pAway = away.pitchers.filter(p => p.role === "先発")[away.rotationIdx % 5];
     let pHome = home.pitchers.filter(p => p.role === "先発")[home.rotationIdx % 5];
@@ -282,132 +281,212 @@ function executeMatchLogic(away, home) {
     curPitcherAway.stats.appearances++;
     curPitcherHome.stats.appearances++;
 
-    // 試合中に一度でも登板したリリーフを記録する配列（重複加算ガード用）
-    let appearedPitchersAway = [pAway.name];
-    let appearedPitchersHome = [pHome.name];
+    let appearedAway = [pAway.name];
+    let appearedHome = [pHome.name];
 
     let awayScore = 0, homeScore = 0;
     let awayOrder = 0, homeOrder = 0;
     let pitchCountAway = 0, pitchCountHome = 0;
 
+    let curPitcherAwayErInMatch = 0;
+    let curPitcherHomeErInMatch = 0;
+    let currentInningOutsAway = 0; 
+    let currentInningOutsHome = 0; 
+
     for (let inning = 1; inning <= 9; inning++) {
-        // 表の攻撃 (AWAYチームの攻撃 vs HOMEの投手)
+        currentInningOutsAway = 0;
+        currentInningOutsHome = 0;
+
+        // 表の攻撃 (AWAY攻撃 vs HOME投手)
         let outs = 0; let bases = [false, false, false];
         while (outs < 3) {
-            if (pitchCountHome >= curPitcherHome.staMax || curPitcherHome.stats.er >= 3) {
+            let needChange = false;
+            if (inning <= 5) {
+                if (pitchCountHome >= curPitcherHome.staMax || curPitcherHomeErInMatch >= 5) needChange = true;
+            } else {
+                if (curPitcherHome.role === "先発") {
+                    if (pitchCountHome >= curPitcherHome.staMax || curPitcherHomeErInMatch >= 3) needChange = true;
+                } else {
+                    if (currentInningOutsHome >= 3 || curPitcherHomeErInMatch >= 2 || pitchCountHome >= curPitcherHome.staMax) needChange = true;
+                }
+            }
+
+            if (needChange) {
                 let availableReliefs = home.pitchers.filter(p => p.role === "リリーフ" && p.staCurrent > 15);
                 if (availableReliefs.length > 0) {
                     availableReliefs.sort((a, b) => a.stats.appearances - b.stats.appearances);
                     curPitcherHome = availableReliefs[0];
-                    
-                    // 重複加算ガード：この試合でまだ未登板の場合のみ登板数を+1
-                    if (!appearedPitchersHome.includes(curPitcherHome.name)) {
+                    if (!appearedHome.includes(curPitcherHome.name)) {
                         curPitcherHome.stats.appearances++;
-                        appearedPitchersHome.push(curPitcherHome.name);
+                        appearedHome.push(curPitcherHome.name);
                     }
                     pitchCountHome = 0;
+                    curPitcherHomeErInMatch = 0;
+                    currentInningOutsHome = 0;
                 }
             }
             
             let b = away.batters.filter(bat => bat.role !== "控え")[awayOrder];
             if(b) {
                 b.stats.ab++; pitchCountHome += 4;
-                let bbP = (b.bb/100) + ((100 - curPitcherHome.bb9)*0.001);
-                let soP = (b.so/100) + (curPitcherHome.k9*0.002);
+                
+                // 四死球・三振計算の確率スケールをややマイルドに変更
+                let bbP = (b.bb/100) + ((100 - curPitcherHome.bb9)*0.0006);
+                let soP = (b.so/100) + (curPitcherHome.k9*0.001);
                 let rand = Math.random();
                 
                 if(rand < bbP) {
                     b.stats.bb++; curPitcherHome.stats.bb++;
                     let runs = advanceRunners(bases, "BB");
-                    awayScore += runs; curPitcherHome.stats.er += runs; b.stats.rbi += runs;
+                    awayScore += runs; curPitcherHome.stats.er += runs; curPitcherHomeErInMatch += runs; b.stats.rbi += runs;
                 } else if(rand < bbP + soP) {
                     outs++; b.stats.so++; curPitcherHome.stats.so++;
-                    curPitcherHome.stats.ipOuts++; // アウト数を内部的に+1
+                    curPitcherHome.stats.ipOuts++;
+                    currentInningOutsHome++;
                 } else {
-                    let hitP = 0.23 + ((50 - curPitcherHome.h9)*0.002);
-                    if(Math.random() < hitP) {
-                        let kind = Math.random() < (b.barrel/100) ? "HR" : (Math.random() < 0.2 ? "2B" : "1B");
-                        if(kind === "HR") b.stats.hr++;
+                    // 【修正】インプレイ安打率のベースを上方修正 (打率が正常に残るように)
+                    const gb_p = parseFloat(document.getElementById('hit_gb').value);
+                    const fb_p = parseFloat(document.getElementById('hit_fb').value);
+                    const ld_p = parseFloat(document.getElementById('hit_ld').value);
+                    let rand_type = Math.random() * (gb_p + fb_p + ld_p);
+                    let hitType = rand_type < gb_p ? "GB" : (rand_type < gb_p + fb_p ? "FB" : "LD");
+                    
+                    let baseHitChance = hitType === "GB" ? 0.28 : (hitType === "FB" ? 0.22 : 0.72);
+                    let h9Effect = (55 - curPitcherHome.h9) * 0.0015; // 被安打抑制による減衰を優しめに調整
+                    let finalHitChance = Math.max(0.12, Math.min(0.90, baseHitChance + h9Effect));
+
+                    if(Math.random() < finalHitChance) {
+                        // 【修正】本塁打(バレル)判定を掛け算方式に変更し、強打者のHRが出やすいよう調整
+                        let hr9Reduction = (curPitcherHome.hr9 / 100) * 0.5; // 最大でバレル率を50%軽減するに留める
+                        let finalBarrel = (b.barrel / 100) * (1 - hr9Reduction);
+                        
+                        let kind = "1B";
+                        if ((hitType === "FB" || hitType === "LD") && Math.random() < finalBarrel) {
+                            kind = "HR";
+                            b.stats.hr++;
+                        } else {
+                            kind = Math.random() < 0.22 ? "2B" : "1B";
+                        }
+                        
                         b.stats.hits++;
                         let runs = advanceRunners(bases, kind);
-                        awayScore += runs; curPitcherHome.stats.er += runs; b.stats.rbi += runs;
+                        awayScore += runs; curPitcherHome.stats.er += runs; curPitcherHomeErInMatch += runs; b.stats.rbi += runs;
                     } else { 
                         outs++; 
                         curPitcherHome.stats.ipOuts++;
+                        currentInningOutsHome++;
                     }
                 }
             } else { 
                 outs++; 
                 curPitcherHome.stats.ipOuts++;
+                currentInningOutsHome++;
             }
             awayOrder = (awayOrder + 1) % 9;
         }
 
-        // 裏の攻撃 (HOMEチームの攻撃 vs AWAYの投手)
+        // 裏の攻撃 (HOME攻撃 vs AWAY投手)
         outs = 0; bases = [false, false, false];
         while (outs < 3) {
-            if (pitchCountAway >= curPitcherAway.staMax || curPitcherAway.stats.er >= 3) {
+            let needChange = false;
+            if (inning <= 5) {
+                if (pitchCountAway >= curPitcherAway.staMax || curPitcherAwayErInMatch >= 5) needChange = true;
+            } else {
+                if (curPitcherAway.role === "先発") {
+                    if (pitchCountAway >= curPitcherAway.staMax || curPitcherAwayErInMatch >= 3) needChange = true;
+                } else {
+                    if (currentInningOutsAway >= 3 || curPitcherAwayErInMatch >= 2 || pitchCountAway >= curPitcherAway.staMax) needChange = true;
+                }
+            }
+
+            if (needChange) {
                 let availableReliefs = away.pitchers.filter(p => p.role === "リリーフ" && p.staCurrent > 15);
                 if (availableReliefs.length > 0) {
                     availableReliefs.sort((a, b) => a.stats.appearances - b.stats.appearances);
                     curPitcherAway = availableReliefs[0];
-                    
-                    if (!appearedPitchersAway.includes(curPitcherAway.name)) {
+                    if (!appearedAway.includes(curPitcherAway.name)) {
                         curPitcherAway.stats.appearances++;
-                        appearedPitchersAway.push(curPitcherAway.name);
+                        appearedAway.push(curPitcherAway.name);
                     }
                     pitchCountAway = 0;
+                    curPitcherAwayErInMatch = 0;
+                    currentInningOutsAway = 0;
                 }
             }
+            
             let b = home.batters.filter(bat => bat.role !== "控え")[homeOrder];
             if(b) {
                 b.stats.ab++; pitchCountAway += 4;
-                let bbP = (b.bb/100) + ((100 - curPitcherAway.bb9)*0.001);
-                let soP = (b.so/100) + (curPitcherAway.k9*0.002);
+                let bbP = (b.bb/100) + ((100 - curPitcherAway.bb9)*0.0006);
+                let soP = (b.so/100) + (curPitcherAway.k9*0.001);
                 let rand = Math.random();
                 
                 if(rand < bbP) {
                     b.stats.bb++; curPitcherAway.stats.bb++;
                     let runs = advanceRunners(bases, "BB");
-                    homeScore += runs; curPitcherAway.stats.er += runs; b.stats.rbi += runs;
+                    homeScore += runs; curPitcherAway.stats.er += runs; curPitcherAwayErInMatch += runs; b.stats.rbi += runs;
                 } else if(rand < bbP + soP) {
                     outs++; b.stats.so++; curPitcherAway.stats.so++;
                     curPitcherAway.stats.ipOuts++;
+                    currentInningOutsAway++;
                 } else {
-                    let hitP = 0.23 + ((50 - curPitcherAway.h9)*0.002);
-                    if(Math.random() < hitP) {
-                        let kind = Math.random() < (b.barrel/100) ? "HR" : (Math.random() < 0.2 ? "2B" : "1B");
-                        if(kind === "HR") b.stats.hr++;
+                    const gb_p = parseFloat(document.getElementById('hit_gb').value);
+                    const fb_p = parseFloat(document.getElementById('hit_fb').value);
+                    const ld_p = parseFloat(document.getElementById('hit_ld').value);
+                    let rand_type = Math.random() * (gb_p + fb_p + ld_p);
+                    let hitType = rand_type < gb_p ? "GB" : (rand_type < gb_p + fb_p ? "FB" : "LD");
+                    
+                    let baseHitChance = hitType === "GB" ? 0.28 : (hitType === "FB" ? 0.22 : 0.72);
+                    let h9Effect = (55 - curPitcherAway.h9) * 0.0015;
+                    let finalHitChance = Math.max(0.12, Math.min(0.90, baseHitChance + h9Effect));
+
+                    if(Math.random() < finalHitChance) {
+                        let hr9Reduction = (curPitcherAway.hr9 / 100) * 0.5;
+                        let finalBarrel = (b.barrel / 100) * (1 - hr9Reduction);
+                        
+                        let kind = "1B";
+                        if ((hitType === "FB" || hitType === "LD") && Math.random() < finalBarrel) {
+                            kind = "HR";
+                            b.stats.hr++;
+                        } else {
+                            kind = Math.random() < 0.22 ? "2B" : "1B";
+                        }
+                        
                         b.stats.hits++;
                         let runs = advanceRunners(bases, kind);
-                        homeScore += runs; curPitcherAway.stats.er += runs; b.stats.rbi += runs;
+                        homeScore += runs; curPitcherAway.stats.er += runs; curPitcherAwayErInMatch += runs; b.stats.rbi += runs;
                     } else { 
                         outs++; 
                         curPitcherAway.stats.ipOuts++;
+                        currentInningOutsAway++;
                     }
                 }
             } else { 
                 outs++; 
                 curPitcherAway.stats.ipOuts++;
+                currentInningOutsAway++;
             }
             homeOrder = (homeOrder + 1) % 9;
         }
     }
 
-    // 勝敗付与
     if(awayScore > homeScore) { away.wins++; home.losses++; pAway.stats.wins++; pHome.stats.losses++; }
     else if(homeScore > awayScore) { home.wins++; away.losses++; pHome.stats.wins++; pAway.stats.losses++; }
     else { away.draws++; home.draws++; }
 
-    // 登板した先発のスタミナ消費
-    away.pitchers.forEach(p => { if (p.name === pAway.name) p.staCurrent = 0; });
-    home.pitchers.forEach(p => { if (p.name === pHome.name) p.staCurrent = 0; });
+    away.pitchers.forEach(p => { 
+        if (p.name === pAway.name) p.staCurrent = 0; 
+        else if (appearedAway.includes(p.name)) p.staCurrent = Math.max(0, p.staCurrent - 15);
+    });
+    home.pitchers.forEach(p => { 
+        if (p.name === pHome.name) p.staCurrent = 0; 
+        else if (appearedHome.includes(p.name)) p.staCurrent = Math.max(0, p.staCurrent - 15);
+    });
 
-    // 全投手の防御率（ERA）を一括再計算
     teams.forEach(t => {
         t.pitchers.forEach(p => {
             if(p.stats.ipOuts > 0) {
-                let fullInnings = p.stats.ipOuts / 3; // 正確なイニング換算値
+                let fullInnings = p.stats.ipOuts / 3;
                 p.stats.era = (p.stats.er * 9) / fullInnings;
             }
         });
@@ -417,7 +496,6 @@ function executeMatchLogic(away, home) {
     return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
 }
 
-// 投球回数表示用のアシスト関数（例：25アウト -> 8イニングと1アウト -> "8.1"）
 function formatInningsPitched(totalOuts) {
     let innings = Math.floor(totalOuts / 3);
     let remainingOuts = totalOuts % 3;
