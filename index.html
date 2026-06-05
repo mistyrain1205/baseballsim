@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>本格派・プロ野球6球団ペナンシミュレーター & エディタ (超高速・安定版)</title>
+    <title>本格派・プロ野球6球団ペナンシミュレーター & エディタ (完全修正版)</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -70,6 +70,13 @@
                     <tr><td colspan="2">試合を進行してください</td></tr>
                 </tbody>
             </table>
+
+            <h3 style="margin-top:25px;">スタジアム環境設定</h3>
+            <div style="font-size:0.85em; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                <div class="form-row"><label>ゴロ (GB) %</label><input type="number" id="hit_gb" value="45"></div>
+                <div class="form-row"><label>フライ (FB) %</label><input type="number" id="hit_fb" value="35"></div>
+                <div class="form-row"><label>ライナー (LD) %</label><input type="number" id="hit_ld" value="20"></div>
+            </div>
         </div>
 
         <div class="card" style="padding: 10px;">
@@ -233,22 +240,20 @@ function initializeLeagueData() {
     }
 }
 
-// 【完全修正】動的に破綻のないスケジュール(総当たり対戦ペア)を生成するアルゴリズム
 function getDynamicSchedule(roundCount) {
     let numTeams = 6;
-    let totalRounds = numTeams - 1; // 1つの周期は5節
+    let totalRounds = numTeams - 1; 
     let currentRound = roundCount % totalRounds;
 
     let pairings = [];
     let list = [0, 1, 2, 3, 4, 5];
 
-    // ロビンラウンド(円環シフト)法による対戦決定
     for (let i = 0; i < numTeams / 2; i++) {
         let awayIdx = (currentRound + i) % (numTeams - 1);
         let homeIdx = (numTeams - 1 - i + currentRound) % (numTeams - 1);
         
         if (i === 0) {
-            homeIdx = numTeams - 1; // 最後のチーム(5)を固定位置にする
+            homeIdx = numTeams - 1; 
         }
         pairings.push([list[awayIdx], list[homeIdx]]);
     }
@@ -258,7 +263,6 @@ function getDynamicSchedule(roundCount) {
 function simulateRound() {
     if(totalGamesPlayed >= MAX_GAMES) return null;
     
-    // 動的スケジュールから本日の対戦カードを破綻なく取得
     let pattern = getDynamicSchedule(totalGamesPlayed);
     let roundResults = [];
 
