@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>本格派・野球試合シミュレーター (適正ポジション・重複警告版)</title>
+    <title>本格派・野球試合シミュレーター (選手能力完全連動モデル)</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -58,7 +58,6 @@
         .status-item { font-size: 1.1em; align-self: center; }
         .diamond { color: #4a5568; font-size: 1.2em; letter-spacing: 2px; }
 
-        /* 警告メッセージ用 */
         .warning-box {
             background: #fff5f5;
             border: 1px solid #fed7d7;
@@ -121,13 +120,12 @@
             margin-top: 10px;
         }
         .player-table th, .player-table td {
-            padding: 4px 2px;
+            padding: 6px 4px;
             border: 1px solid #e2e8f0;
             text-align: center;
         }
         .player-table th { background: #edf2f7; color: #4a5568; }
-        .player-table input { width: 38px; padding: 2px; text-align: center; border: 1px solid #cbd5e0; border-radius: 3px; }
-        .player-table select { padding: 2px; font-size: 0.9em; }
+        .player-table select { padding: 4px; font-size: 0.95em; font-weight: bold; border-radius: 4px; border: 1px solid #cbd5e0; }
 
         .tabs { display: flex; margin-bottom: -1px; background: #e2e8f0; padding: 5px 5px 0 5px; border-radius: 6px 6px 0 0; }
         .tab {
@@ -167,7 +165,7 @@
 <body>
 
 <div class="container">
-    <h1>本格派・野球試合シミュレーター (適正配置ペナルティモデル)</h1>
+    <h1>本格派・野球試合シミュレーター (能力固定・配置連動モデル)</h1>
 
     <table class="scoreboard">
         <thead>
@@ -199,9 +197,9 @@
     </div>
     
     <div class="warning-box" id="position_warning">⚠️ ポジション配置に重複または空きがあります！</div>
-
     <div style="text-align: center; margin-bottom: 15px; font-weight: bold; color: #2c5282;" id="batter_status_text"></div>
 
+    <!-- 采配エリア -->
     <div class="manager-action-box">
         <div>
             <span>📢 攻撃側采配: </span>
@@ -236,20 +234,22 @@
 
         <div class="card" style="display: flex; flex-direction: column; padding: 10px;">
             <div class="tabs">
-                <div class="tab active" onclick="switchTab('away-bat-tab', this)">AWAY野手設定</div>
+                <div class="tab active" onclick="switchTab('away-bat-tab', this)">AWAY選手オーダー</div>
                 <div class="tab" onclick="switchTab('away-pit-tab', this)">AWAYマウンド投手</div>
-                <div class="tab" onclick="switchTab('home-bat-tab', this)">HOME野手設定</div>
+                <div class="tab" onclick="switchTab('home-bat-tab', this)">HOME選手オーダー</div>
                 <div class="tab" onclick="switchTab('home-pit-tab', this)">HOMEマウンド投手</div>
             </div>
             
+            <!-- AWAY野手（表示のみ。入力ボックスを廃止し、選手固定パラメータを明示） -->
             <div id="away-bat-tab" class="tab-content active">
                 <table class="player-table">
                     <thead>
-                        <tr><th>打順</th><th>守備位置変更</th><th>選球(BB%)</th><th>三振(SO%)</th><th>バレル(%)</th><th>長打(IsoP)</th><th>UZR(本職時)</th><th>失策(本職時)</th></tr>
+                        <tr><th>打順</th><th>選手名(本職)</th><th>守備位置の割り当て</th><th>選球(BB%)</th><th>三振(SO%)</th><th>バレル(%)</th><th>長打(IsoP)</th><th>本来のUZR</th><th>本来の失策</th></tr>
                     </thead>
                     <tbody id="away-player-rows"></tbody>
                 </table>
             </div>
+            <!-- AWAY投手能力 -->
             <div id="away-pit-tab" class="tab-content">
                 <div style="padding:15px; display:flex; gap:15px;">
                     <div class="form-group"><label>H/9 (0-99)</label><input type="number" id="away_p_h9" value="75"></div>
@@ -259,14 +259,16 @@
                     <div class="form-group"><label>STA (スタミナ)</label><input type="number" id="away_p_sta" value="80"></div>
                 </div>
             </div>
+            <!-- HOME野手 -->
             <div id="home-bat-tab" class="tab-content">
                 <table class="player-table">
                     <thead>
-                        <tr><th>打順</th><th>守備位置変更</th><th>選球(BB%)</th><th>三振(SO%)</th><th>バレル(%)</th><th>長打(IsoP)</th><th>UZR(本職時)</th><th>失策(本職時)</th></tr>
+                        <tr><th>打順</th><th>選手名(本職)</th><th>守備位置の割り当て</th><th>選球(BB%)</th><th>三振(SO%)</th><th>バレル(%)</th><th>長打(IsoP)</th><th>本来のUZR</th><th>本来の失策</th></tr>
                     </thead>
                     <tbody id="home-player-rows"></tbody>
                 </table>
             </div>
+            <!-- HOME投手能力 -->
             <div id="home-pit-tab" class="tab-content">
                 <div style="padding:15px; display:flex; gap:15px;">
                     <div class="form-group"><label>H/9 (0-99)</label><input type="number" id="home_p_h9" value="78"></div>
@@ -288,29 +290,29 @@
 <script>
 const positions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手", "投手"];
 
-// スタメン初期データ (本職のポジションを固定値として保持)
+// 各選手の能力値をオブジェクトデータとして完全に「固定保持」
 const initialAwayPlayers = [
-    { name: "選手A", role: "1番", originalPos: "中堅手", bb: 11.0, so: 14.0, barrel: 5.0,  isop: 10, uzr: 3.5,  err: 1.2 },
-    { name: "選手B", role: "2番", originalPos: "遊撃手", bb: 9.0,  so: 16.0, barrel: 6.0,  isop: 12, uzr: 4.0,  err: 2.5 },
-    { name: "選手C", role: "3番", originalPos: "二塁手", bb: 12.0, so: 15.0, barrel: 14.0, isop: 24, uzr: 1.5,  err: 1.8 },
-    { name: "選手D", role: "4番", originalPos: "三塁手", bb: 15.0, so: 20.0, barrel: 20.0, isop: 35, uzr: 1.0,  err: 2.8 },
-    { name: "選手E", role: "5番", originalPos: "一塁手", bb: 10.0, so: 18.0, barrel: 12.0, isop: 20, uzr: -1.0, err: 1.5 },
-    { name: "選手F", role: "6番", originalPos: "左翼手", bb: 8.0,  so: 22.0, barrel: 9.0,  isop: 18, uzr: 0.5,  err: 2.0 },
-    { name: "選手G", role: "7番", originalPos: "右翼手", bb: 7.5,  so: 23.0, barrel: 7.0,  isop: 15, uzr: 1.0,  err: 1.8 },
-    { name: "選手H", role: "8番", originalPos: "捕手",   bb: 7.0,  so: 25.0, barrel: 4.0,  isop: 8,  uzr: 0.5,  err: 1.0 },
-    { name: "選手I", role: "9番", originalPos: "投手",   bb: 3.0,  so: 45.0, barrel: 0.5,  isop: 2,  uzr: 0.0,  err: 2.0 }
+    { name: "近藤 (中堅)", role: "1番", originalPos: "中堅手", currentPos: "中堅手", bb: 11.0, so: 14.0, barrel: 5.0,  isop: 10, uzr: 3.5,  err: 1.2 },
+    { name: "源田 (遊撃)", role: "2番", originalPos: "遊撃手", currentPos: "遊撃手", bb: 9.0,  so: 16.0, barrel: 6.0,  isop: 12, uzr: 4.0,  err: 2.5 },
+    { name: "牧野 (二塁)", role: "3番", originalPos: "二塁手", currentPos: "二塁手", bb: 12.0, so: 15.0, barrel: 14.0, isop: 24, uzr: 1.5,  err: 1.8 },
+    { name: "岡本 (三塁)", role: "4番", originalPos: "三塁手", currentPos: "三塁手", bb: 15.0, so: 20.0, barrel: 20.0, isop: 35, uzr: 1.0,  err: 2.8 },
+    { name: "中田 (一塁)", role: "5番", originalPos: "一塁手", currentPos: "一塁手", bb: 10.0, so: 18.0, barrel: 12.0, isop: 20, uzr: -1.0, err: 1.5 },
+    { name: "吉田 (左翼)", role: "6番", originalPos: "左翼手", currentPos: "左翼手", bb: 8.0,  so: 22.0, barrel: 9.0,  isop: 18, uzr: 0.5,  err: 2.0 },
+    { name: "万波 (右翼)", role: "7番", originalPos: "右翼手", currentPos: "右翼手", bb: 7.5,  so: 23.0, barrel: 7.0,  isop: 15, uzr: 1.0,  err: 1.8 },
+    { name: "甲斐 (捕手)", role: "8番", originalPos: "捕手",   currentPos: "捕手",   bb: 7.0,  so: 25.0, barrel: 4.0,  isop: 8,  uzr: 0.5,  err: 1.0 },
+    { name: "大谷 (投手)", role: "9番", originalPos: "投手",   currentPos: "投手",   bb: 3.0,  so: 45.0, barrel: 0.5,  isop: 2,  uzr: 0.0,  err: 2.0 }
 ];
 
 const initialHomePlayers = [
-    { name: "選手1", role: "1番", originalPos: "二塁手", bb: 10.0, so: 15.0, barrel: 6.0,  isop: 11, uzr: 2.0,  err: 2.0 },
-    { name: "選手2", role: "2番", originalPos: "中堅手", bb: 9.5,  so: 18.0, barrel: 5.5,  isop: 13, uzr: 3.0,  err: 1.5 },
-    { name: "選手3", role: "3番", originalPos: "三塁手", bb: 13.0, so: 18.0, barrel: 15.0, isop: 26, uzr: 2.0,  err: 2.2 },
-    { name: "選手4", role: "4番", originalPos: "一塁手", bb: 16.0, so: 19.0, barrel: 22.0, isop: 38, uzr: -0.5, err: 1.2 },
-    { name: "選手5", role: "5番", originalPos: "左翼手", bb: 9.0,  so: 21.0, barrel: 11.0, isop: 19, uzr: 0.5,  err: 1.8 },
-    { name: "選手6", role: "6番", originalPos: "遊撃手", bb: 8.0,  so: 19.0, barrel: 8.0,  isop: 16, uzr: 3.5,  err: 3.0 },
-    { name: "選手7", role: "7番", originalPos: "右翼手", bb: 7.0,  so: 24.0, barrel: 7.5,  isop: 14, uzr: 1.5,  err: 1.5 },
-    { name: "選手8", role: "8番", originalPos: "捕手",   bb: 7.5,  so: 22.0, barrel: 5.0,  isop: 10, uzr: 1.0,  err: 0.8 },
-    { name: "選手9", role: "9番", originalPos: "投手",   bb: 2.5,  so: 48.0, barrel: 0.2,  isop: 1,  uzr: 0.0,  err: 2.0 }
+    { name: "山田 (二塁)", role: "1番", originalPos: "二塁手", currentPos: "二塁手", bb: 10.0, so: 15.0, barrel: 6.0,  isop: 11, uzr: 2.0,  err: 2.0 },
+    { name: "塩見 (中堅)", role: "2番", originalPos: "中堅手", currentPos: "中堅手", bb: 9.5,  so: 18.0, barrel: 5.5,  isop: 13, uzr: 3.0,  err: 1.5 },
+    { name: "村上 (三塁)", role: "3番", originalPos: "三塁手", currentPos: "三塁手", bb: 13.0, so: 18.0, barrel: 15.0, isop: 26, uzr: 2.0,  err: 2.2 },
+    { name: "大山 (一塁)", role: "4番", originalPos: "一塁手", currentPos: "一塁手", bb: 16.0, so: 19.0, barrel: 22.0, isop: 38, uzr: -0.5, err: 1.2 },
+    { name: "佐野 (左翼)", role: "5番", originalPos: "左翼手", currentPos: "左翼手", bb: 9.0,  so: 21.0, barrel: 11.0, isop: 19, uzr: 0.5,  err: 1.8 },
+    { name: "紅林 (遊撃)", role: "6番", originalPos: "遊撃手", currentPos: "遊撃手", bb: 8.0,  so: 19.0, barrel: 8.0,  isop: 16, uzr: 3.5,  err: 3.0 },
+    { name: "森下 (右翼)", role: "7番", originalPos: "右翼手", currentPos: "右翼手", bb: 7.0,  so: 24.0, barrel: 7.5,  isop: 14, uzr: 1.5,  err: 1.5 },
+    { name: "坂本 (捕手)", role: "8番", originalPos: "捕手",   currentPos: "捕手",   bb: 7.5,  so: 22.0, barrel: 5.0,  isop: 10, uzr: 1.0,  err: 0.8 },
+    { name: "戸郷 (投手)", role: "9番", originalPos: "投手",   currentPos: "投手",   bb: 2.5,  so: 48.0, barrel: 0.2,  isop: 1,  uzr: 0.0,  err: 2.0 }
 ];
 
 const benchProfiles = {
@@ -329,17 +331,18 @@ function generateRosterRows() {
         const container = document.getElementById(`${prefix}-player-rows`);
         container.innerHTML = "";
         lineup.forEach((p, i) => {
-            let options = positions.map(pos => `<option value="${pos}" ${p.originalPos === pos ? 'selected' : ''}>${pos}</option>`).join("");
+            let options = positions.map(pos => `<option value="${pos}" ${p.currentPos === pos ? 'selected' : ''}>${pos}</option>`).join("");
             container.innerHTML += `
                 <tr>
                     <td><b>${p.role}</b></td>
-                    <td><select id="${prefix}_pos_${i}" onchange="checkPositionDuplication()">${options}</select></td>
-                    <td><input type="number" id="${prefix}_bb_${i}" value="${p.bb}" step="0.5"></td>
-                    <td><input type="number" id="${prefix}_so_${i}" value="${p.so}" step="0.5"></td>
-                    <td><input type="number" id="${prefix}_barrel_${i}" value="${p.barrel}" step="0.5"></td>
-                    <td><input type="number" id="${prefix}_isop_${i}" value="${p.isop}" step="1"></td>
-                    <td><input type="number" id="${prefix}_uzr_${i}" value="${p.uzr}" step="0.5"></td>
-                    <td><input type="number" id="${prefix}_err_${i}" value="${p.err}" step="0.1"></td>
+                    <td><b>${p.name}</b></td>
+                    <td><select id="${prefix}_pos_${i}" onchange="updatePlayerPosition('${prefix}', ${i}, this.value)">${options}</select></td>
+                    <td>${p.bb}%</td>
+                    <td>${p.so}%</td>
+                    <td>${p.barrel}%</td>
+                    <td>${p.isop}</td>
+                    <td>${p.uzr}</td>
+                    <td>${p.err}%</td>
                 </tr>`;
         });
     };
@@ -348,21 +351,22 @@ function generateRosterRows() {
     checkPositionDuplication();
 }
 
-// ポジション重複・空きの検証・アラート表示システム
+// ポジションを変更した際、オブジェクト配列内の currentPos を直接書き換える
+function updatePlayerPosition(prefix, index, newPos) {
+    let lineup = prefix === "away" ? awayLineup : homeLineup;
+    lineup[index].currentPos = newPos;
+    checkPositionDuplication();
+}
+
 function checkPositionDuplication() {
-    const checkTeam = (prefix) => {
-        let currentPosList = [];
-        for(let i=0; i<9; i++) {
-            let el = document.getElementById(`${prefix}_pos_${i}`);
-            if(el) currentPosList.push(el.value);
-        }
-        // 1人1つのポジションが埋まっているか（全9種が揃っているか）
+    const checkTeam = (lineup) => {
+        let currentPosList = lineup.map(p => p.currentPos);
         let uniquePos = [...new Set(currentPosList)];
         return uniquePos.length === 9;
     };
 
-    let awayValid = checkTeam("away");
-    let homeValid = checkTeam("home");
+    let awayValid = checkTeam(awayLineup);
+    let homeValid = checkTeam(homeLineup);
 
     let warningEl = document.getElementById("position_warning");
     if(!awayValid || !homeValid) {
@@ -404,42 +408,37 @@ function syncPitcherStatsFromUI() {
     }
 }
 
+// バッター能力の取得（打順にいる選手データオブジェクトをそのまま参照）
 function getBatterData(team, orderIdx) {
-    const prefix = team === "AWAY" ? "away" : "home";
     let lineup = team === "AWAY" ? awayLineup : homeLineup;
+    let p = lineup[orderIdx];
     return {
-        name: `${orderIdx+1}番(${lineup[orderIdx].name})`,
-        bb: (parseFloat(document.getElementById(`${prefix}_bb_${orderIdx}`).value) || 0) / 100,
-        so: (parseFloat(document.getElementById(`${prefix}_so_${orderIdx}`).value) || 0) / 100,
-        barrel: (parseFloat(document.getElementById(`${prefix}_barrel_${orderIdx}`).value) || 0) / 100,
-        isop: parseFloat(document.getElementById(`${prefix}_isop_${orderIdx}`).value) || 0
+        name: `${orderIdx+1}番(${p.name})`,
+        bb: p.bb / 100,
+        so: p.so / 100,
+        barrel: p.barrel / 100,
+        isop: p.isop
     };
 }
 
-// 守備位置データ取得（適正配置ペナルティ加算版）
+// 守備位置データ取得（連動スライド・適正配置ペナルティモデル）
 function getDefenseDataByPos(team, searchPos) {
-    const prefix = team === "AWAY" ? "away" : "home";
-    let matchIndex = -1;
+    let lineup = team === "AWAY" ? awayLineup : homeLineup;
     
-    for(let i=0; i<9; i++) {
-        if(document.getElementById(`${prefix}_pos_${i}`).value === searchPos) {
-            matchIndex = i;
-            break; 
-        }
-    }
+    // 現在そのポジションを守っている選手を、スライドした「currentPos」から検索
+    let matchPlayer = lineup.find(p => p.currentPos === searchPos);
 
-    // 守備位置が空っぽ（全員捕手など）の場合の自動失点ペナルティ
-    if (matchIndex === -1) {
+    // 誰もその守備位置に指定されていない場合の自動失点ペナルティ
+    if (!matchPlayer) {
         return { posName: searchPos, name: "誰もいない!", uzr: -10.0, err: 0.60, penalty: true };
     }
 
-    let lineup = team === "AWAY" ? awayLineup : homeLineup;
-    let baseUzr = parseFloat(document.getElementById(`${prefix}_uzr_${matchIndex}`).value) || 0;
-    let baseErr = (parseFloat(document.getElementById(`${prefix}_err_${matchIndex}`).value) || 0) / 100;
+    let baseUzr = matchPlayer.uzr;
+    let baseErr = matchPlayer.err / 100;
     let hasPenalty = false;
 
-    // Secondary Position Penalty：本職(originalPos)と現在の守備位置が違う場合の弱体化
-    if (lineup[matchIndex].originalPos !== searchPos) {
+    // Secondary Position Penalty：割り当てられたポジションが本来の本職(originalPos)と違う場合の弱体化
+    if (matchPlayer.originalPos !== searchPos) {
         baseUzr = baseUzr * 0.5; // 守備範囲（UZR）が半分に低下
         baseErr = baseErr * 1.5; // エラー確率が1.5倍に上昇
         hasPenalty = true;
@@ -447,7 +446,7 @@ function getDefenseDataByPos(team, searchPos) {
 
     return {
         posName: searchPos,
-        name: lineup[matchIndex].name,
+        name: matchPlayer.name,
         uzr: baseUzr,
         err: baseErr,
         penalty: hasPenalty
@@ -474,15 +473,16 @@ function usePinchHitter() {
     let team = isTop ? "AWAY" : "HOME";
     let currentIdx = isTop ? awayOrder : homeOrder;
     let lineup = isTop ? awayLineup : homeLineup;
-    let prefix = isTop ? "away" : "home";
 
+    // 選手オブジェクトのスタッツを直接上書き
     lineup[currentIdx].name = `代打·${choice}`;
-    document.getElementById(`${prefix}_bb_${currentIdx}`).value = bench.bb;
-    document.getElementById(`${prefix}_so_${currentIdx}`).value = bench.so;
-    document.getElementById(`${prefix}_barrel_${currentIdx}`).value = bench.barrel;
-    document.getElementById(`${prefix}_isop_${currentIdx}`).value = bench.isop;
+    lineup[currentIdx].bb = bench.bb;
+    lineup[currentIdx].so = bench.so;
+    lineup[currentIdx].barrel = bench.barrel;
+    lineup[currentIdx].isop = bench.isop;
 
-    appendLog(`\n📣 【采配】${team}、バッターに代わりまして「${lineup[currentIdx].name}」を投入！\n`);
+    appendLog(`\n📣 【采配】${team}、バッターに代わりまして「${lineup[currentIdx].name}」を起用！\n`);
+    generateRosterRows(); // 画面表示をリフレッシュ
     updateDisplay();
 }
 
@@ -623,19 +623,18 @@ function playNextBatter() {
                 let kindText = hitKind === "1B" ? "シングルヒット" : (hitKind === "2B" ? "ツーベース" : "スリーベース");
                 logText += `🔥 <span class="hit-badge">${kindText}</span> 打球は[${fielder.posName}]へ。`;
                 
-                // 実況ログへのペナルティ状況反映
                 if(fielder.penalty && fielder.name !== "誰もいない!") {
-                    logText += ` (不慣れな守備位置の[${fielder.name}]、打球に追いつけずヒット！)`;
+                    logText += ` (本職ではない[${fielder.name}]、打球に一歩及ばずヒット！)`;
                 } else if(fielder.name === "誰もいない!") {
-                    logText += ` (守備陣がおらず無人の野原を転がるヒット！)`;
+                    logText += ` (守備が不在のゾーンを悠々と転がるヒット！)`;
                 } else {
                     logText += ` 鋭い打球が抜けていきました。`;
                 }
                 currentInningRuns += advanceRunners(hitKind);
             } else {
                 if (Math.random() < fielder.err) {
-                    logText += `⚠️ <span class="error-badge">失策 (${fielder.posName})</span> [${fielder.name}]がエラー！`;
-                    if(fielder.penalty && fielder.name !== "誰もいない!") logText += ` (本職ではないポジションのためミス！)`;
+                    logText += `⚠️ <span class="error-badge">失策 (${fielder.posName})</span> [${fielder.name}]が処理を誤りエラー！`;
+                    if(fielder.penalty && fielder.name !== "誰もいない!") logText += ` (慣れないポジションでのミス！)`;
                     currentInningRuns += advanceRunners("1B");
                 } else {
                     if (hitType === "GB" && outs < 2 && bases[0]) {
@@ -643,17 +642,17 @@ function playNextBatter() {
                             outs += 2; bases[0] = false;
                             if (bases[2]) { currentInningRuns++; bases[2] = false; }
                             if (bases[1]) { bases[2] = true; bases[1] = false; }
-                            logText += `❌❌ <span class="out-badge" style="background:#e53e3e;">ゲッツー!</span> 内野ゴロをダブルプレー！ (${outs}アウト)`;
+                            logText += `❌❌ <span class="out-badge" style="background:#e53e3e;">ゲッツー!</span> ダブルプレー完了！ (${outs}アウト)`;
                         } else {
                             outs++; bases[0] = true;
-                            logText += `❌ <span class="out-badge">内野ゴロ</span> 1走がアウト。(${outs}アウト)`;
+                            logText += `❌ <span class="out-badge">内野ゴロ</span> 1走アウト。(${outs}アウト)`;
                         }
                     } else if (hitType === "FB" && outs < 2 && bases[2] && Math.random() < 0.7) {
                         outs++; currentInningRuns++; bases[2] = false;
-                        logText += `▲ <span class="out-badge" style="background:#3182ce;">犠牲フライ</span> [${fielder.posName}]へのフライでタッチアップ生還！ (${outs}アウト)`;
+                        logText += `▲ <span class="out-badge" style="background:#3182ce;">犠牲フライ</span> [${fielder.posName}]へのフライ。タッチアップ生還！ (${outs}アウト)`;
                     } else {
                         outs++;
-                        logText += `❌ <span class="out-badge">[${fielder.posName}]フライ/ゴロ</span> [${fielder.name}]がさばいてアウト。(${outs}アウト)`;
+                        logText += `❌ <span class="out-badge">[${fielder.posName}]への打球</span> [${fielder.name}]が確実に処理してアウト。(${outs}アウト)`;
                     }
                 }
             }
