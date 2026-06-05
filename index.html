@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>リアルタイム・野球対決シミュレーター</title>
+    <title>リアルタイム・野球対決シミュレーター (守備指標対応版)</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -13,7 +13,7 @@
             padding: 20px;
         }
         .container {
-            max-width: 900px;
+            max-width: 950px;
             margin: 0 auto;
             background: white;
             padding: 30px;
@@ -42,9 +42,10 @@
             color: #2c5282;
             border-bottom: 2px solid #edf2f7;
             padding-bottom: 8px;
+            font-size: 1.3em;
         }
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
         label {
             display: block;
@@ -62,36 +63,40 @@
         button {
             display: block;
             width: 100%;
-            padding: 12px;
-            background: #3182ce;
+            padding: 15px;
+            background: #2f855a;
             color: white;
             border: none;
             border-radius: 6px;
-            font-size: 1.1em;
+            font-size: 1.2em;
             cursor: pointer;
             font-weight: bold;
             transition: background 0.2s;
+            margin-bottom: 25px;
         }
         button:hover {
-            background: #2b6cb0;
+            background: #22543d;
         }
         .result-box {
             margin-top: 30px;
-            padding: 20px;
-            background: #ebf8ff;
-            border-left: 5px solid #3182ce;
-            border-radius: 4px;
+            padding: 25px;
+            background: #f7fafc;
+            border: 2px solid #cbd5e0;
+            border-radius: 8px;
         }
         .result-title {
             font-weight: bold;
-            font-size: 1.2em;
+            font-size: 1.4em;
             color: #2b6cb0;
             margin-bottom: 15px;
+            border-bottom: 1px solid #cbd5e0;
+            padding-bottom: 5px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
+            background: white;
         }
         th, td {
             border: 1px solid #e2e8f0;
@@ -102,21 +107,41 @@
             background: #edf2f7;
         }
         .log {
-            background: #2d3748;
+            background: #1a202c;
             color: #fff;
-            padding: 15px;
+            padding: 20px;
             border-radius: 6px;
             font-family: monospace;
-            max-height: 150px;
-            overflow-y: auto;
+            font-size: 1.1em;
+            line-height: 1.6;
             margin-top: 15px;
+            white-space: pre-wrap;
+        }
+        .defense-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .hit-badge {
+            background: #e53e3e;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .out-badge {
+            background: #3182ce;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>野球対決シミュレーター (球数・打球詳細対応)</h1>
+    <h1>野球対決シミュレーター (球数・打球・守備指標対応)</h1>
 
     <div class="grid">
         <div class="card">
@@ -130,7 +155,7 @@
                 <input type="number" id="p_bb" value="8.0" step="0.1">
             </div>
             <div class="form-group">
-                <label>球数による四死球率の増加係数<br><small>(100球を超えたら1球ごとに加算される%)</small></label>
+                <label>球数による四死球率の増加係数 (100球超〜 1球ごと加算%)</label>
                 <input type="number" id="p_fatigue" value="0.05" step="0.01">
             </div>
         </div>
@@ -146,43 +171,58 @@
                 <input type="number" id="b_bb" value="10.0" step="0.1">
             </div>
             <div class="form-group">
-                <label>打席回数による四死球率の上昇係数<br><small>(目が慣れることによる1打席ごとの上昇%)</small></label>
+                <label>打席回数による四死球率の上昇係数 (1打席ごと上昇%)</label>
                 <input type="number" id="b_eye" value="0.5" step="0.1">
             </div>
         </div>
     </div>
 
     <div class="card" style="margin-bottom: 25px;">
-        <h2>打球タイプ・ポジション配分設定 (%)</h2>
-        <p style="font-size: 0.85em; color: #666; margin-top: -10px;">※各グループの合計が100%になるようにしてください。</p>
-        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 0;">
+        <h2>打球タイプ・方向配分設定 (%)</h2>
+        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 10px;">
             <div>
-                <label>ゴロ (Grounder) %</label>
+                <label>ゴロ (GB) %</label>
                 <input type="number" id="hit_gb" value="45">
             </div>
             <div>
-                <label>フライ (Flyball) %</label>
+                <label>フライ (FB) %</label>
                 <input type="number" id="hit_fb" value="35">
             </div>
             <div>
-                <label>ライナー (LineDrive) %</label>
+                <label>ライナー (LD) %</label>
                 <input type="number" id="hit_ld" value="20">
             </div>
         </div>
-        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;">
         <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 0;">
             <div>
-                <label>左翼方向 (プル/流し) %</label>
+                <label>左翼方向 %</label>
                 <input type="number" id="dir_left" value="35">
             </div>
             <div>
-                <label>中堅方向 (センター) %</label>
+                <label>中堅方向 %</label>
                 <input type="number" id="dir_center" value="40">
             </div>
             <div>
-                <label>右翼方向 (流し/プル) %</label>
+                <label>右翼方向 %</label>
                 <input type="number" id="dir_right" value="25">
             </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 25px; background: #f0fff4; border-color: #c6f6d5;">
+        <h2>野手陣の守備指標設定 (UZR基準 / 0が平均)</h2>
+        <p style="font-size: 0.85em; color: #4a5568; margin-top: -10px;">プラス値＝名手（安打を阻止しやすい）、マイナス値＝守備難（安打になりやすい）</p>
+        <div class="defense-grid">
+            <div class="form-group"><label>三塁手 (3B)</label><input type="number" id="uzr_3b" value="5.0" step="0.5"></div>
+            <div class="form-group"><label>遊撃手 (SS)</label><input type="number" id="uzr_ss" value="10.0" step="0.5"></div>
+            <div class="form-group"><label>左翼手 (LF)</label><input type="number" id="uzr_lf" value="-2.0" step="0.5"></div>
+            
+            <div class="form-group"><label>投手 (P)</label><input type="number" id="uzr_p" value="0.0" step="0.5"></div>
+            <div class="form-group"><label>二塁手 (2B)</label><input type="number" id="uzr_2b" value="3.0" step="0.5"></div>
+            <div class="form-group"><label>中堅手 (CF)</label><input type="number" id="uzr_cf" value="8.0" step="0.5"></div>
+            
+            <div class="form-group"><label>一塁手 (1B)</label><input type="number" id="uzr_1b" value="-1.0" step="0.5"></div>
+            <div class="form-group"></div> <div class="form-group"><label>右翼手 (RF)</label><input type="number" id="uzr_rf" value="-4.0" step="0.5"></div>
         </div>
     </div>
 
@@ -197,16 +237,15 @@
                 <th>補正後 打者四死球率</th>
                 <td id="res_b_bb">0%</td>
             </tr>
-            <tr style="background: #fff5f5; font-weight: bold;">
+            <tr style="background: #ebf8ff; font-weight: bold;">
                 <th>この対戦での四死球確率</th>
-                <td id="res_final_bb" style="color: #e53e3e;">0%</td>
+                <td id="res_final_bb" style="color: #c53030;">0%</td>
                 <th>フィールドに飛ぶ確率</th>
                 <td id="res_final_bip">0%</td>
             </tr>
         </table>
 
-        <h3 style="margin-top: 20px; color: #2b6cb0;">今回の対決結果</h3>
-        <div class="log" id="simLog">ここに結果のテキストが表示されます。</div>
+        <div class="log" id="simLog"></div>
     </div>
 </div>
 
@@ -229,75 +268,113 @@ function simulateMatch() {
     const dir_c = parseFloat(document.getElementById('dir_center').value);
     const dir_r = parseFloat(document.getElementById('dir_right').value);
 
-    // リーグ平均の四死球率 (基準値)
+    // 守備指標の取得
+    const uzr = {
+        'P':  parseFloat(document.getElementById('uzr_p').value),
+        '1B': parseFloat(document.getElementById('uzr_1b').value),
+        '2B': parseFloat(document.getElementById('uzr_2b').value),
+        '3B': parseFloat(document.getElementById('uzr_3b').value),
+        'SS': parseFloat(document.getElementById('uzr_ss').value),
+        'LF': parseFloat(document.getElementById('uzr_lf').value),
+        'CF': parseFloat(document.getElementById('uzr_cf').value),
+        'RF': parseFloat(document.getElementById('uzr_rf').value)
+    };
+
     const league_bb = 0.08;
 
-    // --- 2. 指標による四死球率の補正 ---
-    // 投手：100球を超えたら球数に応じて四死球率が上昇
-    let p_bb_calc = p_bb_base;
-    if (p_balls > 100) {
-        p_bb_calc += (p_balls - 100) * p_fatigue;
-    }
-    
-    // 打者：打席数（順巡り）が増えるほど目が慣れて四死球率が上昇
+    // --- 2. 四死球率の補正と対数オッズ計算 ---
+    let p_bb_calc = p_bb_base + (p_balls > 100 ? (p_balls - 100) * p_fatigue : 0);
     let b_bb_calc = b_bb_base + ((b_order - 1) * b_eye);
 
-    // --- 3. 対数オッズ（Log-5改良版）による最終四死球確率の計算 ---
     const numerator = (p_bb_calc * b_bb_calc) / league_bb;
     const denominator = numerator + ((1 - p_bb_calc) * (1 - b_bb_calc) / (1 - league_bb));
     const final_bb_probability = numerator / denominator;
 
-    // 画面表示用に変換
     document.getElementById('res_p_bb').innerText = (p_bb_calc * 100).toFixed(2) + "%";
     document.getElementById('res_b_bb').innerText = (b_bb_calc * 100).toFixed(2) + "%";
     document.getElementById('res_final_bb').innerText = (final_bb_probability * 100).toFixed(2) + "%";
     document.getElementById('res_final_bip').innerText = ((1 - final_bb_probability) * 100).toFixed(2) + "%";
 
-    // --- 4. 確率に基づいたダイスロール（対決シミュレート） ---
+    // --- 3. 対決シミュレート ---
     const random_outcome = Math.random();
     let resultText = "";
 
     if (random_outcome < final_bb_probability) {
-        // 四死球発生
-        resultText = "▶ 【四死球】 投手がフォアボール（またはデッドボール）を与えました。ランナー一塁。";
+        resultText = "🟢 【結果】 四死球 (Walk)\n投手がコントロールを乱したか、打者がよく見極めて出塁しました。";
     } else {
-        // フィールドに打球が飛んだ場合 (BIP)
-        resultText = "▶ 【打球発生】 バットに当たり、フィールドに打球が飛びました！\n\n";
-
+        // --- 4. 打球の発生と守備処理 ---
         // 打球種類の決定
         const rand_type = Math.random() * (gb_p + fb_p + ld_p);
-        let type_res = "";
-        if (rand_type < gb_p) {
-            type_res = "ゴロ (Grounder)";
-        } else if (rand_type < gb_p + fb_p) {
-            type_res = "フライ (Flyball)";
-        } else {
-            type_res = "ライナー (Line Drive)";
-        }
+        let hitType = ""; // GB, FB, LD
+        let hitTypeJa = "";
+        if (rand_type < gb_p) { hitType = "GB"; hitTypeJa = "ゴロ"; }
+        else if (rand_type < gb_p + fb_p) { hitType = "FB"; hitTypeJa = "フライ"; }
+        else { hitType = "LD"; hitTypeJa = "ライナー"; }
 
-        // 打球方向・ポジションの決定
+        // 打球方向の決定
         const rand_dir = Math.random() * (dir_l + dir_c + dir_r);
-        let dir_res = "";
-        let position = "";
+        let dirJa = "";
+        let targetPosition = ""; // 担当ポジション
 
         if (rand_dir < dir_l) {
-            dir_res = "レフト方向（左翼）";
-            position = (type_res.includes("ゴロ")) ? "サード（三塁手）またはショート（遊撃手）" : "レフト（左翼手）";
+            dirJa = "レフト（左翼）方向";
+            targetPosition = (hitType === "GB") ? "3B" : "LF"; // ゴロならサード、それ以外はレフト
         } else if (rand_dir < dir_l + dir_c) {
-            dir_res = "センター方向（中堅）";
-            position = (type_res.includes("ゴロ")) ? "ピッチャー（投手）またはセカンド/ショート" : "センター（中堅手）";
+            dirJa = "センター（中堅）方向";
+            // センター方向のゴロはピッチャー、セカンド、ショートのいずれか
+            if (hitType === "GB") {
+                let r = Math.random();
+                targetPosition = r < 0.2 ? "P" : (r < 0.6 ? "SS" : "2B");
+            } else {
+                targetPosition = "CF";
+            }
         } else {
-            dir_res = "ライト方向（右翼）";
-            position = (type_res.includes("ゴロ")) ? "ファースト（一塁手）またはセカンド（二塁手）" : "ライト（右翼手）";
+            dirJa = "ライト（右翼）方向";
+            targetPosition = (hitType === "GB") ? "1B" : "RF"; // ゴロならファースト、それ以外はライト
         }
 
-        resultText += `【打球種類】: ${type_res}\n`;
-        resultText += `【打球方向】: ${dir_res}\n`;
-        resultText += `【該当ポジション】: ${position} 付近への打球です。`;
+        // --- 5. 守備指標(UZR)によるアウト/ヒットの判定 ---
+        // 各打球タイプのデフォルト「ヒットになる確率 (BABIP想定)」
+        // ライナーは高確率、ゴロはそこそこ、フライは低め
+        let baseHitChance = 0;
+        if (hitType === "GB") baseHitChance = 0.24; // ゴロの基準安打率
+        if (hitType === "FB") baseHitChance = 0.15; // フライの基準安打率
+        if (hitType === "LD") baseHitChance = 0.68; // ライナーの基準安打率
+
+        // UZRの値を使ってヒット確率を補正
+        // UZRが+10ならヒット確率を約5%下げる、-10なら5%上げる（簡易数式）
+        let positionUzr = uzr[targetPosition];
+        let defenseCorrection = - (positionUzr * 0.005);
+        let finalHitChance = baseHitChance + defenseCorrection;
+        
+        // 確率の安全ガード (0%〜100%の間に収める)
+        finalHitChance = Math.max(0.02, Math.min(0.98, finalHitChance));
+
+        // 安打かアウトかのダイスロール
+        const defenseRoll = Math.random();
+        let playResult = "";
+        let positionNameMap = {'P':'投手','1B':'一塁手','2B':'二塁手','3B':'三塁手','SS':'遊撃手','LF':'左翼手','CF':'中堅手','RF':'右翼手'};
+        let currentFielder = positionNameMap[targetPosition];
+
+        if (defenseRoll < finalHitChance) {
+            playResult = `🔥 <span class="hit-badge">ヒット (Hit)</span>\n${currentFielder}(UZR: ${positionUzr > 0 ? '+' : ''}${positionUzr})の守備範囲を破る痛烈な当たり！安打になりました。`;
+        } else {
+            let outAction = "";
+            if (hitType === "GB") outAction = "がゴロを軽快にさばいてファーストアウト！";
+            if (hitType === "FB") outAction = "が落下点に入り、がっちり掴んでフライアウト！";
+            if (hitType === "LD") outAction = "が鋭いライナーを正面、またはジャンピングキャッチ！";
+            playResult = `アウト (Out)\n${currentFielder}(UZR: ${positionUzr > 0 ? '+' : ''}${positionUzr})${outAction}`;
+        }
+
+        resultText = `⚾ 【打球発生】\n`;
+        resultText += `打球種類: ${hitTypeJa} [${hitType}]\n`;
+        resultText += `打球方向: ${dirJa}\n`;
+        resultText += `----------------------------------------\n`;
+        resultText += playResult;
     }
 
     // 結果ログの出力
-    document.getElementById('simLog').innerText = resultText;
+    document.getElementById('simLog').innerHTML = resultText;
     document.getElementById('resultArea').style.display = "block";
 }
 </script>
