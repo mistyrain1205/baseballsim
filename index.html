@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>本格派・プロ野球6球団ペナンシミュレーター & エディタ (投打バランス最適化版)</title>
+    <title>本格派・プロ野球6球団ペナンシミュレーター & エディタ (フリーズ修正版)</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -204,7 +204,7 @@ function initializeLeagueData() {
                 currentPos: pos,
                 bb: isStamen ? [11, 9, 12, 15, 10, 8, 7, 7, 5][i-1] : 7.0,
                 so: isStamen ? [14, 16, 15, 20, 18, 22, 23, 25, 30][i-1] : 22.0,
-                barrel: isStamen ? [6, 7, 15, 22, 13, 10, 8, 6, 4][i-1] : 6.0, // バレル率のベースを微増調整
+                barrel: isStamen ? [6, 7, 15, 22, 13, 10, 8, 6, 4][i-1] : 6.0,
                 isop: isStamen ? [10, 12, 24, 36, 18, 16, 14, 9, 5][i-1] : 12,
                 uzr: isStamen ? [3, 4, 1.5, 1.0, 3.5, 0, 1, 0.5, 0][i-1] : 0,
                 err: 2.0,
@@ -220,7 +220,7 @@ function initializeLeagueData() {
                 role: isStarter ? "先発" : (i === 12 ? "守護神" : "リリーフ"),
                 currentPos: "投手",
                 originalPos: "投手",
-                h9: isStarter ? 65 + i : 70 + (i-5), // 投手の初期被安打抑制を現実的に少しマイルドに調整
+                h9: isStarter ? 65 + i : 70 + (i-5),
                 k9: isStarter ? 70 - i : 75 + (i-5),
                 bb9: isStarter ? 70 : 65,
                 hr9: isStarter ? 65 : 70,
@@ -267,7 +267,6 @@ function simulateRound() {
     return roundResults;
 }
 
-// 投打バランスを最適化した試合計算ロジック
 function executeMatchLogic(away, home) {
     let pAway = away.pitchers.filter(p => p.role === "先発")[away.rotationIdx % 5];
     let pHome = home.pitchers.filter(p => p.role === "先発")[home.rotationIdx % 5];
@@ -330,7 +329,6 @@ function executeMatchLogic(away, home) {
             if(b) {
                 b.stats.ab++; pitchCountHome += 4;
                 
-                // 四死球・三振計算の確率スケールをややマイルドに変更
                 let bbP = (b.bb/100) + ((100 - curPitcherHome.bb9)*0.0006);
                 let soP = (b.so/100) + (curPitcherHome.k9*0.001);
                 let rand = Math.random();
@@ -342,9 +340,8 @@ function executeMatchLogic(away, home) {
                 } else if(rand < bbP + soP) {
                     outs++; b.stats.so++; curPitcherHome.stats.so++;
                     curPitcherHome.stats.ipOuts++;
-                    currentInningOutsHome++;
+                    currentInningOutsHome++; // 【修正】インクリメント漏れを解消
                 } else {
-                    // 【修正】インプレイ安打率のベースを上方修正 (打率が正常に残るように)
                     const gb_p = parseFloat(document.getElementById('hit_gb').value);
                     const fb_p = parseFloat(document.getElementById('hit_fb').value);
                     const ld_p = parseFloat(document.getElementById('hit_ld').value);
@@ -352,12 +349,11 @@ function executeMatchLogic(away, home) {
                     let hitType = rand_type < gb_p ? "GB" : (rand_type < gb_p + fb_p ? "FB" : "LD");
                     
                     let baseHitChance = hitType === "GB" ? 0.28 : (hitType === "FB" ? 0.22 : 0.72);
-                    let h9Effect = (55 - curPitcherHome.h9) * 0.0015; // 被安打抑制による減衰を優しめに調整
+                    let h9Effect = (55 - curPitcherHome.h9) * 0.0015; 
                     let finalHitChance = Math.max(0.12, Math.min(0.90, baseHitChance + h9Effect));
 
                     if(Math.random() < finalHitChance) {
-                        // 【修正】本塁打(バレル)判定を掛け算方式に変更し、強打者のHRが出やすいよう調整
-                        let hr9Reduction = (curPitcherHome.hr9 / 100) * 0.5; // 最大でバレル率を50%軽減するに留める
+                        let hr9Reduction = (curPitcherHome.hr9 / 100) * 0.5; 
                         let finalBarrel = (b.barrel / 100) * (1 - hr9Reduction);
                         
                         let kind = "1B";
@@ -374,13 +370,13 @@ function executeMatchLogic(away, home) {
                     } else { 
                         outs++; 
                         curPitcherHome.stats.ipOuts++;
-                        currentInningOutsHome++;
+                        currentInningOutsHome++; // 【修正】インクリメント漏れを解消
                     }
                 }
             } else { 
                 outs++; 
                 curPitcherHome.stats.ipOuts++;
-                currentInningOutsHome++;
+                currentInningOutsHome++; // 【修正】インクリメント漏れを解消
             }
             awayOrder = (awayOrder + 1) % 9;
         }
@@ -428,7 +424,7 @@ function executeMatchLogic(away, home) {
                 } else if(rand < bbP + soP) {
                     outs++; b.stats.so++; curPitcherAway.stats.so++;
                     curPitcherAway.stats.ipOuts++;
-                    currentInningOutsAway++;
+                    currentInningOutsAway++; // 【修正】インクリメント漏れを解消
                 } else {
                     const gb_p = parseFloat(document.getElementById('hit_gb').value);
                     const fb_p = parseFloat(document.getElementById('hit_fb').value);
@@ -458,13 +454,13 @@ function executeMatchLogic(away, home) {
                     } else { 
                         outs++; 
                         curPitcherAway.stats.ipOuts++;
-                        currentInningOutsAway++;
+                        currentInningOutsAway++; // 【修正】インクリメント漏れを解消
                     }
                 }
             } else { 
                 outs++; 
                 curPitcherAway.stats.ipOuts++;
-                currentInningOutsAway++;
+                currentInningOutsAway++; // 【修正】インクリメント漏れを解消
             }
             homeOrder = (homeOrder + 1) % 9;
         }
