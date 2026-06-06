@@ -35,7 +35,7 @@ function selectUserTeam(val) {
 
 function getConditionModifier(condition, type) {
     const modifiers = {
-        "絶好調": { batBarrel: 1.35, batSo: 0.75, pitPitch: 1.10 }, // 打者優位をさらに強化
+        "絶好調": { batBarrel: 1.35, batSo: 0.75, pitPitch: 1.10 }, 
         "好調":   { batBarrel: 1.15, batSo: 0.85, pitPitch: 1.03 },
         "普通":   { batBarrel: 1.00, batSo: 1.00, pitPitch: 1.00 },
         "不調":   { batBarrel: 0.80, batSo: 1.20, pitPitch: 0.95 },
@@ -54,7 +54,6 @@ function changeAllPlayersCondition() {
 
 function executeFrontOfficeAI() {
     teams.forEach(t => {
-        // スタミナが極端に減ったリリーフ(15以下)を二軍へ落とす
         let tiredRelief = t.pitchers.find(p => p.role === "リリーフ" && p.staCurrent <= 15);
         let freshMinorRelief = t.pitchers.find(p => p.role === "二軍リリーフ" && p.staCurrent >= 30);
         if (tiredRelief && freshMinorRelief) {
@@ -128,7 +127,7 @@ function processOffseasonEvolution() {
             b.age += 1; b.proYears += 1;
             let growthPotential = Math.min(10, Math.floor((b.exp || 0) / 15)); b.exp = 0;
             if (b.age <= 24) {
-                b.barrel = Math.min(45, b.barrel + Math.floor(Math.random() * 5) + 1 + growthPotential * 0.3); // 若手の伸びを強化
+                b.barrel = Math.min(45, b.barrel + Math.floor(Math.random() * 5) + 1 + growthPotential * 0.3); 
                 b.isop = Math.min(65, b.isop + Math.floor(Math.random() * 6) + 2);
                 b.so = Math.max(10, b.so - Math.floor(Math.random() * 2));
             } else if (b.age <= 29) {
@@ -191,7 +190,6 @@ function simulateRound() {
         roundResults.push(res);
     });
 
-    // 【引き分け対策】一軍リリーフのスタミナ回復量を「8 ➔ 4」へ半減。連投でガッツリヘロヘロにさせます
     teams.forEach(t => {
         t.pitchers.forEach(p => { 
             let recovery = p.role.includes("二軍") ? 14 : 4; 
@@ -259,7 +257,6 @@ function executeMatchLogic(away, home) {
                 }
             }
 
-            // 【早期降板AI】先発が3点取られた、またはリリーフが2点取られたら即交代させてゲームを動かします
             if (curPitcherHome.role !== "守護神") {
                 if (inning <= 5) {
                     if (pitchCountHome >= curPitcherHome.staMax || curPitcherHomeErInMatch >= 4) needChange = true;
@@ -277,7 +274,7 @@ function executeMatchLogic(away, home) {
             if (needChange) {
                 let availableReliefs = home.pitchers.filter(p => p.role === "リリーフ" && p.staCurrent > 10);
                 if (availableReliefs.length > 0) {
-                    availableReliefs.sort((a, b) => a.staCurrent - b.staCurrent); // スタミナが減っている投手も使わざるを得ない状況を作る
+                    availableReliefs.sort((a, b) => a.staCurrent - b.staCurrent); 
                     curPitcherHome = availableReliefs[0];
                     if (!appearedHome.includes(curPitcherHome.name)) {
                         curPitcherHome.stats.appearances++; appearedHome.push(curPitcherHome.name);
@@ -287,19 +284,21 @@ function executeMatchLogic(away, home) {
                 }
             }
             
-            let currentBatters = away.batters.filter(bat => bat.role !== "一軍控え" && bat.role !== "二軍" && bat.role.includes("番"));
+            // 【バグ修正箇所】1番〜9番から始まる文字列を正規表現で100%確実にキャッチしてスタメン出場させます
+            let currentBatters = away.batters.filter(bat => /^[1-9]番/.test(bat.role));
             let b = currentBatters[awayOrder];
             
             if(!b) {
                 outs++; curPitcherHome.stats.ipOuts++; currentInningOutsHome++;
-                awayOrder = (awayOrder + 1) % (currentBatters.length || 9); continue;
+                awayOrder = (awayOrder + 1) % 9; continue;
             }
 
             b.stats.ab++; pitchCountHome += 4; b.exp = (b.exp || 0) + 2; 
+            b.stats.games = totalGamesPlayed + 1; // 試合数加算
+            
             let batConditionMod = getConditionModifier(b.condition, "batSo");
             let pitConditionMod = getConditionModifier(curPitcherHome.condition, "pit");
 
-            // 【打高化】四球率を上げ、投手の調子による抑え込みをマイルドに
             let bbP = (b.bb/100) + ((100 - curPitcherHome.bb9)*0.0006);
             let soP = (((b.so/100) * batConditionMod) + ((curPitcherHome.k9*0.0005) * pitConditionMod));
             let rand = Math.random();
@@ -317,13 +316,12 @@ function executeMatchLogic(away, home) {
                 let rand_type = Math.random() * (gb_p + fb_p + ld_p);
                 let hitType = rand_type < gb_p ? "GB" : (rand_type < gb_p + fb_p ? "FB" : "LD");
                 
-                // 【超打高化】ベースのインプレイ安打率をブーストして点の取り合いを誘発
                 let baseHitChance = hitType === "GB" ? 0.35 : (hitType === "FB" ? 0.32 : 0.79);
                 let h9Effect = ((55 - curPitcherHome.h9) * 0.0018) / pitConditionMod;
                 let finalHitChance = Math.max(0.22, Math.min(0.95, baseHitChance + h9Effect));
 
                 if(Math.random() < finalHitChance) {
-                    let hr9Reduction = ((curPitcherHome.hr9 / 100) * 0.25) * pitConditionMod; // 被弾を恐れない
+                    let hr9Reduction = ((curPitcherHome.hr9 / 100) * 0.25) * pitConditionMod; 
                     let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
                     
                     let kind = "1B";
@@ -339,7 +337,7 @@ function executeMatchLogic(away, home) {
                     outs++; curPitcherHome.stats.ipOuts++; currentInningOutsHome++; 
                 }
             }
-            awayOrder = (awayOrder + 1) % (currentBatters.length || 9);
+            awayOrder = (awayOrder + 1) % 9;
         }
 
         // 裏の攻撃
@@ -404,15 +402,18 @@ function executeMatchLogic(away, home) {
                 }
             }
             
-            let currentBattersHome = home.batters.filter(bat => bat.role !== "一軍控え" && bat.role !== "二軍" && bat.role.includes("番"));
+            // 【バグ修正箇所】裏のホームチームのスタメンも確実に判定します
+            let currentBattersHome = home.batters.filter(bat => /^[1-9]番/.test(bat.role));
             let b = currentBattersHome[homeOrder];
             
             if(!b) {
                 outs++; curPitcherAway.stats.ipOuts++; currentInningOutsAway++;
-                homeOrder = (homeOrder + 1) % (currentBattersHome.length || 9); continue;
+                homeOrder = (homeOrder + 1) % 9; continue;
             }
 
             b.stats.ab++; pitchCountAway += 4; b.exp = (b.exp || 0) + 2;
+            b.stats.games = totalGamesPlayed + 1;
+            
             let batConditionMod = getConditionModifier(b.condition, "batSo");
             let pitConditionMod = getConditionModifier(curPitcherAway.condition, "pit");
 
@@ -454,7 +455,7 @@ function executeMatchLogic(away, home) {
                     outs++; curPitcherAway.stats.ipOuts++; currentInningOutsAway++; 
                 }
             }
-            homeOrder = (homeOrder + 1) % (currentBattersHome.length || 9);
+            homeOrder = (homeOrder + 1) % 9;
         }
     }
 
@@ -470,7 +471,7 @@ function executeMatchLogic(away, home) {
 
     away.pitchers.forEach(p => { 
         if (p.name === pAway.name) p.staCurrent = 0; 
-        else if (appearedAway.includes(p.name)) p.staCurrent = Math.max(0, p.staCurrent - 15); // 連投ペナルティを増加
+        else if (appearedAway.includes(p.name)) p.staCurrent = Math.max(0, p.staCurrent - 15); 
     });
     home.pitchers.forEach(p => { 
         if (p.name === pHome.name) p.staCurrent = 0; 
