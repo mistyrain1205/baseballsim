@@ -3,8 +3,11 @@ const positions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手",
 const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
 const conditions = ["絶好調", "好調", "普通", "不調", "絶不調"];
 
-// 出身地用の都道府県プール
 const prefectures = ["北海道", "青森", "岩手", "宮城", "秋田", "山形", "福島", "茨城", "栃木", "群馬", "埼玉", "千葉", "東京", "神奈川", "新潟", "富山", "石川", "福井", "山梨", "長野", "岐阜", "静岡", "愛知", "三重", "滋賀", "京都", "大阪", "兵庫", "奈良", "和歌山", "鳥取", "島根", "岡山", "広島", "山口", "徳島", "香川", "愛媛", "高知", "福岡", "佐賀", "長崎", "熊本", "大分", "宮崎", "鹿児島", "沖縄"];
+
+let totalGamesPlayed = 0;
+const MAX_GAMES = 143;
+let teams = [];
 
 function initializeLeagueData() {
     teams = [];
@@ -24,9 +27,8 @@ function initializeLeagueData() {
             let isFirstTeam = i <= 16;
             let pos = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手","一塁手","捕手","内野手","内野手","外野手","外野手","外野手","内野手","内野手","外野手","捕手","内野手"][i-1];
             
-            // 経歴・年齢のリアルな自動生成
             let graduation = ["高卒", "大卒", "社会人"][Math.floor(Math.random() * 3)];
-            let proYears = Math.floor(Math.random() * 12) + 1; // プロ1年目〜12年目
+            let proYears = Math.floor(Math.random() * 12) + 1; 
             let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
             let age = baseAge + (proYears - 1);
 
@@ -37,13 +39,11 @@ function initializeLeagueData() {
                 originalPos: pos,
                 currentPos: pos,
                 condition: "普通",
-                // 新設定項目
                 age: age,
                 hometown: prefectures[Math.floor(Math.random() * prefectures.length)],
                 graduation: graduation,
                 proYears: proYears,
-                exp: 0, // 経験値
-                
+                exp: 0, 
                 bb: isStamen ? [11, 9, 12, 15, 10, 8, 7, 7, 5][i-1] : 7.0,
                 so: isStamen ? [14, 16, 15, 20, 18, 22, 23, 25, 30][i-1] : 22.0,
                 barrel: isStamen ? [10, 12, 22, 30, 18, 14, 12, 10, 6][i-1] : 8.0, 
@@ -72,13 +72,11 @@ function initializeLeagueData() {
                 currentPos: "投手",
                 originalPos: "投手",
                 condition: "普通",
-                // 新設定項目
                 age: age,
                 hometown: prefectures[Math.floor(Math.random() * prefectures.length)],
                 graduation: graduation,
                 proYears: proYears,
                 exp: 0,
-
                 h9: isCloser ? 85 : (isStarter ? 60 + i : 65 + (i-5)), 
                 k9: isCloser ? 88 : (isStarter ? 65 - i : 70 + (i-5)), 
                 bb9: isCloser ? 80 : (isStarter ? 70 : 65),
