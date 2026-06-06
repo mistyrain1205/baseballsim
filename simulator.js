@@ -1,8 +1,15 @@
 // simulator.js
 
+// ==========================================
+// 1. スケジュール生成アルゴリズム
+// ==========================================
 function getDynamicSchedule(roundCount) {
-    let numTeams = 6; let totalRounds = numTeams - 1; let currentRound = roundCount % totalRounds;
-    let pairings = []; let list = [0, 1, 2, 3, 4, 5];
+    let numTeams = 6; 
+    let totalRounds = numTeams - 1; 
+    let currentRound = roundCount % totalRounds;
+    let pairings = []; 
+    let list = [0, 1, 2, 3, 4, 5];
+    
     for (let i = 0; i < numTeams / 2; i++) {
         let awayIdx = (currentRound + i) % (numTeams - 1);
         let homeIdx = (numTeams - 1 - i + currentRound) % (numTeams - 1);
@@ -12,6 +19,9 @@ function getDynamicSchedule(roundCount) {
     return pairings;
 }
 
+// ==========================================
+// 2. コアロジック & ユーザー設定
+// ==========================================
 let userTeamId = 0; 
 let currentYear = 1; 
 
@@ -19,16 +29,17 @@ function selectUserTeam(val) {
     userTeamId = parseInt(val);
     let editSelect = document.getElementById("edit_team_select");
     if(editSelect) editSelect.value = userTeamId;
-    onEditorTeamChange(); updateUIAll();
+    onEditorTeamChange(); 
+    updateUIAll();
 }
 
 function getConditionModifier(condition, type) {
     const modifiers = {
-        "絶好調": { batBarrel: 1.35, batSo: 0.75, pitPitch: 1.10 }, 
-        "好調":   { batBarrel: 1.15, batSo: 0.85, pitPitch: 1.03 },
+        "絶好調": { batBarrel: 1.25, batSo: 0.80, pitPitch: 1.12 }, 
+        "好調":   { batBarrel: 1.12, batSo: 0.90, pitPitch: 1.05 },
         "普通":   { batBarrel: 1.00, batSo: 1.00, pitPitch: 1.00 },
-        "不調":   { batBarrel: 0.80, batSo: 1.20, pitPitch: 0.95 },
-        "絶不調": { batBarrel: 0.65, batSo: 1.35, pitPitch: 0.85 }
+        "不調":   { batBarrel: 0.85, batSo: 1.15, pitPitch: 0.92 },
+        "絶不調": { batBarrel: 0.70, batSo: 1.30, pitPitch: 0.82 }
     };
     return modifiers[condition] ? modifiers[condition][type] : 1.0;
 }
@@ -46,7 +57,8 @@ function executeFrontOfficeAI() {
         let tiredRelief = t.pitchers.find(p => p.role === "リリーフ" && p.staCurrent <= 15);
         let freshMinorRelief = t.pitchers.find(p => p.role === "二軍リリーフ" && p.staCurrent >= 30);
         if (tiredRelief && freshMinorRelief) {
-            tiredRelief.role = "二軍リリーフ"; freshMinorRelief.role = "リリーフ";
+            tiredRelief.role = "二軍リリーフ"; 
+            freshMinorRelief.role = "リリーフ";
         }
         let slumpFirstTeam = t.batters.find(b => b.role === 0 && (b.condition === "絶不調" || b.condition === "不調"));
         let hotMinorTeam = t.batters.find(b => b.role === -1 && (b.condition === "絶好調" || b.condition === "好調"));
@@ -105,11 +117,11 @@ function processOffseasonEvolution() {
             b.age += 1; b.proYears += 1;
             let growthPotential = Math.min(10, Math.floor((b.exp || 0) / 15)); b.exp = 0;
             if (b.age <= 24) {
-                b.barrel = Math.min(45, b.barrel + Math.floor(Math.random() * 5) + 1 + growthPotential * 0.3); 
-                b.isop = Math.min(65, b.isop + Math.floor(Math.random() * 6) + 2);
+                b.barrel = Math.min(45, b.barrel + Math.floor(Math.random() * 4) + 1 + growthPotential * 0.2); 
+                b.isop = Math.min(65, b.isop + Math.floor(Math.random() * 5) + 2);
                 b.so = Math.max(10, b.so - Math.floor(Math.random() * 2));
             } else if (b.age <= 29) {
-                if(Math.random() < 0.4) b.barrel = Math.min(45, b.barrel + 1);
+                if(Math.random() < 0.3) b.barrel = Math.min(45, b.barrel + 1);
             } else if (b.age <= 34) {
                 b.barrel = Math.max(5, b.barrel - (Math.floor(Math.random() * 2)));
                 b.isop = Math.max(5, b.isop - (Math.floor(Math.random() * 3)));
@@ -157,7 +169,7 @@ function simulateRound() {
         let res = executeMatchLogic(teamAway, teamHome);
         roundResults.push(res);
     });
-    teams.forEach(t => { t.pitchers.forEach(p => { let recovery = p.role.includes("二軍") ? 14 : 4; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); }); });
+    teams.forEach(t => { t.pitchers.forEach(p => { let recovery = p.role.includes("二軍") ? 14 : 5; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); }); });
     totalGamesPlayed++; return roundResults;
 }
 
@@ -179,7 +191,7 @@ function executeMatchLogic(away, home) {
     for (let inning = 1; inning <= 9; inning++) {
         currentInningOutsAway = 0; currentInningOutsHome = 0;
 
-        // 表の攻撃
+        // 表の攻撃 (Away)
         let outs = 0; let bases = [false, false, false];
         while (outs < 3) {
             let needChange = false;
@@ -198,7 +210,7 @@ function executeMatchLogic(away, home) {
                 }
             }
             if (curPitcherHome.role !== "守護神") {
-                if (pitchCountHome >= curPitcherHome.staMax || curPitcherHomeErInMatch >= 3) needChange = true;
+                if (pitchCountHome >= curPitcherHome.staMax || curPitcherHomeErInMatch >= 4) needChange = true;
             } else { if (curPitcherHomeErInMatch >= 2) needChange = true; }
 
             if (needChange) {
@@ -206,31 +218,50 @@ function executeMatchLogic(away, home) {
                 if (available.length > 0) { curPitcherHome = available[0]; if (!appearedHome.includes(curPitcherHome.name)) { curPitcherHome.stats.appearances++; appearedHome.push(curPitcherHome.name); } pitchCountHome = 0; curPitcherHomeErInMatch = 0; currentInningOutsHome = 0; }
             }
             
-            // 【完全解決】数値が1~9のスタメンだけを正確にフィルタリング
             let currentBatters = away.batters.filter(bat => bat.role >= 1 && bat.role <= 9);
             currentBatters.sort((a, b) => a.role - b.role);
             let b = currentBatters[awayOrder];
             
             if(!b) { outs++; awayOrder = (awayOrder + 1) % 9; continue; }
 
-            b.stats.ab++; pitchCountHome += 4; b.stats.games = 1;
-            let bbP = 0.08; let soP = 0.18; let rand = Math.random(); // 確率スケールを完全に固定化
+            b.stats.ab++; pitchCountHome += 4; b.stats.games = (b.stats.games || 0) + 1;
+            
+            // 【黄金バランス調整】四球・三振・インプレイの確率をリアルなプロ野球スケールに配分
+            let batConditionMod = getConditionModifier(b.condition, "batSo");
+            let pitConditionMod = getConditionModifier(curPitcherHome.condition, "pit");
+            
+            let bbP = (b.bb / 100) * 0.8 + ((100 - curPitcherHome.bb9) * 0.0004); // 四球率: 約8~12%
+            let soP = ((b.so / 100) * 0.7 * batConditionMod) + ((curPitcherHome.k9 * 0.001) * pitConditionMod); // 三振率: 約15~22%
+            let rand = Math.random();
             
             if(rand < bbP) {
                 b.stats.bb++; curPitcherHome.stats.bb++; awayScore += advanceRunners(bases, "BB");
             } else if(rand < bbP + soP) {
                 outs++; b.stats.so++; curPitcherHome.stats.so++;
             } else {
-                b.stats.hits++; b.exp = (b.exp || 0) + 2;
-                let isHR = Math.random() < (b.barrel / 100);
-                awayScore += advanceRunners(bases, isHR ? "HR" : "1B");
-                if(isHR) b.stats.hr++;
+                // 残りの「バットに当たった確率（約7割）」の中で、ヒット（打高ブースト）の抽選を行う
+                let baseHitChance = 0.31; // インプレイ打率のベース
+                let h9Effect = ((curPitcherHome.h9 - 65) * 0.002) * pitConditionMod;
+                let finalHitChance = Math.max(0.24, Math.min(0.45, baseHitChance - h9Effect));
+                
+                if (Math.random() < finalHitChance) {
+                    b.stats.hits++; b.exp = (b.exp || 0) + 2;
+                    // バレル強化（ホームランが出やすい仕様を絶妙にキープ）
+                    let hr9Reduction = ((curPitcherHome.hr9 / 100) * 0.3) * pitConditionMod;
+                    let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
+                    
+                    let isHR = Math.random() < (finalBarrel * 0.45); // 本塁打率の最終補正
+                    awayScore += advanceRunners(bases, isHR ? "HR" : "1B");
+                    if(isHR) b.stats.hr++;
+                } else {
+                    outs++; // 凡打アウト
+                }
             }
             awayOrder = (awayOrder + 1) % 9;
         }
 
-        // 裏の攻撃
-        outs = 0; bases = [false, false, false];
+        // 裏の攻撃 (Home)
+        let outs = 0; let bases = [false, false, false];
         while (outs < 3) {
             let needChange = false;
             if (inning === 9 && curPitcherAway.role !== "守護神") {
@@ -248,7 +279,7 @@ function executeMatchLogic(away, home) {
                 }
             }
             if (curPitcherAway.role !== "守護神") {
-                if (pitchCountAway >= curPitcherAway.staMax || curPitcherAwayErInMatch >= 3) needChange = true;
+                if (pitchCountAway >= curPitcherAway.staMax || curPitcherAwayErInMatch >= 4) needChange = true;
             } else { if (curPitcherAwayErInMatch >= 2) needChange = true; }
 
             if (needChange) {
@@ -262,18 +293,35 @@ function executeMatchLogic(away, home) {
             
             if(!b) { outs++; homeOrder = (homeOrder + 1) % 9; continue; }
 
-            b.stats.ab++; pitchCountAway += 4; b.stats.games = 1;
-            let bbP = 0.08; let soP = 0.18; let rand = Math.random();
+            b.stats.ab++; pitchCountAway += 4; b.stats.games = (b.stats.games || 0) + 1;
+            
+            let batConditionMod = getConditionModifier(b.condition, "batSo");
+            let pitConditionMod = getConditionModifier(curPitcherAway.condition, "pit");
+            
+            let bbP = (b.bb / 100) * 0.8 + ((100 - curPitcherAway.bb9) * 0.0004);
+            let soP = ((b.so / 100) * 0.7 * batConditionMod) + ((curPitcherAway.k9 * 0.001) * pitConditionMod);
+            let rand = Math.random();
             
             if(rand < bbP) {
                 b.stats.bb++; curPitcherAway.stats.bb++; homeScore += advanceRunners(bases, "BB");
             } else if(rand < bbP + soP) {
                 outs++; b.stats.so++; curPitcherAway.stats.so++;
             } else {
-                b.stats.hits++; b.exp = (b.exp || 0) + 2;
-                let isHR = Math.random() < (b.barrel / 100);
-                homeScore += advanceRunners(bases, isHR ? "HR" : "1B");
-                if(isHR) b.stats.hr++;
+                let baseHitChance = 0.31;
+                let h9Effect = ((curPitcherAway.h9 - 65) * 0.002) * pitConditionMod;
+                let finalHitChance = Math.max(0.24, Math.min(0.45, baseHitChance - h9Effect));
+                
+                if (Math.random() < finalHitChance) {
+                    b.stats.hits++; b.exp = (b.exp || 0) + 2;
+                    let hr9Reduction = ((curPitcherAway.hr9 / 100) * 0.3) * pitConditionMod;
+                    let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
+                    
+                    let isHR = Math.random() < (finalBarrel * 0.45);
+                    homeScore += advanceRunners(bases, isHR ? "HR" : "1B");
+                    if(isHR) b.stats.hr++;
+                } else {
+                    outs++;
+                }
             }
             homeOrder = (homeOrder + 1) % 9;
         }
