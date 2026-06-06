@@ -1,4 +1,59 @@
 // simulator.js
+let userTeamId = 0; // デフォルトは大阪(0)
+
+// ユーザーがチームを切り替えた時の処理
+function selectUserTeam(val) {
+    userTeamId = parseInt(val);
+    
+    // エディタの球団選択も自動で連動させる（親切設計）
+    document.getElementById("edit_team_select").value = userTeamId;
+    onEditorTeamChange();
+    
+    // 順位表の表示を更新して★の位置を変える
+    updateUIAll();
+}
+
+// 【差し替え】updateUIAll 内の「順位表描画」の部分を以下に修正
+function updateUIAll() {
+    document.getElementById("current_game_count").innerText = totalGamesPlayed;
+    document.getElementById("current_week_count").innerText = Math.floor(totalGamesPlayed / 6) + 1;
+    
+    let sorted = [...teams].sort((a,b) => (b.wins / ((b.wins + b.losses) || 1)) - (a.wins / ((a.wins + a.losses) || 1)));
+    let sBody = document.getElementById("standings_body"); 
+    sBody.innerHTML = "";
+    
+    sorted.forEach((t, i) => {
+        let wp = t.wins / ((t.wins + t.losses) || 1);
+        
+        // 【重要】ユーザーの選択したチームなら名前の前に★をつけ、背景を少し目立たせる
+        let isMyTeam = (t.id === userTeamId);
+        let teamDisplay = isMyTeam ? `<span style="color:#e53e3e;">★</span>${t.name}` : t.name;
+        let rowStyle = isMyTeam ? `style="background-color: #e6fffa; font-weight:bold;"` : "";
+        
+        sBody.innerHTML += `<tr ${rowStyle}><td>${i+1}</td><td><b>${teamDisplay}</b></td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${wp.toFixed(3)}</td><td>-</td></tr>`;
+    });
+
+    // --- 以下、個人成績（batters/pitchers）の描画コード（既存のまま）に続く ---
+    let bList = []; teams.forEach(t => t.batters.forEach(b => bList.push({tName: t.name, data: b})));
+    bList.sort((a,b) => (b.data.stats.hits / (b.data.stats.ab || 1)) - (a.data.stats.hits / (a.data.stats.ab || 1)));
+    let batBody = document.querySelector("#batting_stats_table tbody"); batBody.innerHTML = "";
+    bList.slice(0, 15).forEach(item => {
+        let b = item.data; let avg = b.stats.hits / (b.stats.ab || 1);
+        batBody.innerHTML += `<tr><td>${item.tName}</td><td><b>${b.name}</b></td><td>${b.currentPos}</td><td>${avg.toFixed(3)}</td><td>${b.stats.games}</td><td>${b.stats.ab}</td><td>${b.stats.hits}</td><td>${b.stats.hr}</td><td>${b.stats.rbi}</td><td>${b.stats.bb}</td></tr>`;
+    });
+
+    let pList = []; teams.forEach(t => t.pitchers.forEach(p => pList.push({tName: t.name, data: p})));
+    pList.sort((a,b) => {
+        if(a.data.stats.ipOuts === 0) return 1; if(b.data.stats.ipOuts === 0) return -1;
+        return a.data.stats.era - b.data.stats.era;
+    });
+    let pitBody = document.querySelector("#pitching_stats_table tbody"); pitBody.innerHTML = "";
+    pList.forEach(item => {
+        let p = item.data;
+        pitBody.innerHTML += `<tr><td>${item.tName}</td><td><b>${p.name}</b></td><td>${p.role}</td><td><b>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</b></td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td><b>${p.stats.saves}</b></td><td>${formatInningsPitched(p.stats.ipOuts)}</td><td>${p.stats.so}</td><td>${p.staCurrent}</td></tr>`;
+    });
+}
+
 
 function getDynamicSchedule(roundCount) {
     let numTeams = 6; let totalRounds = numTeams - 1; let currentRound = roundCount % totalRounds;
