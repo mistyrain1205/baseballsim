@@ -3,7 +3,8 @@ let userTeamId = 0;
 
 function selectUserTeam(val) {
     userTeamId = parseInt(val);
-    document.getElementById("edit_team_select").value = userTeamId;
+    let editSelect = document.getElementById("edit_team_select");
+    if(editSelect) editSelect.value = userTeamId;
     onEditorTeamChange();
     updateUIAll();
 }
@@ -16,7 +17,7 @@ function getConditionModifier(condition, type) {
         "不調":   { batBarrel: 0.85, batSo: 1.15, pitPitch: 0.90 },
         "絶不調": { batBarrel: 0.70, batSo: 1.30, pitPitch: 0.80 }
     };
-    return modifiers[condition][type];
+    return modifiers[condition] ? modifiers[condition][type] : 1.0;
 }
 
 function changeAllPlayersCondition() {
@@ -42,44 +43,31 @@ function executeFrontOfficeAI() {
     });
 }
 
-// 【新ロジック】シーズン終了時の「年齢別・成長＆衰え曲線」シミュレート
 function processOffseasonEvolution() {
     teams.forEach(t => {
-        // 野手の成長・衰え
         t.batters.forEach(b => {
-            b.age += 1;
-            b.proYears += 1;
-            
-            // 獲得した経験値(exp)をベースに、年齢ごとの成長係数を掛け合わせる
-            let growthPotential = Math.min(10, Math.floor(b.exp / 15)); 
-            b.exp = 0; // 経験値をリセット
-
+            b.age += 1; b.proYears += 1;
+            let growthPotential = Math.min(10, Math.floor((b.exp || 0) / 15)); 
+            b.exp = 0;
             if (b.age <= 24) {
-                // 急成長期
                 b.barrel = Math.min(40, b.barrel + Math.floor(Math.random() * 4) + 1 + growthPotential * 0.3);
                 b.isop = Math.min(60, b.isop + Math.floor(Math.random() * 5) + 2);
-                b.so = Math.max(10, b.so - Math.floor(Math.random() * 2)); // 三振しにくくなる
+                b.so = Math.max(10, b.so - Math.floor(Math.random() * 2));
             } else if (b.age <= 29) {
-                // 全盛期（微増、または維持）
                 if(Math.random() < 0.4) b.barrel = Math.min(40, b.barrel + 1);
             } else if (b.age <= 34) {
-                // 衰え始め
                 b.barrel = Math.max(5, b.barrel - (Math.floor(Math.random() * 2)));
                 b.isop = Math.max(5, b.isop - (Math.floor(Math.random() * 3)));
             } else {
-                // ベテラン急衰退期
                 b.barrel = Math.max(3, b.barrel - (Math.floor(Math.random() * 4) + 1));
                 b.so = Math.min(45, b.so + Math.floor(Math.random() * 3));
             }
         });
 
-        // 投手の成長・衰え
         t.pitchers.forEach(p => {
-            p.age += 1;
-            p.proYears += 1;
-            let growthPotential = Math.min(10, Math.floor(p.exp / 15));
+            p.age += 1; p.proYears += 1;
+            let growthPotential = Math.min(10, Math.floor((p.exp || 0) / 15));
             p.exp = 0;
-
             if (p.age <= 24) {
                 p.h9 = Math.min(99, p.h9 + Math.floor(Math.random() * 4) + 1 + growthPotential * 0.3);
                 p.k9 = Math.min(99, p.k9 + Math.floor(Math.random() * 4) + 1);
@@ -99,10 +87,8 @@ function processOffseasonEvolution() {
 
 function simulateRound() {
     if(totalGamesPlayed >= MAX_GAMES) {
-        // 143試合終わったら、オフシーズン処理（成長・年齢加算）を挟んで新しいシーズンにループさせる
         processOffseasonEvolution();
         totalGamesPlayed = 0; 
-        // 通算勝敗や個別スタッツのクリア処理をここに挟むと完全にエンドレスループで遊べます
         teams.forEach(t => {
             t.wins = 0; t.losses = 0; t.draws = 0;
             t.batters.forEach(b => b.stats = { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 });
@@ -116,7 +102,6 @@ function simulateRound() {
     
     let pattern = getDynamicSchedule(totalGamesPlayed);
     let roundResults = [];
-
     pattern.forEach(pair => {
         let teamAway = teams[pair[0]]; let teamHome = teams[pair[1]];
         let res = executeMatchLogic(teamAway, teamHome);
@@ -143,8 +128,7 @@ function executeMatchLogic(away, home) {
     let curPitcherAway = pAway; let curPitcherHome = pHome;
     curPitcherAway.stats.appearances++; curPitcherHome.stats.appearances++;
     
-    // 【新ロジック】登板した先発に経験値付与
-    pAway.exp += 15; pHome.exp += 15;
+    pAway.exp = (pAway.exp || 0) + 15; pHome.exp = (pHome.exp || 0) + 15;
 
     let appearedAway = [pAway.name]; let appearedHome = [pHome.name];
     let awayScore = 0, homeScore = 0; let awayOrder = 0, homeOrder = 0;
@@ -169,7 +153,7 @@ function executeMatchLogic(away, home) {
                         if (!appearedHome.includes(curPitcherHome.name)) {
                             curPitcherHome.stats.appearances++; appearedHome.push(curPitcherHome.name);
                             potentialSaverHome = curPitcherHome;
-                            curPitcherHome.exp += 10; // 守護神登板経験値
+                            curPitcherHome.exp = (curPitcherHome.exp || 0) + 10;
                         }
                         pitchCountHome = 0; curPitcherHomeErInMatch = 0; currentInningOutsHome = 0;
                     }
@@ -185,7 +169,7 @@ function executeMatchLogic(away, home) {
                         curPitcherHome = setupMen[0];
                         if (!appearedHome.includes(curPitcherHome.name)) {
                             curPitcherHome.stats.appearances++; appearedHome.push(curPitcherHome.name);
-                            curPitcherHome.exp += 8; // リリーフ登板経験値
+                            curPitcherHome.exp = (curPitcherHome.exp || 0) + 8;
                         }
                         pitchCountHome = 0; curPitcherHomeErInMatch = 0; currentInningOutsHome = 0;
                     }
@@ -213,7 +197,7 @@ function executeMatchLogic(away, home) {
                     curPitcherHome = availableReliefs[0];
                     if (!appearedHome.includes(curPitcherHome.name)) {
                         curPitcherHome.stats.appearances++; appearedHome.push(curPitcherHome.name);
-                        curPitcherHome.exp += 8;
+                        curPitcherHome.exp = (curPitcherHome.exp || 0) + 8;
                     }
                     pitchCountHome = 0; curPitcherHomeErInMatch = 0; currentInningOutsHome = 0;
                 }
@@ -229,13 +213,13 @@ function executeMatchLogic(away, home) {
             }
 
             b.stats.ab++; pitchCountHome += 4;
-            b.exp += 2; // 出場野手に経験値加算
+            b.exp = (b.exp || 0) + 2; 
             
             let batConditionMod = getConditionModifier(b.condition, "batSo");
             let pitConditionMod = getConditionModifier(curPitcherHome.condition, "pit");
 
-            let bbP = (b.bb/100) + (((100 - curPitcherHome.bb9)*0.0006) / pitConditionMod);
-            let soP = ((b.so/100) * batConditionMod) + ((curPitcherHome.k9*0.001) * pitConditionMod);
+            let bbP = (b.bb/100) + ((100 - curPitcherHome.bb9)*0.0004);
+            let soP = ((b.so/100) * batConditionMod) + ((curPitcherHome.k9*0.0007) * pitConditionMod);
             let rand = Math.random();
             
             if(rand < bbP) {
@@ -246,14 +230,15 @@ function executeMatchLogic(away, home) {
                 outs++; b.stats.so++; curPitcherHome.stats.so++;
                 curPitcherHome.stats.ipOuts++; currentInningOutsHome++; 
             } else {
-                const gb_p = parseFloat(document.getElementById('hit_gb').value);
-                const fb_p = parseFloat(document.getElementById('hit_fb').value);
-                const ld_p = parseFloat(document.getElementById('hit_ld').value);
+                let hit_gb_el = document.getElementById('hit_gb');
+                const gb_p = hit_gb_el ? parseFloat(hit_gb_el.value) : 45;
+                const fb_p = parseFloat(document.getElementById('hit_fb').value) || 35;
+                const ld_p = parseFloat(document.getElementById('hit_ld').value) || 20;
                 let rand_type = Math.random() * (gb_p + fb_p + ld_p);
                 let hitType = rand_type < gb_p ? "GB" : (rand_type < gb_p + fb_p ? "FB" : "LD");
                 
                 let baseHitChance = hitType === "GB" ? 0.32 : (hitType === "FB" ? 0.28 : 0.76);
-                let h9Effect = ((55 - curPitcherHome.h9) * 0.0015) / pitConditionMod;
+                let h9Effect = ((55 - curPitcherHome.h9) * 0.0012) / pitConditionMod;
                 let finalHitChance = Math.max(0.18, Math.min(0.92, baseHitChance + h9Effect));
 
                 if(Math.random() < finalHitChance) {
@@ -262,7 +247,7 @@ function executeMatchLogic(away, home) {
                     
                     let kind = "1B";
                     if ((hitType === "FB" || hitType === "LD") && Math.random() < finalBarrel) {
-                        kind = "HR"; b.stats.hr++; b.exp += 5; // ホームランでボーナス経験値
+                        kind = "HR"; b.stats.hr++; b.exp = (b.exp || 0) + 5;
                     } else {
                         let extraBaseChance = 0.15 + (b.isop * 0.0035);
                         kind = Math.random() < extraBaseChance ? "2B" : "1B";
@@ -281,7 +266,6 @@ function executeMatchLogic(away, home) {
         outs = 0; bases = [false, false, false];
         while (outs < 3) {
             let needChange = false;
-
             if (inning === 9 && curPitcherAway.role !== "守護神") {
                 let scoreDiff = awayScore - homeScore;
                 if (scoreDiff >= 0 && scoreDiff <= 3) {
@@ -291,7 +275,7 @@ function executeMatchLogic(away, home) {
                         if (!appearedAway.includes(curPitcherAway.name)) {
                             curPitcherAway.stats.appearances++; appearedAway.push(curPitcherAway.name);
                             potentialSaverAway = curPitcherAway;
-                            curPitcherAway.exp += 10;
+                            curPitcherAway.exp = (curPitcherAway.exp || 0) + 10;
                         }
                         pitchCountAway = 0; curPitcherAwayErInMatch = 0; currentInningOutsAway = 0;
                     }
@@ -307,7 +291,7 @@ function executeMatchLogic(away, home) {
                         curPitcherAway = setupMen[0];
                         if (!appearedAway.includes(curPitcherAway.name)) {
                             curPitcherAway.stats.appearances++; appearedAway.push(curPitcherAway.name);
-                            curPitcherAway.exp += 8;
+                            curPitcherAway.exp = (curPitcherAway.exp || 0) + 8;
                         }
                         pitchCountAway = 0; curPitcherAwayErInMatch = 0; currentInningOutsAway = 0;
                     }
@@ -335,7 +319,7 @@ function executeMatchLogic(away, home) {
                     curPitcherAway = availableReliefs[0];
                     if (!appearedAway.includes(curPitcherAway.name)) {
                         curPitcherAway.stats.appearances++; appearedAway.push(curPitcherAway.name);
-                        curPitcherAway.exp += 8;
+                        curPitcherAway.exp = (curPitcherAway.exp || 0) + 8;
                     }
                     pitchCountAway = 0; curPitcherAwayErInMatch = 0; currentInningOutsAway = 0;
                 }
@@ -350,13 +334,12 @@ function executeMatchLogic(away, home) {
                 continue;
             }
 
-            b.stats.ab++; pitchCountAway += 4;
-            b.exp += 2;
+            b.stats.ab++; pitchCountAway += 4; b.exp = (b.exp || 0) + 2;
             
             let batConditionMod = getConditionModifier(b.condition, "batSo");
             let pitConditionMod = getConditionModifier(curPitcherAway.condition, "pit");
 
-            let bbP = (b.bb/100) + (((100 - curPitcherAway.bb9)*0.0006) / pitConditionMod);
+            let bbP = (b.bb/100) + ((100 - curPitcherAway.bb9)*0.0006);
             let soP = ((b.so/100) * batConditionMod) + ((curPitcherAway.k9*0.001) * pitConditionMod);
             let rand = Math.random();
             
@@ -368,9 +351,10 @@ function executeMatchLogic(away, home) {
                 outs++; b.stats.so++; curPitcherAway.stats.so++;
                 curPitcherAway.stats.ipOuts++; currentInningOutsAway++; 
             } else {
-                const gb_p = parseFloat(document.getElementById('hit_gb').value);
-                const fb_p = parseFloat(document.getElementById('hit_fb').value);
-                const ld_p = parseFloat(document.getElementById('hit_ld').value);
+                let hit_gb_el = document.getElementById('hit_gb');
+                const gb_p = hit_gb_el ? parseFloat(hit_gb_el.value) : 45;
+                const fb_p = parseFloat(document.getElementById('hit_fb').value) || 35;
+                const ld_p = parseFloat(document.getElementById('hit_ld').value) || 20;
                 let rand_type = Math.random() * (gb_p + fb_p + ld_p);
                 let hitType = rand_type < gb_p ? "GB" : (rand_type < gb_p + fb_p ? "FB" : "LD");
                 
@@ -384,7 +368,7 @@ function executeMatchLogic(away, home) {
                     
                     let kind = "1B";
                     if ((hitType === "FB" || hitType === "LD") && Math.random() < finalBarrel) {
-                        kind = "HR"; b.stats.hr++; b.exp += 5;
+                        kind = "HR"; b.stats.hr++; b.exp = (b.exp || 0) + 5;
                     } else {
                         let extraBaseChance = 0.15 + (b.isop * 0.0035);
                         kind = Math.random() < extraBaseChance ? "2B" : "1B";
@@ -484,9 +468,10 @@ function resetSeason() {
 }
 
 function onEditorTeamChange() {
-    let teamIdx = parseInt(document.getElementById("edit_team_select").value);
+    let teamIdx = parseInt(document.getElementById("edit_team_select").value) || 0;
     let team = teams[teamIdx];
     let playerSelect = document.getElementById("edit_player_select");
+    if(!playerSelect || !team) return;
     playerSelect.innerHTML = "";
 
     team.batters.forEach((p, idx) => { playerSelect.innerHTML += `<option value="bat_${idx}">[野手] ${p.role} - ${p.name} (${p.age}歳/年:${p.proYears}/${p.condition})</option>`; });
@@ -495,9 +480,10 @@ function onEditorTeamChange() {
 }
 
 function onEditorPlayerChange() {
-    let teamIdx = parseInt(document.getElementById("edit_team_select").value);
-    let playerVal = document.getElementById("edit_player_select").value;
-    if(!playerVal) return;
+    let teamIdx = parseInt(document.getElementById("edit_team_select").value) || 0;
+    let playerSelect = document.getElementById("edit_player_select");
+    if(!playerSelect || !playerSelect.value) return;
+    let playerVal = playerSelect.value;
     
     let type = playerVal.split("_")[0]; let idx = parseInt(playerVal.split("_")[1]);
     let player = type === "bat" ? teams[teamIdx].batters[idx] : teams[teamIdx].pitchers[idx];
@@ -527,7 +513,7 @@ function onEditorPlayerChange() {
 }
 
 function saveEditorData() {
-    let teamIdx = parseInt(document.getElementById("edit_team_select").value);
+    let teamIdx = parseInt(document.getElementById("edit_team_select").value) || 0;
     let playerVal = document.getElementById("edit_player_select").value;
     let type = playerVal.split("_")[0]; let idx = parseInt(playerVal.split("_")[1]);
     let team = teams[teamIdx];
@@ -547,11 +533,21 @@ function saveEditorData() {
         p.hr9 = parseFloat(document.getElementById("form_hr9").value); p.staMax = parseFloat(document.getElementById("form_sta").value);
     }
     
+    let currentPositions = team.batters.map(b => b.currentPos);
+    let uniqLen = [...new Set(currentPositions)].length;
+    let warningEl = document.getElementById("editor_dup_warning");
+    if(warningEl) warningEl.style.display = (uniqLen < 8) ? "block" : "none";
+
+    let savedIndex = document.getElementById("edit_player_select").selectedIndex;
+    onEditorTeamChange(); document.getElementById("edit_player_select").selectedIndex = savedIndex;
     updateUIAll();
 }
 
 function updateUIAll() {
-    document.getElementById("current_game_count").innerText = totalGamesPlayed;
+    let gameCountEl = document.getElementById("current_game_count");
+    if(!gameCountEl) return;
+    
+    gameCountEl.innerText = totalGamesPlayed;
     document.getElementById("current_week_count").innerText = Math.floor(totalGamesPlayed / 6) + 1;
     
     let sorted = [...teams].sort((a,b) => (b.wins / ((b.wins + b.losses) || 1)) - (a.wins / ((a.wins + a.losses) || 1)));
@@ -590,6 +586,9 @@ function switchTab(tabId, el) {
     document.getElementById(tabId).classList.add('active'); el.classList.add('active');
 }
 
-initializeLeagueData();
-onEditorTeamChange();
-updateUIAll();
+// 安全なエントリー初期化
+window.onload = function() {
+    initializeLeagueData();
+    onEditorTeamChange();
+    updateUIAll();
+};
