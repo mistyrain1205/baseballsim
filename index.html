@@ -43,23 +43,23 @@
 
 <div class="container">
     <h1>本格派・プロ野球6球団ペナンシミュレーター & エディタ</h1>
-
-<div class="card" style="text-align:center; margin-bottom:20px; background:#f0fff4; border: 2px solid #c6f6d5;">
-    <h2>👔 GM・監督就任球団選択</h2>
-    <div style="margin-bottom: 10px;">
-        <label style="display:inline-block; font-weight:bold; margin-right:10px;">あなたの担当球団:</label>
-        <select id="user_team_select" class="manager-select" style="padding:8px; font-size:1em;" onchange="selectUserTeam(this.value)">
-            <option value="0">大阪ゴールドバザーズ</option>
-            <option value="1">東京ネオシティズ</option>
-            <option value="2">横浜ベイスターズ風</option>
-            <option value="3">西海マリナーズ</option>
-            <option value="4">京都ハロンズ</option>
-            <option value="5">浪速タイクーンズ</option>
-        </select>
-    </div>
-    <p style="font-size:0.85em; color:#4a5568; margin:0;">※あなたが率いるチームは順位表で <span style="background:#fffxxx; color:#e53e3e; font-weight:bold;">★マーク</span> が表示されます！</p>
-</div>
     
+    <div class="card" style="text-align:center; margin-bottom:20px; background:#f0fff4; border: 2px solid #c6f6d5;">
+        <h2>👔 GM・監督就任球団選択</h2>
+        <div style="margin-bottom: 10px;">
+            <label style="display:inline-block; font-weight:bold; margin-right:10px;">あなたの担当球団:</label>
+            <select id="user_team_select" style="padding:8px; font-size:1em; font-weight:bold; border-radius:4px;" onchange="selectUserTeam(this.value)">
+                <option value="0">大阪ゴールドバザーズ</option>
+                <option value="1">東京ネオシティズ</option>
+                <option value="2">横浜ベイスターズ風</option>
+                <option value="3">西海マリナーズ</option>
+                <option value="4">京都ハロンズ</option>
+                <option value="5">浪速タイクーンズ</option>
+            </select>
+        </div>
+        <p style="font-size:0.85em; color:#4a5568; margin:0;">※あなたが率いるチームは順位表で <span style="color:#e53e3e; font-weight:bold;">★マーク</span> が表示されます！</p>
+    </div>
+
     <div class="card" style="text-align:center; margin-bottom:20px; background:#ebf8ff; border: 2px solid #bee3f8;">
         <h2>リーグ消化状況: <span id="current_game_count">0</span> / 143 試合 (第 <span id="current_week_count">1</span> 週目)</h2>
         <div class="btn-group">
