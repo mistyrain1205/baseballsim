@@ -68,6 +68,46 @@ function executeFrontOfficeAI() {
     });
 }
 
+// 【忘れていた関数をsimulator.js側にも内蔵】ドラフトルーキー自動生成ロジック
+function createDraftBatter() {
+    let graduation = ["高卒", "大卒", "社会人"][Math.floor(Math.random() * 3)];
+    let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
+    let pos = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手","内野手"][Math.floor(Math.random() * 9)];
+    let prefs = ["北海道", "青森", "岩手", "宮城", "秋田", "山形", "福島", "茨城", "栃木", "群馬", "埼玉", "千葉", "東京", "神奈川", "新潟", "富山", "石川", "福井", "山梨", "長野", "岐阜", "静岡", "愛知", "三重", "滋賀", "京都", "大阪", "兵庫", "奈良", "和歌山", "鳥取", "島根", "岡山", "広島", "山口", "徳島", "香川", "愛媛", "高知", "福岡", "佐賀", "長崎", "熊本", "大分", "宮崎", "鹿児島", "沖縄"];
+    
+    return {
+        name: generateRandomPlayerName(),
+        role: -1, 
+        originalPos: pos, currentPos: pos, condition: "普通",
+        age: baseAge, hometown: prefs[Math.floor(Math.random() * prefs.length)],
+        graduation: graduation, proYears: 1, exp: 0,
+        bb: 6.0 + Math.random() * 4,
+        so: 15.0 + Math.random() * 10,
+        barrel: 6.0 + Math.random() * 6,
+        isop: 10 + Math.floor(Math.random() * 10),
+        uzr: 0, err: 2.0,
+        stats: { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 }
+    };
+}
+
+function createDraftPitcher() {
+    let graduation = ["高卒", "大卒", "社会人"][Math.floor(Math.random() * 3)];
+    let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
+    let prefs = ["北海道", "青森", "岩手", "宮城", "秋田", "山形", "福島", "茨城", "栃木", "群馬", "埼玉", "千葉", "東京", "神奈川", "新潟", "富山", "石川", "福井", "山梨", "長野", "岐阜", "静岡", "愛知", "三重", "滋賀", "京都", "大阪", "兵庫", "奈良", "和歌山", "鳥取", "島根", "岡山", "広島", "山口", "徳島", "香川", "愛媛", "高知", "福岡", "佐賀", "長崎", "熊本", "大分", "宮崎", "鹿児島", "沖縄"];
+
+    return {
+        name: generateRandomPlayerName(),
+        role: "二軍リリーフ", originalPos: "投手", currentPos: "投手", condition: "普通",
+        age: baseAge, hometown: prefs[Math.floor(Math.random() * prefs.length)],
+        graduation: graduation, proYears: 1, exp: 0,
+        h9: 60 + Math.floor(Math.random() * 10),
+        k9: 60 + Math.floor(Math.random() * 15),
+        bb9: 65, hr9: 55,
+        staMax: 35, staCurrent: 35,
+        stats: { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0 }
+    };
+}
+
 function executeOffseasonRosterEvents() {
     let logMsg = "";
     let targetCutCount = Math.floor(Math.random() * 8) + 8; 
@@ -99,12 +139,13 @@ function executeOffseasonRosterEvents() {
 
         let draftRound = 1;
         while(t.batters.length < 40) {
-            let newBat = createBlankBatter(false, 0);
-            newBat.role = -1; t.batters.push(newBat);
+            let newBat = createDraftBatter(); // 安全な関数呼び出しに修正
+            t.batters.push(newBat);
             if(t.id === userTeamId) { logMsg += `【ドラフト${draftRound}位】${newBat.name} 野手獲得！\n`; draftRound++; }
         }
         while(t.pitchers.length < 30) {
-            let newPit = createBlankPitcher("二軍リリーフ"); t.pitchers.push(newPit);
+            let newPit = createDraftPitcher(); // 安全な関数呼び出しに修正
+            t.pitchers.push(newPit);
             if(t.id === userTeamId) { logMsg += `【ドラフト${draftRound}位】${newPit.name} 投手獲得！\n`; draftRound++; }
         }
     });
@@ -226,12 +267,11 @@ function executeMatchLogic(away, home) {
 
             b.stats.ab++; pitchCountHome += 4; b.stats.games = (b.stats.games || 0) + 1;
             
-            // 【黄金バランス調整】四球・三振・インプレイの確率をリアルなプロ野球スケールに配分
             let batConditionMod = getConditionModifier(b.condition, "batSo");
             let pitConditionMod = getConditionModifier(curPitcherHome.condition, "pit");
             
-            let bbP = (b.bb / 100) * 0.8 + ((100 - curPitcherHome.bb9) * 0.0004); // 四球率: 約8~12%
-            let soP = ((b.so / 100) * 0.7 * batConditionMod) + ((curPitcherHome.k9 * 0.001) * pitConditionMod); // 三振率: 約15~22%
+            let bbP = (b.bb / 100) * 0.8 + ((100 - curPitcherHome.bb9) * 0.0004); 
+            let soP = ((b.so / 100) * 0.7 * batConditionMod) + ((curPitcherHome.k9 * 0.001) * pitConditionMod); 
             let rand = Math.random();
             
             if(rand < bbP) {
@@ -239,29 +279,34 @@ function executeMatchLogic(away, home) {
             } else if(rand < bbP + soP) {
                 outs++; b.stats.so++; curPitcherHome.stats.so++;
             } else {
-                // 残りの「バットに当たった確率（約7割）」の中で、ヒット（打高ブースト）の抽選を行う
-                let baseHitChance = 0.31; // インプレイ打率のベース
+                let hit_gb_el = document.getElementById('hit_gb');
+                const gb_p = hit_gb_el ? parseFloat(hit_gb_el.value) : 45;
+                const fb_p = parseFloat(document.getElementById('hit_fb').value) || 35;
+                const ld_p = parseFloat(document.getElementById('hit_ld').value) || 20;
+                let rand_type = Math.random() * (gb_p + fb_p + ld_p);
+                let hitType = rand_type < gb_p ? "GB" : (rand_type < gb_p + fb_p ? "FB" : "LD");
+                
+                let baseHitChance = 0.31; 
                 let h9Effect = ((curPitcherHome.h9 - 65) * 0.002) * pitConditionMod;
                 let finalHitChance = Math.max(0.24, Math.min(0.45, baseHitChance - h9Effect));
                 
                 if (Math.random() < finalHitChance) {
                     b.stats.hits++; b.exp = (b.exp || 0) + 2;
-                    // バレル強化（ホームランが出やすい仕様を絶妙にキープ）
                     let hr9Reduction = ((curPitcherHome.hr9 / 100) * 0.3) * pitConditionMod;
                     let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
                     
-                    let isHR = Math.random() < (finalBarrel * 0.45); // 本塁打率の最終補正
+                    let isHR = Math.random() < (finalBarrel * 0.45); 
                     awayScore += advanceRunners(bases, isHR ? "HR" : "1B");
                     if(isHR) b.stats.hr++;
                 } else {
-                    outs++; // 凡打アウト
+                    outs++; 
                 }
             }
             awayOrder = (awayOrder + 1) % 9;
         }
 
         // 裏の攻撃 (Home)
-        let outs = 0; let bases = [false, false, false];
+        outs = 0; bases = [false, false, false];
         while (outs < 3) {
             let needChange = false;
             if (inning === 9 && curPitcherAway.role !== "守護神") {
@@ -459,7 +504,11 @@ function saveEditorData() {
         p.k9 = parseFloat(document.getElementById("form_k9").value); p.bb9 = parseFloat(document.getElementById("form_bb9").value);
         p.hr9 = parseFloat(document.getElementById("form_hr9").value); p.staMax = parseFloat(document.getElementById("form_sta").value);
     }
-    onEditorTeamChange(); updateUIAll();
+    
+    let savedIndex = document.getElementById("edit_player_select").selectedIndex;
+    onEditorTeamChange(); 
+    document.getElementById("edit_player_select").selectedIndex = savedIndex;
+    updateUIAll();
 }
 
 function updateUIAll() {
