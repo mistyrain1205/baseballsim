@@ -111,7 +111,7 @@ function simulateRound() {
     teams.forEach(t => {
         t.pitchers.forEach(p => { 
             let recovery = p.role.includes("二軍") ? 15 : 8;
-            if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); 
+            if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + 8); 
         });
     });
 
@@ -442,7 +442,8 @@ function advanceRunners(bases, hitKind) {
 
 function playNextRound() {
     let res = simulateRound(); if(!res) return;
-    document.getElementById("quick_match_results").innerHTML = res.map(r => `<tr><td><b>${r}</b></td></tr>`).join("");
+    let rEl = document.getElementById("quick_match_results");
+    if(rEl) rEl.innerHTML = res.map(r => `<tr><td><b>${r}</b></td></tr>`).join("");
     updateUIAll();
 }
 
@@ -450,25 +451,31 @@ function playOneWeek() {
     let lastRes = null;
     for(let i=0; i<6; i++) { let res = simulateRound(); if(res) lastRes = res; }
     if(lastRes) {
-        document.getElementById("quick_match_results").innerHTML = "<tr><td style='color:green;'><b>一週間分(6カード)を一括消化しました</b></td></tr>" + lastRes.map(r => `<tr><td>${r}</td></tr>`).join("");
+        let rEl = document.getElementById("quick_match_results");
+        if(rEl) rEl.innerHTML = "<tr><td style='color:green;'><b>一週間分(6カード)を一括消化しました</b></td></tr>" + lastRes.map(r => `<tr><td>${r}</td></tr>`).join("");
     }
     updateUIAll();
 }
 
 function playAllSeason() {
     while(totalGamesPlayed < MAX_GAMES) { simulateRound(); }
-    document.getElementById("quick_match_results").innerHTML = "<tr><td style='color:orange; font-weight:bold;'>143試合全日程終了！翌年シーズンへ移行しました！</td></tr>";
+    let rEl = document.getElementById("quick_match_results");
+    if(rEl) rEl.innerHTML = "<tr><td style='color:orange; font-weight:bold;'>143試合全日程終了！翌年シーズンへ移行しました！</td></tr>";
     updateUIAll();
 }
 
 function resetSeason() {
     totalGamesPlayed = 0; initializeLeagueData();
-    document.getElementById("quick_match_results").innerHTML = "<tr><td>シーズンをリセットしました。</td></tr>";
+    let rEl = document.getElementById("quick_match_results");
+    if(rEl) rEl.innerHTML = "<tr><td>シーズンをリセットしました。</td></tr>";
     onEditorTeamChange(); updateUIAll();
 }
 
 function onEditorTeamChange() {
-    let teamIdx = parseInt(document.getElementById("edit_team_select").value) || 0;
+    let teamSelect = document.getElementById("edit_team_select");
+    let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
+    if (isNaN(teamIdx)) teamIdx = 0;
+    
     let team = teams[teamIdx];
     let playerSelect = document.getElementById("edit_player_select");
     if(!playerSelect || !team) return;
@@ -480,7 +487,10 @@ function onEditorTeamChange() {
 }
 
 function onEditorPlayerChange() {
-    let teamIdx = parseInt(document.getElementById("edit_team_select").value) || 0;
+    let teamSelect = document.getElementById("edit_team_select");
+    let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
+    if (isNaN(teamIdx)) teamIdx = 0;
+
     let playerSelect = document.getElementById("edit_player_select");
     if(!playerSelect || !playerSelect.value) return;
     let playerVal = playerSelect.value;
@@ -488,7 +498,10 @@ function onEditorPlayerChange() {
     let type = playerVal.split("_")[0]; let idx = parseInt(playerVal.split("_")[1]);
     let player = type === "bat" ? teams[teamIdx].batters[idx] : teams[teamIdx].pitchers[idx];
 
-    document.getElementById("form_name").value = player.name;
+    let nameForm = document.getElementById("form_name");
+    if(!nameForm) return;
+
+    nameForm.value = player.name;
     document.getElementById("form_role").value = player.role;
     document.getElementById("form_pos").value = player.currentPos;
 
@@ -513,7 +526,10 @@ function onEditorPlayerChange() {
 }
 
 function saveEditorData() {
-    let teamIdx = parseInt(document.getElementById("edit_team_select").value) || 0;
+    let teamSelect = document.getElementById("edit_team_select");
+    let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
+    if (isNaN(teamIdx)) teamIdx = 0;
+
     let playerVal = document.getElementById("edit_player_select").value;
     let type = playerVal.split("_")[0]; let idx = parseInt(playerVal.split("_")[1]);
     let team = teams[teamIdx];
@@ -586,9 +602,7 @@ function switchTab(tabId, el) {
     document.getElementById(tabId).classList.add('active'); el.classList.add('active');
 }
 
-// 安全なエントリー初期化
-window.onload = function() {
-    initializeLeagueData();
-    onEditorTeamChange();
-    updateUIAll();
-};
+// ドキュメント最下部での確実な初期化エントリー
+initializeLeagueData();
+onEditorTeamChange();
+updateUIAll();
