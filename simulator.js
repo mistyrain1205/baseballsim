@@ -284,7 +284,6 @@ function executeMatchLogic(away, home) {
                 }
             }
             
-            // 【バグ修正箇所】1番〜9番から始まる文字列を正規表現で100%確実にキャッチしてスタメン出場させます
             let currentBatters = away.batters.filter(bat => /^[1-9]番/.test(bat.role));
             let b = currentBatters[awayOrder];
             
@@ -294,7 +293,7 @@ function executeMatchLogic(away, home) {
             }
 
             b.stats.ab++; pitchCountHome += 4; b.exp = (b.exp || 0) + 2; 
-            b.stats.games = totalGamesPlayed + 1; // 試合数加算
+            b.stats.games = totalGamesPlayed + 1; 
             
             let batConditionMod = getConditionModifier(b.condition, "batSo");
             let pitConditionMod = getConditionModifier(curPitcherHome.condition, "pit");
@@ -337,6 +336,7 @@ function executeMatchLogic(away, home) {
                     outs++; curPitcherHome.stats.ipOuts++; currentInningOutsHome++; 
                 }
             }
+            // 【最重要修正】結果に関係なく打席が終わったら必ず打順を進める
             awayOrder = (awayOrder + 1) % 9;
         }
 
@@ -402,7 +402,6 @@ function executeMatchLogic(away, home) {
                 }
             }
             
-            // 【バグ修正箇所】裏のホームチームのスタメンも確実に判定します
             let currentBattersHome = home.batters.filter(bat => /^[1-9]番/.test(bat.role));
             let b = currentBattersHome[homeOrder];
             
@@ -455,6 +454,7 @@ function executeMatchLogic(away, home) {
                     outs++; curPitcherAway.stats.ipOuts++; currentInningOutsAway++; 
                 }
             }
+            // 【最重要修正】結果に関係なく打席が終わったら必ず打順を進める
             homeOrder = (homeOrder + 1) % 9;
         }
     }
