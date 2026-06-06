@@ -23,6 +23,7 @@ function getDynamicSchedule(roundCount) {
 // 2. コアロジック & ユーザー設定
 // ==========================================
 let userTeamId = 0; 
+let currentYear = 1; // ペナントの現在の年度を管理する変数を追加
 
 function selectUserTeam(val) {
     userTeamId = parseInt(val);
@@ -72,7 +73,6 @@ function executeFrontOfficeAI() {
 function executeOffseasonRosterEvents() {
     let logMsg = "";
     
-    // 毎年何人クビ＆ドラフトするかを、各球団ごとに8〜15人の間でランダム決定
     let targetCutCount = Math.floor(Math.random() * 8) + 8; 
     let cutBattersMax = Math.floor(targetCutCount / 2) + (targetCutCount % 2); 
     let cutPitchersMax = Math.floor(targetCutCount / 2); 
@@ -122,7 +122,7 @@ function executeOffseasonRosterEvents() {
         }
     });
 
-    alert(`ーーー 👔 オフシーズン・支配下ロスター更新速報 ーーー\n\n今年の大規模入れ替え人数: ${targetCutCount}名\n\n${logMsg}`);
+    alert(`ーーー 👔 オフシーズン・支配下ロスター更新速報 (第 ${currentYear} 年目オフ) ーーー\n\n今年の大規模入れ替え人数: ${targetCutCount}名\n\n${logMsg}`);
 }
 
 function processOffseasonEvolution() {
@@ -167,13 +167,21 @@ function processOffseasonEvolution() {
 
 function simulateRound() {
     if(totalGamesPlayed >= MAX_GAMES) {
+        // シーズン終了時の処理
         processOffseasonEvolution();
         executeOffseasonRosterEvents(); 
+        
+        // データの初期化と年度の更新
         totalGamesPlayed = 0; 
+        currentYear += 1; // 年度を次の年にカウントアップ！
+        
         teams.forEach(t => {
             t.wins = 0; t.losses = 0; t.draws = 0;
             t.batters.forEach(b => b.stats = { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 });
-            t.pitchers.forEach(p => p.stats = { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0 });
+            t.pitchers.forEach(p => {
+                p.staCurrent = p.staMax; // 新シーズンに向けてスタミナを全回復
+                p.stats = { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0 };
+            });
         });
         updateUIAll();
         return null;
@@ -203,8 +211,11 @@ function simulateRound() {
 function executeMatchLogic(away, home) {
     let pAway = away.pitchers.filter(p => p.role === "先発")[away.rotationIdx % 5];
     let pHome = home.pitchers.filter(p => p.role === "先発")[home.rotationIdx % 5];
-    pAway.staCurrent = pAway.staMax; pHome.staCurrent = pHome.staMax;
     
+    // シーズン初登板時などのスタミナ安全ガード
+    if (pAway.staCurrent === 0 && pitchCountAway === 0) pAway.staCurrent = pAway.staMax;
+    if (pHome.staCurrent === 0 && pitchCountHome === 0) pHome.staCurrent = pHome.staMax;
+
     let curPitcherAway = pAway; let curPitcherHome = pHome;
     curPitcherAway.stats.appearances++; curPitcherHome.stats.appearances++;
     pAway.exp = (pAway.exp || 0) + 15; pHome.exp = (pHome.exp || 0) + 15;
@@ -529,9 +540,11 @@ function playAllSeason() {
 }
 
 function resetSeason() {
-    totalGamesPlayed = 0; initializeLeagueData();
+    totalGamesPlayed = 0; 
+    currentYear = 1; // 年数もリセット
+    initializeLeagueData();
     let rEl = document.getElementById("quick_match_results");
-    if(rEl) rEl.innerHTML = "<tr><td>シーズンをリセットしました。</td></tr>";
+    if(rEl) rEl.innerHTML = "<tr><td>ペナントを完全リセットしました。</td></tr>";
     onEditorTeamChange(); updateUIAll();
 }
 
@@ -628,8 +641,13 @@ function updateUIAll() {
     if(!gameCountEl) return;
     
     gameCountEl.innerText = totalGamesPlayed;
-    document.getElementById("current_week_count").innerText = Math.floor(totalGamesPlayed / 6) + 1;
     
+    // 【UI更新】「第〇年目」が連動して表示されるように書き換え
+    let h2Title = document.querySelector(".card h2");
+    if(h2Title && !h2Title.innerText.includes("就任")) {
+        h2Title.innerHTML = `リーグ消化状況 (ペナント第 <span style='color:#e53e3e; font-weight:bold;'>${currentYear}</span> 年目): <span id="current_game_count">${totalGamesPlayed}</span> / 143 試合`;
+    }
+
     let sorted = [...teams].sort((a,b) => (b.wins / ((b.wins + b.losses) || 1)) - (a.wins / ((a.wins + a.losses) || 1)));
     let sBody = document.getElementById("standings_body"); sBody.innerHTML = "";
     sorted.forEach((t, i) => {
