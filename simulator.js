@@ -1,9 +1,6 @@
-// simulator.js
-
-
-// simulator.js の一番上にこれを貼り付けて追加してください
-
-// 動的に破綻のないスケジュール(総当たり対戦ペア)を生成するアルゴリズム
+// ==========================================
+// 1. スケジュール生成アルゴリズム (エラー原因の関数)
+// ==========================================
 function getDynamicSchedule(roundCount) {
     let numTeams = 6;
     let totalRounds = numTeams - 1; 
@@ -15,15 +12,15 @@ function getDynamicSchedule(roundCount) {
     for (let i = 0; i < numTeams / 2; i++) {
         let awayIdx = (currentRound + i) % (numTeams - 1);
         let homeIdx = (numTeams - 1 - i + currentRound) % (numTeams - 1);
-        
-        if (i === 0) {
-            homeIdx = numTeams - 1; 
-        }
+        if (i === 0) homeIdx = numTeams - 1; 
         pairings.push([list[awayIdx], list[homeIdx]]);
     }
     return pairings;
 }
 
+// ==========================================
+// 2. コアロジック & ユーザー設定
+// ==========================================
 let userTeamId = 0; 
 
 function selectUserTeam(val) {
@@ -609,15 +606,16 @@ function updateUIAll() {
         batBody.innerHTML += `<tr><td>${item.tName}</td><td><b>${b.name} (${b.age}歳/${b.graduation})</b></td><td>${b.currentPos}</td><td>${avg.toFixed(3)}</td><td>${b.stats.games}</td><td>${b.stats.ab}</td><td>${b.stats.hits}</td><td>${b.stats.hr}</td><td>${b.stats.rbi}</td><td>${b.stats.bb}</td></tr>`;
     });
 
-    let pList = []; teams.forEach(t => t.pitchers.forEach(p => pList.push({tName: t.name, data: p})));
+    let pList = []; teams.forEach(t => pList.push(...t.pitchers));
     pList.sort((a,b) => {
-        if(a.data.stats.ipOuts === 0) return 1; if(b.data.stats.ipOuts === 0) return -1;
-        return a.data.stats.era - b.data.stats.era;
+        if(a.stats.ipOuts === 0) return 1; if(b.stats.ipOuts === 0) return -1;
+        return a.stats.era - b.stats.era;
     });
     let pitBody = document.querySelector("#pitching_stats_table tbody"); pitBody.innerHTML = "";
-    pList.forEach(item => {
-        let p = item.data;
-        pitBody.innerHTML += `<tr><td>${item.tName}</td><td><b>${p.name} (${p.age}歳/年:${p.proYears})</b></td><td>${p.role}</td><td><b>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</b></td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td><b>${p.stats.saves}</b></td><td>${formatInningsPitched(p.stats.ipOuts)}</td><td>${p.stats.so}</td><td>${p.staCurrent}</td></tr>`;
+    pList.forEach(p => {
+        let tObj = teams.find(t => t.pitchers.some(pObj => pObj.name === p.name));
+        let tName = tObj ? tObj.name : "";
+        pitBody.innerHTML += `<tr><td>${tName}</td><td><b>${p.name} (${p.age}歳/年:${p.proYears})</b></td><td>${p.role}</td><td><b>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</b></td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td><b>${p.stats.saves}</b></td><td>${formatInningsPitched(p.stats.ipOuts)}</td><td>${p.stats.so}</td><td>${p.staCurrent}</td></tr>`;
     });
 }
 
@@ -627,7 +625,7 @@ function switchTab(tabId, el) {
     document.getElementById(tabId).classList.add('active'); el.classList.add('active');
 }
 
-// ドキュメント最下部での確実な初期化エントリー
+// 確実な起動エントリー
 initializeLeagueData();
 onEditorTeamChange();
 updateUIAll();
