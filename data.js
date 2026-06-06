@@ -9,7 +9,6 @@ let totalGamesPlayed = 0;
 const MAX_GAMES = 143;
 let teams = [];
 
-// ドラフト新人用のバッター生成
 function createBlankBatter(isStamen, orderIdx) {
     let graduation = ["高卒", "大卒", "社会人"][Math.floor(Math.random() * 3)];
     let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
@@ -17,7 +16,7 @@ function createBlankBatter(isStamen, orderIdx) {
     
     return {
         name: generateRandomPlayerName(),
-        role: isStamen ? `${orderIdx}番` : "二軍",
+        role: isStamen ? orderIdx : -1, // 数値で管理 (1~9:スタメン, 0:一軍控え, -1:二軍)
         originalPos: pos, currentPos: pos, condition: "普通",
         age: baseAge, hometown: prefectures[Math.floor(Math.random() * prefectures.length)],
         graduation: graduation, proYears: 1, exp: 0,
@@ -30,7 +29,6 @@ function createBlankBatter(isStamen, orderIdx) {
     };
 }
 
-// ドラフト新人用のピッチャー生成
 function createBlankPitcher(roleType) {
     let graduation = ["高卒", "大卒", "社会人"][Math.floor(Math.random() * 3)];
     let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
@@ -56,7 +54,7 @@ function initializeLeagueData() {
             id: t, name: teamNames[t], wins: 0, losses: 0, draws: 0, rotationIdx: 0, batters: [], pitchers: []
         };
         
-        // 野手40人生成 (スタメン9人 + 一軍控え7人 + 残り24人はすべて「二軍」配属)
+        // 野手40人生成 (1~9番打者、10~16番が一軍控え、それ以降は二軍)
         for(let i=1; i<=40; i++) {
             let isStamen = i <= 9;
             let isFirstTeam = i <= 16;
@@ -69,7 +67,7 @@ function initializeLeagueData() {
 
             teamObj.batters.push({
                 id: i-1, name: generateRandomPlayerName(),
-                role: isStamen ? `${i}番` : (isFirstTeam ? "一軍控え" : "二軍"),
+                role: isStamen ? i : (isFirstTeam ? 0 : -1), // 1~9:打順、0:一軍控え、-1:二軍
                 originalPos: pos, currentPos: pos, condition: "普通",
                 age: age, hometown: prefectures[Math.floor(Math.random() * prefectures.length)],
                 graduation: graduation, proYears: proYears, exp: 0,
@@ -82,7 +80,7 @@ function initializeLeagueData() {
             });
         }
         
-        // 投手30人生成 (先発5人 + 一軍リリーフ6人 + 一軍守護神1人 + 残り18人はすべて「二軍リリーフ」配属)
+        // 投手30人生成
         for(let i=1; i<=30; i++) {
             let isStarter = i <= 5;
             let isCloser = i === 12;
