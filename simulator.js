@@ -222,7 +222,7 @@ function executeMatchLogic(away, home) {
     for (let inning = 1; inning <= 9; inning++) {
         currentInningOutsAway = 0; currentInningOutsHome = 0;
 
-        // 表の攻撃
+        // 表の攻撃 (Away)
         let outs = 0; let bases = [false, false, false];
         while (outs < 3) {
             let needChange = false;
@@ -298,8 +298,9 @@ function executeMatchLogic(away, home) {
             let batConditionMod = getConditionModifier(b.condition, "batSo");
             let pitConditionMod = getConditionModifier(curPitcherHome.condition, "pit");
 
-            let bbP = (b.bb/100) + ((100 - curPitcherHome.bb9)*0.0006);
-            let soP = (((b.so/100) * batConditionMod) + ((curPitcherHome.k9*0.0005) * pitConditionMod));
+            // 【バグ修正】確率スケールを実数（0.01〜0.15程度）に正しくマッピング
+            let bbP = (b.bb / 400) + ((100 - curPitcherHome.bb9) * 0.0005);
+            let soP = ((b.so / 300) * batConditionMod) + ((curPitcherHome.k9 * 0.001) * pitConditionMod);
             let rand = Math.random();
             
             if(rand < bbP) {
@@ -308,6 +309,7 @@ function executeMatchLogic(away, home) {
             } else if(rand < bbP + soP) {
                 outs++; b.stats.so++; curPitcherHome.stats.so++; curPitcherHome.stats.ipOuts++; currentInningOutsHome++; 
             } else {
+                // インプレイの打撃抽選（ここへ正常に進むようになりました！）
                 let hit_gb_el = document.getElementById('hit_gb');
                 const gb_p = hit_gb_el ? parseFloat(hit_gb_el.value) : 45;
                 const fb_p = parseFloat(document.getElementById('hit_fb').value) || 35;
@@ -315,19 +317,19 @@ function executeMatchLogic(away, home) {
                 let rand_type = Math.random() * (gb_p + fb_p + ld_p);
                 let hitType = rand_type < gb_p ? "GB" : (rand_type < gb_p + fb_p ? "FB" : "LD");
                 
-                let baseHitChance = hitType === "GB" ? 0.35 : (hitType === "FB" ? 0.32 : 0.79);
-                let h9Effect = ((55 - curPitcherHome.h9) * 0.0018) / pitConditionMod;
-                let finalHitChance = Math.max(0.22, Math.min(0.95, baseHitChance + h9Effect));
+                let baseHitChance = hitType === "GB" ? 0.25 : (hitType === "FB" ? 0.22 : 0.68);
+                let h9Effect = ((curPitcherHome.h9 - 45) * 0.0025) * pitConditionMod;
+                let finalHitChance = Math.max(0.18, Math.min(0.90, baseHitChance + h9Effect));
 
                 if(Math.random() < finalHitChance) {
-                    let hr9Reduction = ((curPitcherHome.hr9 / 100) * 0.25) * pitConditionMod; 
+                    let hr9Reduction = ((curPitcherHome.hr9 / 100) * 0.20) * pitConditionMod; 
                     let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
                     
                     let kind = "1B";
                     if ((hitType === "FB" || hitType === "LD") && Math.random() < finalBarrel) {
                         kind = "HR"; b.stats.hr++; b.exp = (b.exp || 0) + 5;
                     } else {
-                        let extraBaseChance = 0.18 + (b.isop * 0.004);
+                        let extraBaseChance = 0.12 + (b.isop * 0.003);
                         kind = Math.random() < extraBaseChance ? "2B" : "1B";
                     }
                     b.stats.hits++; let runs = advanceRunners(bases, kind);
@@ -336,11 +338,10 @@ function executeMatchLogic(away, home) {
                     outs++; curPitcherHome.stats.ipOuts++; currentInningOutsHome++; 
                 }
             }
-            // 【最重要修正】結果に関係なく打席が終わったら必ず打順を進める
             awayOrder = (awayOrder + 1) % 9;
         }
 
-        // 裏の攻撃
+        // 裏の攻撃 (Home)
         outs = 0; bases = [false, false, false];
         while (outs < 3) {
             let needChange = false;
@@ -416,8 +417,9 @@ function executeMatchLogic(away, home) {
             let batConditionMod = getConditionModifier(b.condition, "batSo");
             let pitConditionMod = getConditionModifier(curPitcherAway.condition, "pit");
 
-            let bbP = (b.bb/100) + ((100 - curPitcherAway.bb9)*0.0006);
-            let soP = (((b.so/100) * batConditionMod) + ((curPitcherAway.k9*0.0005) * pitConditionMod));
+            // 【バグ修正】裏も同様に確率を正常化
+            let bbP = (b.bb / 400) + ((100 - curPitcherAway.bb9) * 0.0005);
+            let soP = ((b.so / 300) * batConditionMod) + ((curPitcherAway.k9 * 0.001) * pitConditionMod);
             let rand = Math.random();
             
             if(rand < bbP) {
@@ -433,19 +435,19 @@ function executeMatchLogic(away, home) {
                 let rand_type = Math.random() * (gb_p + fb_p + ld_p);
                 let hitType = rand_type < gb_p ? "GB" : (rand_type < gb_p + fb_p ? "FB" : "LD");
                 
-                let baseHitChance = hitType === "GB" ? 0.35 : (hitType === "FB" ? 0.32 : 0.79);
-                let h9Effect = ((55 - curPitcherAway.h9) * 0.0015) / pitConditionMod;
-                let finalHitChance = Math.max(0.22, Math.min(0.95, baseHitChance + h9Effect));
+                let baseHitChance = hitType === "GB" ? 0.25 : (hitType === "FB" ? 0.22 : 0.68);
+                let h9Effect = ((curPitcherAway.h9 - 45) * 0.0025) * pitConditionMod;
+                let finalHitChance = Math.max(0.18, Math.min(0.90, baseHitChance + h9Effect));
 
                 if(Math.random() < finalHitChance) {
-                    let hr9Reduction = ((curPitcherAway.hr9 / 100) * 0.25) * pitConditionMod;
+                    let hr9Reduction = ((curPitcherAway.hr9 / 100) * 0.20) * pitConditionMod;
                     let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
                     
                     let kind = "1B";
                     if ((hitType === "FB" || hitType === "LD") && Math.random() < finalBarrel) {
                         kind = "HR"; b.stats.hr++; b.exp = (b.exp || 0) + 5;
                     } else {
-                        let extraBaseChance = 0.18 + (b.isop * 0.004);
+                        let extraBaseChance = 0.12 + (b.isop * 0.003);
                         kind = Math.random() < extraBaseChance ? "2B" : "1B";
                     }
                     b.stats.hits++; let runs = advanceRunners(bases, kind);
@@ -454,7 +456,6 @@ function executeMatchLogic(away, home) {
                     outs++; curPitcherAway.stats.ipOuts++; currentInningOutsAway++; 
                 }
             }
-            // 【最重要修正】結果に関係なく打席が終わったら必ず打順を進める
             homeOrder = (homeOrder + 1) % 9;
         }
     }
