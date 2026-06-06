@@ -1,4 +1,29 @@
 // simulator.js
+
+
+// simulator.js の一番上にこれを貼り付けて追加してください
+
+// 動的に破綻のないスケジュール(総当たり対戦ペア)を生成するアルゴリズム
+function getDynamicSchedule(roundCount) {
+    let numTeams = 6;
+    let totalRounds = numTeams - 1; 
+    let currentRound = roundCount % totalRounds;
+
+    let pairings = [];
+    let list = [0, 1, 2, 3, 4, 5];
+
+    for (let i = 0; i < numTeams / 2; i++) {
+        let awayIdx = (currentRound + i) % (numTeams - 1);
+        let homeIdx = (numTeams - 1 - i + currentRound) % (numTeams - 1);
+        
+        if (i === 0) {
+            homeIdx = numTeams - 1; 
+        }
+        pairings.push([list[awayIdx], list[homeIdx]]);
+    }
+    return pairings;
+}
+
 let userTeamId = 0; 
 
 function selectUserTeam(val) {
