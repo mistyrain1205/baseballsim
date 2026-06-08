@@ -52,7 +52,6 @@ function changeAllPlayersCondition() {
     });
 }
 
-// フロントオフィスAIの修正：スタメン(1-9)は落とさず、一軍控え(0)と二軍(-1)の間で好不調を入れ替える
 function executeFrontOfficeAI() {
     teams.forEach(t => {
         let tiredRelief = t.pitchers.find(p => p.role === "リリーフ" && p.staCurrent <= 15);
@@ -69,22 +68,18 @@ function executeFrontOfficeAI() {
     });
 }
 
-// 【役割再配置ロジック】シーズン開幕時やドラフト後に、確実に1〜9番打者と投手の役割を固定するガードレール
 function reassignTeamRoles(t) {
-    // 野手の並び替えと役割の再割り当て
-    // すでに1〜9番が割り当てられているものは維持し、足りない枠を埋める
     let assignedRoles = new Set();
     t.batters.forEach(b => {
         if (b.role >= 1 && b.role <= 9) {
             if (assignedRoles.has(b.role)) {
-                b.role = -1; // 重複は一旦リセット
+                b.role = -1; 
             } else {
                 assignedRoles.add(b.role);
             }
         }
     });
 
-    // 1~9番の空きを埋める
     for (let r = 1; r <= 9; r++) {
         if (!assignedRoles.has(r)) {
             let candidate = t.batters.find(b => b.role <= 0);
@@ -94,7 +89,6 @@ function reassignTeamRoles(t) {
         }
     }
 
-    // 残りのうち、上位15人ほどを一軍控え(0)、その他を二軍(-1)に
     let reserveCount = 0;
     t.batters.forEach(b => {
         if (b.role >= 1 && b.role <= 9) return;
@@ -106,7 +100,6 @@ function reassignTeamRoles(t) {
         }
     });
 
-    // 投手の役割再配置
     let starters = t.pitchers.filter(p => p.role === "先発");
     while (starters.length < 5) {
         let p = t.pitchers.find(p => p.role !== "先発" && p.role !== "守護神");
@@ -118,7 +111,6 @@ function reassignTeamRoles(t) {
         let p = t.pitchers.find(p => p.role !== "先発");
         if (p) p.role = "守護神";
     }
-    // 残りをリリーフと二軍リリーフに半々で分ける
     let rCount = 0;
     t.pitchers.forEach(p => {
         if (p.role === "先発" || p.role === "守護神") return;
@@ -172,10 +164,9 @@ function createDraftPitcher() {
 
 function executeOffseasonRosterEvents() {
     let logMsg = "";
-    let targetCutCount = Math.floor(Math.random() * 4) + 4; // クビにする人数をマイルドに(4-7人)
+    let targetCutCount = Math.floor(Math.random() * 4) + 4; 
     
     teams.forEach(t => {
-        // スタメン(1-9)以外の選手を評価の対象にしてソート(主力は絶対クビにしない)
         let backUpBatters = t.batters.filter(b => b.role <= 0);
         let mainBatters = t.batters.filter(b => b.role >= 1 && b.role <= 9);
         
@@ -194,7 +185,6 @@ function executeOffseasonRosterEvents() {
         });
         t.batters = [...mainBatters, ...keptBackups];
 
-        // 投手も同様に先発・守護神以外から自由契約を選ぶ
         let backUpPitchers = t.pitchers.filter(p => p.role !== "先発" && p.role !== "守護神");
         let mainPitchers = t.pitchers.filter(p => p.role === "先発" || p.role === "守護神");
         
@@ -211,7 +201,6 @@ function executeOffseasonRosterEvents() {
         });
         t.pitchers = [...mainPitchers, ...keptPitchers];
 
-        // ドラフトによる補充
         let draftRound = 1;
         while(t.batters.length < 40) {
             let newBat = createDraftBatter();
@@ -224,7 +213,6 @@ function executeOffseasonRosterEvents() {
             if(t.id === userTeamId) { logMsg += `【ドラフト${draftRound}位】${newPit.name} 投手獲得！\n`; draftRound++; }
         }
 
-        // 重要！新シーズンに向けて役割・打順を完全に自動再配置・修復する
         reassignTeamRoles(t);
     });
     alert(`ーーー 👔 オフシーズン更新速報 (第 ${currentYear} 年目オフ) ーーー\n\n${logMsg}`);
@@ -292,17 +280,16 @@ function simulateRound() {
     totalGamesPlayed++; return roundResults;
 }
 
-
+// ==========================================
+// 3. 試合進行・シミュレーション中枢
+// ==========================================
 function executeMatchLogic(away, home) {
-    // チームオリジナルの配列から、現在のローテーションに該当する先発投手を直接参照
     let pAway = away.pitchers.filter(p => p.role === "先発")[away.rotationIdx % 5];
     let pHome = home.pitchers.filter(p => p.role === "先発")[home.rotationIdx % 5];
     
-    // ヌルポインタガード（万が一先発が見つからなければ配列の先頭を確保）
     if(!pAway) pAway = away.pitchers[0];
     if(!pHome) pHome = home.pitchers[0];
     
-    // 試合開始時にスタミナを満タンに
     pAway.staCurrent = pAway.staMax; 
     pHome.staCurrent = pHome.staMax;
 
@@ -318,21 +305,18 @@ function executeMatchLogic(away, home) {
     let appearedAway = [pAway.name]; 
     let appearedHome = [pHome.name];
     let awayScore = 0, homeScore = 0; 
-    let awayOrder = 1; // 1番打者からスタート (data.jsのrole定義が1~9のため)
+    let awayOrder = 1; 
     let homeOrder = 1; 
     let pitchCountAway = 0, pitchCountHome = 0;
     let curPitcherAwayErInMatch = 0; 
     let curPitcherHomeErInMatch = 0;
 
     for (let inning = 1; inning <= 9; inning++) {
-        // ==========================================
-        // 表の攻撃 (Away)
-        // ==========================================
+        // --- 表の攻撃 (Away) ---
         let outs = 0; 
         let bases = [false, false, false];
         while (outs < 3) {
             let needChange = false;
-            // 9回裏・表の守護神降臨ロジック
             if (inning === 9 && curPitcherHome.role !== "守護神") {
                 let scoreDiff = homeScore - awayScore;
                 if (scoreDiff >= 0 && scoreDiff <= 3) {
@@ -349,7 +333,6 @@ function executeMatchLogic(away, home) {
                     }
                 }
             }
-            // 7-8回のセットアッパー継投
             if (curPitcherHome.role !== "守護神" && (inning === 7 || inning === 8)) {
                 let scoreDiff = homeScore - awayScore;
                 if (scoreDiff >= 0 && scoreDiff <= 2 && curPitcherHome.role === "先発") {
@@ -367,7 +350,6 @@ function executeMatchLogic(away, home) {
                 }
             }
             
-            // スタミナ切れ、または炎上によるリリーフ交代
             if (curPitcherHome.role !== "守護神") {
                 if (pitchCountHome >= curPitcherHome.staMax || curPitcherHomeErInMatch >= 4) needChange = true;
             } else { 
@@ -387,25 +369,22 @@ function executeMatchLogic(away, home) {
                 }
             }
             
-            // 【重要】使い捨ての配列ではなく、本尊の配列から現在の打順(awayOrder)のバッターを直接findする
             let b = away.batters.find(bat => bat.role === awayOrder);
-            if(!b) b = away.batters.find(bat => bat.role > 0) || away.batters[0]; // 居ない場合の安全ガード
+            if(!b) b = away.batters.find(bat => bat.role > 0) || away.batters[0];
 
-            // 出場試合数のカウント
             if (b.stats.games === 0 || b.stats.games === undefined) b.stats.games = 1;
             else if (pitchCountHome === 0) b.stats.games++;
 
             pitchCountHome += 4; 
             
             let batConditionMod = getConditionModifier(b.condition, "batSo");
-            let pitConditionMod = getConditionModifier(curPitcherHome.condition, "pitPitch"); // キーを固定
+            let pitConditionMod = getConditionModifier(curPitcherHome.condition, "pitPitch"); 
             
             let bbP = (b.bb / 100) * 0.8 + ((100 - curPitcherHome.bb9) * 0.0004); 
             let soP = ((b.so / 100) * 0.7 * batConditionMod) + ((curPitcherHome.k9 * 0.001) * pitConditionMod); 
             let rand = Math.random();
             
             if(rand < bbP) {
-                // 四球
                 b.stats.bb++; 
                 curPitcherHome.stats.bb++; 
                 let runs = advanceRunners(bases, "BB");
@@ -413,7 +392,6 @@ function executeMatchLogic(away, home) {
                 curPitcherHome.stats.er += runs;
                 curPitcherHomeErInMatch += runs;
             } else if(rand < bbP + soP) {
-                // 三振
                 b.stats.ab++;
                 outs++; 
                 b.stats.so++; 
@@ -425,7 +403,6 @@ function executeMatchLogic(away, home) {
                 let finalHitChance = Math.max(0.24, Math.min(0.45, baseHitChance - h9Effect));
                 
                 if (Math.random() < finalHitChance) {
-                    // 安打
                     b.stats.ab++;
                     b.stats.hits++; 
                     b.exp = (b.exp || 0) + 2;
@@ -439,19 +416,15 @@ function executeMatchLogic(away, home) {
                     curPitcherHomeErInMatch += runs;
                     if(isHR) b.stats.hr++;
                 } else {
-                    // フィールドアウト
                     b.stats.ab++;
                     outs++; 
                     curPitcherHome.stats.ipOuts = (curPitcherHome.stats.ipOuts || 0) + 1;
                 }
             }
-            // 打順を回す（1~9のループに修正）
             awayOrder = (awayOrder % 9) + 1;
         }
 
-        // ==========================================
-        // 裏の攻撃 (Home)
-        // ==========================================
+        // --- 裏の攻撃 (Home) ---
         outs = 0; 
         bases = [false, false, false];
         while (outs < 3) {
@@ -507,7 +480,6 @@ function executeMatchLogic(away, home) {
                 }
             }
             
-            // 【重要】Home側も本尊の配列から直接findする
             let b = home.batters.find(bat => bat.role === homeOrder);
             if(!b) b = home.batters.find(bat => bat.role > 0) || home.batters[0];
 
@@ -564,64 +536,22 @@ function executeMatchLogic(away, home) {
         }
     }
 
-    // 勝敗判定
     if(awayScore > homeScore) { 
-        away.wins++; 
-        home.losses++; 
+        away.wins++; home.losses++; 
     } else if(homeScore > awayScore) { 
-        home.wins++; 
-        away.losses++; 
+        home.wins++; away.losses++; 
     } else { 
-        away.draws++; 
-        home.draws++; 
+        away.draws++; home.draws++; 
     }
 
-    // スタミナ消費
     away.pitchers.forEach(p => { if (appearedAway.includes(p.name)) p.staCurrent = Math.max(0, p.staCurrent - 10); });
     home.pitchers.forEach(p => { if (appearedHome.includes(p.name)) p.staCurrent = Math.max(0, p.staCurrent - 10); });
     
-    // 防御率（ERA）を本尊に反映
     away.pitchers.forEach(p => { if (p.stats.ipOuts > 0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
     home.pitchers.forEach(p => { if (p.stats.ipOuts > 0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
 
     away.rotationIdx++; 
     home.rotationIdx++;
-    
-    return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
-}
-    // 勝敗判定
-    if(awayScore > homeScore) { 
-        away.wins++; 
-        home.losses++; 
-    } else if(homeScore > awayScore) { 
-        home.wins++; 
-        away.losses++; 
-    } else { 
-        away.draws++; 
-        home.draws++; 
-    }
-
-    // 登板した投手のスタミナ消費
-    away.pitchers.forEach(p => { if (appearedAway.includes(p.name)) p.staCurrent = Math.max(0, p.staCurrent - 10); });
-    home.pitchers.forEach(p => { if (appearedHome.includes(p.name)) p.staCurrent = Math.max(0, p.staCurrent - 10); });
-    
-    // 防御率（ERA）の最終リアルタイム計算
-    away.pitchers.forEach(p => { if (p.stats.ipOuts > 0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
-    home.pitchers.forEach(p => { if (p.stats.ipOuts > 0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
-
-    away.rotationIdx++; 
-    home.rotationIdx++;
-    
-    return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
-}
-
-    if(awayScore > homeScore) { away.wins++; home.losses++; } 
-    else if(homeScore > awayScore) { home.wins++; away.losses++; } 
-    else { away.draws++; home.draws++; }
-
-    away.pitchers.forEach(p => { if (appearedAway.includes(p.name)) p.staCurrent = Math.max(0, p.staCurrent - 10); });
-    home.pitchers.forEach(p => { if (appearedHome.includes(p.name)) p.staCurrent = Math.max(0, p.staCurrent - 10); });
-    away.rotationIdx++; home.rotationIdx++;
     return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
 }
 
