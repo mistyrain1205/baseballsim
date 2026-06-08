@@ -6,7 +6,7 @@
 const BALANCING_CONFIG = {
     // 打撃関連のベース確率
     batting: {
-        baseHitChance: 0.35,      // ヒットの基本確率 (デフォルト0.31から+0.04ブースト中)
+        baseHitChance: 0.37,      // ヒットの基本確率 (デフォルト0.31から+0.06ブースト中)
         hrMultiplier: 0.98,       // ホームラン化する最終補正係数 (デフォルト0.45から0.98へ倍増中)
         pitcherH9Influence: 0.0015, // 投手のH9（被安打抑制力）が打率に与える影響度
         pitcherHr9Influence: 0.3   // 投手のHR9（被本塁打抑制力）がバレルに与える影響度
