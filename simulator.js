@@ -215,31 +215,48 @@ function simulateRound() {
         let res = executeMatchLogic(teamAway, teamHome);
         roundResults.push(res);
     });
-    teams.forEach(t => { t.pitchers.forEach(p => { let recovery = p.role.includes("二軍") ? 14 : 1.5; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); }); });
+
+    // リリーフの回復処理
+    teams.forEach(t => { 
+        t.pitchers.forEach(p => { 
+            let recovery = p.role.includes("二軍") ? 14 : 1.5; 
+            if(p.staCurrent < p.staMax) {
+                p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); 
+            }
+        }); 
+    });
+
+    // 🔥 ここで確実に試合カウントを1進める
     totalGamesPlayed++; 
     return roundResults;
 }
 
 function playNextRound() {
-    let res = simulateRound(); if(!res) return;
+    let res = simulateRound(); 
+    if(!res) return;
     let rEl = document.getElementById("quick_match_results");
     if(rEl) rEl.innerHTML = res.map(r => `<tr><td><b>${r}</b></td></tr>`).join("");
-    updateUIAll();
+    updateUIAll(); // 📊 画面の試合数・打率表示を強制更新
 }
 
 function playOneWeek() {
     let lastRes = null;
-    for(let i=0; i<6; i++) { let res = simulateRound(); if(res) lastRes = res; }
+    for(let i=0; i<6; i++) { 
+        let res = simulateRound(); 
+        if(res) lastRes = res; 
+    }
     if(lastRes) {
         let rEl = document.getElementById("quick_match_results");
         if(rEl) rEl.innerHTML = "<tr><td style='color:green;'><b>一週間分(6カード)を一括消化しました</b></td></tr>" + lastRes.map(r => `<tr><td>${r}</td></tr>`).join("");
     }
-    updateUIAll();
+    updateUIAll(); // 📊 画面の試合数・打率表示を強制更新
 }
 
 function playAllSeason() {
-    while(totalGamesPlayed < MAX_GAMES) { simulateRound(); }
-    updateUIAll();
+    while(totalGamesPlayed < MAX_GAMES) { 
+        simulateRound(); 
+    }
+    updateUIAll(); // 📊 画面の試合数・打率表示を強制更新
 }
 
 function resetSeason() {
