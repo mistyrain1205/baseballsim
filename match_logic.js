@@ -41,10 +41,12 @@ function executeMatchLogic(away, home) {
         while (outs < 3) {
             let needChange = false;
             
+            // 【修正】9回・守護神の登板判定（セーブシチュエーション、または同点の僅差のみ）
             if (inning === 9 && curPitcherHome.role !== "守護神") {
                 let scoreDiff = homeScore - awayScore;
+                // 3点リード以内、または同点の場合のみ守護神を出す（大勝時や大負け時は温存）
                 if (scoreDiff >= 0 && scoreDiff <= 3) {
-                    let closer = home.pitchers.find(p => p.role === "守護神" && p.staCurrent >= 15);
+                    let closer = home.pitchers.find(p => p.role === "守護神" && p.staCurrent >= 20);
                     if (closer) { 
                         curPitcherHome = closer; 
                         if (!appearedHome.includes(closer.name)) { 
@@ -58,23 +60,15 @@ function executeMatchLogic(away, home) {
                 }
             }
             
+            // 7・8回の継投判定（先発がまだ投げていて、僅差の場合のセットアッパー選出）
             if (curPitcherHome.role !== "守護神" && (inning === 7 || inning === 8)) {
                 let scoreDiff = homeScore - awayScore;
-                if (scoreDiff >= 0 && scoreDiff <= 2 && curPitcherHome.role === "先発") {
-                    let setup = home.pitchers.find(p => p.role === "リリーフ" && p.staCurrent >= 25);
-                    if (setup) { 
-                        curPitcherHome = setup; 
-                        if (!appearedHome.includes(setup.name)) { 
-                            setup.stats.appearances++; 
-                            appearedHome.push(setup.name); 
-                            setup.exp = (setup.exp||0)+8;
-                        } 
-                        pitchCountHome = 0; 
-                        initMatchStat(setup.name);
-                    }
+                if (scoreDiff >= -1 && scoreDiff <= 2 && curPitcherHome.role === "先発") {
+                    needChange = true; // 僅差ならリリーフへスイッチ
                 }
             }
             
+            // 途中の通常継投判定（スタミナ切れ、または炎上）
             if (curPitcherHome.role !== "守護神") {
                 if (pitchCountHome >= curPitcherHome.staMax || pitcherMatchStats[curPitcherHome.name].er >= 4) needChange = true;
             } else { 
@@ -82,11 +76,18 @@ function executeMatchLogic(away, home) {
             }
 
             if (needChange) {
-                let available = home.pitchers.filter(p => p.role === "リリーフ" && p.staCurrent >= 20);
-                if (available.length === 0) {
-                    available = home.pitchers.filter(p => p.role.includes("リリーフ") && p.staCurrent > 5);
-                }
+                // 【全員野球AI】一軍リリーフ全員（role === "リリーフ"）をプール
+                let available = home.pitchers.filter(p => p.role === "リリーフ" && p.staCurrent >= 18 && !appearedHome.includes(p.name));
+                
                 if (available.length > 0) { 
+                    // 【重要】スタミナ残量 ＋ 調子補正を計算し、その日一番「フレッシュで投げられる」投手を動的に選出！
+                    // これにより、配列の先頭だけが使われるバグを完全に破壊し、ブルペン全員に均等にチャンスが回ります。
+                    available.sort((a, b) => {
+                        let scoreA = a.staCurrent * getConditionModifier(a.condition, "batBarrel"); // 調子が良いとスタミナ持ちが良い判定
+                        let scoreB = b.staCurrent * getConditionModifier(b.condition, "batBarrel");
+                        return scoreB - scoreA; // スコアが高い（元気な）順
+                    });
+                    
                     curPitcherHome = available[0]; 
                     if (!appearedHome.includes(curPitcherHome.name)) { 
                         curPitcherHome.stats.appearances++; 
@@ -94,6 +95,18 @@ function executeMatchLogic(away, home) {
                     } 
                     pitchCountHome = 0; 
                     initMatchStat(curPitcherHome.name);
+                } else {
+                    // もし一軍リリーフが全員ヘロヘロなら、二軍の元気なロングリリーフを緊急昇格して使わせる
+                    let minorReliefs = home.pitchers.filter(p => p.role === "二軍リリーフ" && p.staCurrent >= 25);
+                    if (minorReliefs.length > 0) {
+                        curPitcherHome = minorReliefs[0];
+                        if (!appearedHome.includes(curPitcherHome.name)) {
+                            curPitcherHome.stats.appearances++;
+                            appearedHome.push(curPitcherHome.name);
+                        }
+                        pitchCountHome = 0;
+                        initMatchStat(curPitcherHome.name);
+                    }
                 }
             }
             
@@ -174,18 +187,8 @@ function executeMatchLogic(away, home) {
             }
             if (curPitcherAway.role !== "守護神" && (inning === 7 || inning === 8)) {
                 let scoreDiff = awayScore - homeScore;
-                if (scoreDiff >= 0 && scoreDiff <= 2 && curPitcherAway.role === "先発") {
-                    let setup = away.pitchers.find(p => p.role === "リリーフ" && p.staCurrent >= 25);
-                    if (setup) { 
-                        curPitcherAway = setup; 
-                        if (!appearedAway.includes(setup.name)) { 
-                            setup.stats.appearances++; 
-                            appearedAway.push(setup.name); 
-                            setup.exp = (setup.exp||0)+8;
-                        } 
-                        pitchCountAway = 0; 
-                        initMatchStat(setup.name);
-                    }
+                if (scoreDiff >= -1 && scoreDiff <= 2 && curPitcherAway.role === "先発") {
+                    needChange = true;
                 }
             }
             if (curPitcherAway.role !== "守護神") {
@@ -195,11 +198,18 @@ function executeMatchLogic(away, home) {
             }
 
             if (needChange) {
-                let available = away.pitchers.filter(p => p.role === "リリーフ" && p.staCurrent >= 20);
+                let available = away.pitchers.filter(p => p.role === "リリーフ" && p.staCurrent >= 20 && !appearedAway.includes(p.name));
                 if (available.length === 0) {
                     available = away.pitchers.filter(p => p.role.includes("リリーフ") && p.staCurrent > 5);
                 }
+                
                 if (available.length > 0) { 
+                    available.sort((a, b) => {
+                        let scoreA = a.staCurrent * getConditionModifier(a.condition, "batBarrel");
+                        let scoreB = b.staCurrent * getConditionModifier(b.condition, "batBarrel");
+                        return scoreB - scoreA;
+                    });
+                    
                     curPitcherAway = available[0]; 
                     if (!appearedAway.includes(curPitcherAway.name)) { 
                         curPitcherAway.stats.appearances++; 
@@ -249,7 +259,7 @@ function executeMatchLogic(away, home) {
                     let hr9Reduction = ((curPitcherAway.hr9 / 100) * BALANCING_CONFIG.batting.pitcherHr9Influence) * pitConditionMod;
                     let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
                     
-                    let isHR = Math.random() < (finalBarrel * BALANCING_CONFIG.batting.hrMultiplier);
+                    let isHR = Math.random() < (finalBarrel * BALBALANCING_CONFIG.batting.hrMultiplier);
                     let runs = advanceRunners(bases, isHR ? "HR" : "1B");
                     homeScore += runs; 
                     curPitcherAway.stats.er += runs; 
@@ -273,17 +283,18 @@ function executeMatchLogic(away, home) {
         away.draws++; home.draws++; 
     }
 
+    // スタミナ消費計算（イニングアウト数連動 ＋ 登板一律コスト）
     away.pitchers.forEach(p => { 
         if (appearedAway.includes(p.name)) {
             let matchOuts = pitcherMatchStats[p.name] ? pitcherMatchStats[p.name].outs : 0;
-            let cost = p.role === "先発" ? 0 : (12 + matchOuts * 4);
+            let cost = p.role === "先発" ? 0 : (10 + matchOuts * 4); // コストを12➔10にして連投耐性を微調整
             if(p.role !== "先発") p.staCurrent = Math.max(0, p.staCurrent - cost);
         } 
     });
     home.pitchers.forEach(p => { 
         if (appearedHome.includes(p.name)) {
             let matchOuts = pitcherMatchStats[p.name] ? pitcherMatchStats[p.name].outs : 0;
-            let cost = p.role === "先発" ? 0 : (12 + matchOuts * 4);
+            let cost = p.role === "先発" ? 0 : (10 + matchOuts * 4);
             if(p.role !== "先発") p.staCurrent = Math.max(0, p.staCurrent - cost);
         } 
     });
