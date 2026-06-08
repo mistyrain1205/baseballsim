@@ -215,48 +215,31 @@ function simulateRound() {
         let res = executeMatchLogic(teamAway, teamHome);
         roundResults.push(res);
     });
-
-    // リリーフの回復処理
-    teams.forEach(t => { 
-        t.pitchers.forEach(p => { 
-            let recovery = p.role.includes("二軍") ? 14 : 1.5; 
-            if(p.staCurrent < p.staMax) {
-                p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); 
-            }
-        }); 
-    });
-
-    // 🔥 ここで確実に試合カウントを1進める
+    teams.forEach(t => { t.pitchers.forEach(p => { let recovery = p.role.includes("二軍") ? 14 : 1.5; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); }); });
     totalGamesPlayed++; 
     return roundResults;
 }
 
 function playNextRound() {
-    let res = simulateRound(); 
-    if(!res) return;
+    let res = simulateRound(); if(!res) return;
     let rEl = document.getElementById("quick_match_results");
     if(rEl) rEl.innerHTML = res.map(r => `<tr><td><b>${r}</b></td></tr>`).join("");
-    updateUIAll(); // 📊 画面の試合数・打率表示を強制更新
+    updateUIAll();
 }
 
 function playOneWeek() {
     let lastRes = null;
-    for(let i=0; i<6; i++) { 
-        let res = simulateRound(); 
-        if(res) lastRes = res; 
-    }
+    for(let i=0; i<6; i++) { let res = simulateRound(); if(res) lastRes = res; }
     if(lastRes) {
         let rEl = document.getElementById("quick_match_results");
         if(rEl) rEl.innerHTML = "<tr><td style='color:green;'><b>一週間分(6カード)を一括消化しました</b></td></tr>" + lastRes.map(r => `<tr><td>${r}</td></tr>`).join("");
     }
-    updateUIAll(); // 📊 画面の試合数・打率表示を強制更新
+    updateUIAll();
 }
 
 function playAllSeason() {
-    while(totalGamesPlayed < MAX_GAMES) { 
-        simulateRound(); 
-    }
-    updateUIAll(); // 📊 画面の試合数・打率表示を強制更新
+    while(totalGamesPlayed < MAX_GAMES) { simulateRound(); }
+    updateUIAll();
 }
 
 function resetSeason() {
@@ -335,26 +318,17 @@ function saveEditorData() {
         p.k9 = parseFloat(document.getElementById("form_k9").value); p.bb9 = parseFloat(document.getElementById("form_bb9").value);
         p.hr9 = parseFloat(document.getElementById("form_hr9").value); p.staMax = parseFloat(document.getElementById("form_sta").value);
     }
-    
-    let savedIndex = document.getElementById("edit_player_select").selectedIndex;
-    onEditorTeamChange(); 
-    document.getElementById("edit_player_select").selectedIndex = savedIndex;
-    updateUIAll();
+    onEditorTeamChange(); updateUIAll();
 }
-
-// simulator.js の一番下にある updateUIAll をこれに差し替え
 
 function updateUIAll() {
     let gameCountEl = document.getElementById("current_game_count");
     if(!gameCountEl) return;
     gameCountEl.innerText = totalGamesPlayed;
     
-    // 📊 【週数カウント連動】1カード(3試合)消化ごとに、HTML上の「第〇週目」の表示も正確に進めます
     let weekCountEl = document.getElementById("current_week_count");
     if(weekCountEl) {
-        // 1週間を6試合として、現在の試合消化数から動的に週数を算出 (最低1週目からスタート)
-        let calculatedWeek = Math.floor(totalGamesPlayed / 6) + 1;
-        weekCountEl.innerText = calculatedWeek;
+        weekCountEl.innerText = Math.floor(totalGamesPlayed / 6) + 1;
     }
     
     let h2Title = document.querySelector(".card h2");
@@ -368,7 +342,7 @@ function updateUIAll() {
         let wp = t.wins / ((t.wins + t.losses) || 1);
         let isMyTeam = (t.id === userTeamId);
         let teamDisplay = isMyTeam ? `<span style="color:#e53e3e;">★</span>${t.name}` : t.name;
-        let rowStyle = isMyTeam ? `style="background-color: #e6fffa; font-weight:bold;"` : "";
+        let rowStyle = isMyTeam ? `style="background-color: #e0f2fe; font-weight:bold;"` : ""; // 上品なライトブルーに変更
         sBody.innerHTML += `<tr ${rowStyle}><td>${i+1}</td><td><b>${teamDisplay}</b></td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${wp.toFixed(3)}</td><td>-</td></tr>`;
     });
 
