@@ -1,6 +1,26 @@
 // simulator.js
 
 // ==========================================
+// ⚙️ ゲームバランス一括設定オブジェクト
+// ==========================================
+const BALANCING_CONFIG = {
+    // 打撃関連のベース確率
+    batting: {
+        baseHitChance: 0.33,      // ヒットの基本確率 (デフォルト0.31から+0.02ブースト中)
+        hrMultiplier: 0.90,       // ホームラン化する最終補正係数 (デフォルト0.45から0.90へ倍増中)
+        pitcherH9Influence: 0.0015, // 投手のH9（被安打抑制力）が打率に与える影響度
+        pitcherHr9Influence: 0.3   // 投手のHR9（被本塁打抑制力）がバレルに与える影響度
+    },
+    // 四死球・三振の係数
+    plates: {
+        bbBaseScale: 0.8,         // 打者の四球率の反映重み
+        bbPitcherScale: 0.0004,   // 投手の与四球率(BB9)の影響重み
+        soBaseScale: 0.7,         // 打者の三振率の反映重み
+        soPitcherScale: 0.001     // 投手の奪三振率(K9)の影響重み
+    }
+};
+
+// ==========================================
 // 1. スケジュール生成アルゴリズム
 // ==========================================
 function getDynamicSchedule(roundCount) {
@@ -370,8 +390,8 @@ function executeMatchLogic(away, home) {
             let batConditionMod = getConditionModifier(b.condition, "batSo");
             let pitConditionMod = getConditionModifier(curPitcherHome.condition, "pitPitch"); 
             
-            let bbP = (b.bb / 100) * 0.8 + ((100 - curPitcherHome.bb9) * 0.0004); 
-            let soP = ((b.so / 100) * 0.7 * batConditionMod) + ((curPitcherHome.k9 * 0.001) * pitConditionMod); 
+            let bbP = (b.bb / 100) * BALANCING_CONFIG.plates.bbBaseScale + ((100 - curPitcherHome.bb9) * BALANCING_CONFIG.plates.bbPitcherScale); 
+            let soP = ((b.so / 100) * BALANCING_CONFIG.plates.soBaseScale * batConditionMod) + ((curPitcherHome.k9 * BALANCING_CONFIG.plates.soPitcherScale) * pitConditionMod); 
             let rand = Math.random();
             
             if(rand < bbP) {
@@ -382,18 +402,18 @@ function executeMatchLogic(away, home) {
                 outs++; b.stats.so++; curPitcherHome.stats.so++;
                 curPitcherHome.stats.ipOuts = (curPitcherHome.stats.ipOuts || 0) + 1;
             } else {
-                // 【打率2分UP調整】ベース確率を0.31から0.33へブースト
-                let baseHitChance = 0.33; 
-                let h9Effect = ((curPitcherHome.h9 - 65) * 0.0015) * pitConditionMod; // 投手の抑え込み度を優しく
-                let finalHitChance = Math.max(0.26, Math.min(0.48, baseHitChance - h9Effect));
+                // 設定オブジェクトからヒット確率・影響度を動的に参照
+                let baseHitChance = BALANCING_CONFIG.batting.baseHitChance; 
+                let h9Effect = ((curPitcherHome.h9 - 65) * BALANCING_CONFIG.batting.pitcherH9Influence) * pitConditionMod; 
+                let finalHitChance = Math.max(0.24, Math.min(0.48, baseHitChance - h9Effect));
                 
                 if (Math.random() < finalHitChance) {
                     b.stats.hits++; b.exp = (b.exp || 0) + 2;
-                    let hr9Reduction = ((curPitcherHome.hr9 / 100) * 0.3) * pitConditionMod;
+                    let hr9Reduction = ((curPitcherHome.hr9 / 100) * BALANCING_CONFIG.batting.pitcherHr9Influence) * pitConditionMod;
                     let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
                     
-                    // 【ホームラン倍増調整】HR化する判定係数を0.45から0.90へ倍増！
-                    let isHR = Math.random() < (finalBarrel * 0.90); 
+                    // 設定オブジェクトからホームラン倍増係数を動的に参照
+                    let isHR = Math.random() < (finalBarrel * BALANCING_CONFIG.batting.hrMultiplier); 
                     let runs = advanceRunners(bases, isHR ? "HR" : "1B");
                     awayScore += runs; curPitcherHome.stats.er += runs; curPitcherHomeErInMatch += runs;
                     if(isHR) b.stats.hr++;
@@ -476,8 +496,8 @@ function executeMatchLogic(away, home) {
             let batConditionMod = getConditionModifier(b.condition, "batSo");
             let pitConditionMod = getConditionModifier(curPitcherAway.condition, "pitPitch");
             
-            let bbP = (b.bb / 100) * 0.8 + ((100 - curPitcherAway.bb9) * 0.0004);
-            let soP = ((b.so / 100) * 0.7 * batConditionMod) + ((curPitcherAway.k9 * 0.001) * pitConditionMod);
+            let bbP = (b.bb / 100) * BALANCING_CONFIG.plates.bbBaseScale + ((100 - curPitcherAway.bb9) * BALANCING_CONFIG.plates.bbPitcherScale);
+            let soP = ((b.so / 100) * BALANCING_CONFIG.plates.soBaseScale * batConditionMod) + ((curPitcherAway.k9 * BALANCING_CONFIG.plates.soPitcherScale) * pitConditionMod);
             let rand = Math.random();
             
             if(rand < bbP) {
@@ -488,18 +508,18 @@ function executeMatchLogic(away, home) {
                 outs++; b.stats.so++; curPitcherAway.stats.so++;
                 curPitcherAway.stats.ipOuts = (curPitcherAway.stats.ipOuts || 0) + 1;
             } else {
-                // 【打率2分UP調整】裏チームも同様に確率ブースト
-                let baseHitChance = 0.33;
-                let h9Effect = ((curPitcherAway.h9 - 65) * 0.0015) * pitConditionMod;
+                // 設定オブジェクトからヒット確率・影響度を動的に参照
+                let baseHitChance = BALANCING_CONFIG.batting.baseHitChance;
+                let h9Effect = ((curPitcherAway.h9 - 65) * BALANCING_CONFIG.batting.pitcherH9Influence) * pitConditionMod;
                 let finalHitChance = Math.max(0.24, Math.min(0.45, baseHitChance - h9Effect));
                 
                 if (Math.random() < finalHitChance) {
                     b.stats.hits++; b.exp = (b.exp || 0) + 2;
-                    let hr9Reduction = ((curPitcherAway.hr9 / 100) * 0.3) * pitConditionMod;
+                    let hr9Reduction = ((curPitcherAway.hr9 / 100) * BALANCING_CONFIG.batting.pitcherHr9Influence) * pitConditionMod;
                     let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
                     
-                    // 【ホームラン倍増調整】裏チームもHR係数を0.90へブースト
-                    let isHR = Math.random() < (finalBarrel * 0.90);
+                    // 設定オブジェクトからホームラン倍増係数を動的に参照
+                    let isHR = Math.random() < (finalBarrel * BALANCING_CONFIG.batting.hrMultiplier);
                     let runs = advanceRunners(bases, isHR ? "HR" : "1B");
                     homeScore += runs; curPitcherAway.stats.er += runs; curPitcherAwayErInMatch += runs;
                     if(isHR) b.stats.hr++;
