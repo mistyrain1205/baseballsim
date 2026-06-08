@@ -342,14 +342,24 @@ function saveEditorData() {
     updateUIAll();
 }
 
+// simulator.js の一番下にある updateUIAll をこれに差し替え
+
 function updateUIAll() {
     let gameCountEl = document.getElementById("current_game_count");
     if(!gameCountEl) return;
     gameCountEl.innerText = totalGamesPlayed;
     
+    // 📊 【週数カウント連動】1カード(3試合)消化ごとに、HTML上の「第〇週目」の表示も正確に進めます
+    let weekCountEl = document.getElementById("current_week_count");
+    if(weekCountEl) {
+        // 1週間を6試合として、現在の試合消化数から動的に週数を算出 (最低1週目からスタート)
+        let calculatedWeek = Math.floor(totalGamesPlayed / 6) + 1;
+        weekCountEl.innerText = calculatedWeek;
+    }
+    
     let h2Title = document.querySelector(".card h2");
     if(h2Title && !h2Title.innerText.includes("就任")) {
-        h2Title.innerHTML = `リーグ消化状況 (ペナント第 <span style='color:#e53e3e; font-weight:bold;'>${currentYear}</span> 年目): <span id="current_game_count">${totalGamesPlayed}</span> / 143 試合`;
+        h2Title.innerHTML = `リーグ消化状況: <span id="current_game_count">${totalGamesPlayed}</span> / 143 試合 (第 <span id="current_week_count">${Math.floor(totalGamesPlayed / 6) + 1}</span> 週目)`;
     }
 
     let sorted = [...teams].sort((a,b) => (b.wins / ((b.wins + b.losses) || 1)) - (a.wins / ((a.wins + a.losses) || 1)));
