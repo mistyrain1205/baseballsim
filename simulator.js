@@ -342,7 +342,7 @@ function updateUIAll() {
         let wp = t.wins / ((t.wins + t.losses) || 1);
         let isMyTeam = (t.id === userTeamId);
         let teamDisplay = isMyTeam ? `<span style="color:#e53e3e;">★</span>${t.name}` : t.name;
-        let rowStyle = isMyTeam ? `style="background-color: #e0f2fe; font-weight:bold;"` : ""; // 上品なライトブルーに変更
+        let rowStyle = isMyTeam ? `style="background-color: #e0f2fe; font-weight:bold;"` : "";
         sBody.innerHTML += `<tr ${rowStyle}><td>${i+1}</td><td><b>${teamDisplay}</b></td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${wp.toFixed(3)}</td><td>-</td></tr>`;
     });
 
@@ -370,6 +370,6 @@ function switchTab(tabId, el) {
     document.getElementById(tabId).classList.add('active'); el.classList.add('active');
 }
 
+// ⚠️ 初期起動時の重複を排除し、GM球団選択ボックスの値を初期適用
 initializeLeagueData();
-onEditorTeamChange();
-updateUIAll();
+selectUserTeam(document.getElementById("user_team_select").value);
