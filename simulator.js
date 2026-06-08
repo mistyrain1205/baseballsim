@@ -64,7 +64,7 @@ function getConditionModifier(condition, type) {
     return modifiers[condition] ? modifiers[condition][type] : 1.0;
 }
 
-function changeAllPlayersCondition() {
+function changeAllPlayersCondition(changeAllPlayersCondition) {
     const conds = ["絶好調", "好調", "普通", "不調", "絶不調"];
     teams.forEach(t => {
         t.batters.forEach(b => { b.condition = conds[Math.floor(Math.random() * conds.length)]; });
@@ -283,7 +283,19 @@ function simulateRound() {
         let res = executeMatchLogic(teamAway, teamHome);
         roundResults.push(res);
     });
-    teams.forEach(t => { t.pitchers.forEach(p => { let recovery = p.role.includes("二軍") ? 14 : 5; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); }); });
+
+    // 【過登板対策のド本命】1試合消化ごとのスタミナ回復量を「5 ➔ 1.5」へ激減！
+    // 一軍リリーフは1回(1イニング)投げるとスタミナを24消費するため、
+    // 次の試合までに「1.5」しか回復しなければ、強制的にベンチで2〜3試合「完全休養」せざるを得なくなります。
+    teams.forEach(t => { 
+        t.pitchers.forEach(p => { 
+            let recovery = p.role.includes("二軍") ? 14 : 1.5; 
+            if(p.staCurrent < p.staMax) {
+                p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); 
+            }
+        }); 
+    });
+
     totalGamesPlayed++; 
     return roundResults;
 }
