@@ -254,7 +254,6 @@ function executeMatchLogic(away, home) {
                     let hr9Reduction = ((curPitcherAway.hr9 / 100) * BALANCING_CONFIG.batting.pitcherHr9Influence) * pitConditionMod;
                     let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
                     
-                    // ⚙️ 【スペルミス修正箇所】BALBALANCING_CONFIG ➔ BALANCING_CONFIG へ修正完了
                     let isHR = Math.random() < (finalBarrel * BALANCING_CONFIG.batting.hrMultiplier);
                     let runs = advanceRunners(bases, isHR ? "HR" : "1B");
                     homeScore += runs; 
