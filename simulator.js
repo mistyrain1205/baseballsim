@@ -676,6 +676,8 @@ function onEditorTeamChange() {
     playerSelect.selectedIndex = 0; onEditorPlayerChange();
 }
 
+// simulator.js 内の onEditorPlayerChange と saveEditorData をこれに差し替え
+
 function onEditorPlayerChange() {
     let teamSelect = document.getElementById("edit_team_select");
     let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
@@ -687,10 +689,17 @@ function onEditorPlayerChange() {
     let player = type === "bat" ? teams[teamIdx].batters[idx] : teams[teamIdx].pitchers[idx];
 
     document.getElementById("form_name").value = player.name;
-    document.getElementById("form_role").value = player.role;
     document.getElementById("form_pos").value = player.currentPos;
+    
+    // 年齢と役割の図式化ハメ込み
+    document.getElementById("form_age").value = player.age;
+    let roleText = player.role >= 1 && player.role <= 9 ? `${player.role}番打者` : (player.role === 0 ? "一軍ベンチ控え" : (player.role === -1 ? "二軍調整中" : player.role));
+    document.getElementById("form_role").value = roleText;
+
+    let badge = document.getElementById("ui_player_type_badge");
 
     if(type === "bat") {
+        if(badge) { badge.innerText = "野手登録"; badge.style.background = "#dd6b20"; }
         document.getElementById("form_bat_stats").style.display = "block";
         document.getElementById("form_pit_stats").style.display = "none";
         document.getElementById("form_bb").value = player.bb;
@@ -699,7 +708,10 @@ function onEditorPlayerChange() {
         document.getElementById("form_isop").value = player.isop;
         document.getElementById("form_uzr").value = player.uzr;
         document.getElementById("form_err").value = player.err;
+        // サブポジションをカンマ区切りで表示
+        document.getElementById("form_sub_pos").value = player.subPositions ? player.subPositions.join(", ") : "なし";
     } else {
+        if(badge) { badge.innerText = `投手(${player.role})`; badge.style.background = "#2b6cb0"; }
         document.getElementById("form_bat_stats").style.display = "none";
         document.getElementById("form_pit_stats").style.display = "block";
         document.getElementById("form_h9").value = player.h9;
@@ -710,6 +722,39 @@ function onEditorPlayerChange() {
     }
 }
 
+function saveEditorData() {
+    let teamSelect = document.getElementById("edit_team_select");
+    let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
+    let playerVal = document.getElementById("edit_player_select").value;
+    let type = playerVal.split("_")[0]; let idx = parseInt(playerVal.split("_")[1]);
+    let team = teams[teamIdx];
+    
+    if(type === "bat") {
+        let p = team.batters[idx];
+        p.name = document.getElementById("form_name").value;
+        p.originalPos = document.getElementById("form_pos").value;
+        p.currentPos = p.originalPos;
+        p.bb = parseFloat(document.getElementById("form_bb").value);
+        p.so = parseFloat(document.getElementById("form_so").value);
+        p.barrel = parseFloat(document.getElementById("form_barrel").value);
+        p.isop = parseFloat(document.getElementById("form_isop").value);
+        p.uzr = parseFloat(document.getElementById("form_uzr").value);
+        p.err = parseFloat(document.getElementById("form_err").value);
+        
+        // 入力された文字列を分解してサブポジション配列に再格納
+        let subStr = document.getElementById("form_sub_pos").value;
+        p.subPositions = subStr ? subStr.split(",").map(s => s.trim()) : [];
+    } else {
+        let p = team.pitchers[idx];
+        p.name = document.getElementById("form_name").value;
+        p.h9 = parseFloat(document.getElementById("form_h9").value);
+        p.k9 = parseFloat(document.getElementById("form_k9").value);
+        p.bb9 = parseFloat(document.getElementById("form_bb9").value);
+        p.hr9 = parseFloat(document.getElementById("form_hr9").value);
+        p.staMax = parseFloat(document.getElementById("form_sta").value);
+    }
+    onEditorTeamChange(); updateUIAll();
+}
 function saveEditorData() {
     let teamSelect = document.getElementById("edit_team_select");
     let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
