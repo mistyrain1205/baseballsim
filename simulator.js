@@ -88,38 +88,61 @@ function executeFrontOfficeAI() {
     });
 }
 
-// simulator.js 内の該当関数をこれに上書き
+// simulator.js 内の reassignTeamRoles をこれに上書き
 function reassignTeamRoles(t) {
-    // バレル率（打撃力）の順に並び替え
-    t.batters.sort((a, b) => b.barrel - a.barrel);
+    // 守備位置の各スロット（1〜9番）に必要なポジション定義
+    const requiredPositions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手"];
+    let assignedCount = 0;
     
-    t.batters.forEach((b, idx) => {
-        // 1～9番打者に打順を割り当て
-        if (idx < 9) {
-            b.role = idx + 1;
-        } else if (idx < 16) {
-            b.role = 0;   // 一軍控え枠
-        } else {
-            b.role = -1;  // 二軍枠
-        }
+    // 全員の役割を一回リセット
+    t.batters.forEach(b => b.role = -1);
+
+    // 1. 各ポジションの「専門職」を優先してスタメンに大抜擢する
+    requiredPositions.forEach((pos, idx) => {
+        // メイン守備(originalPos)が一致、またはサブポジション(subPositions)に含まれている選手を探す
+        let candidate = t.batters.find(b => b.role === -1 && (b.originalPos === pos || (b.subPositions && b.subPositions.includes(pos))));
         
-        // ⚠️【ポジション消失バグ破壊】
-        // currentPosが消えたり空になったりするのを防ぐため、
-        // もしポジションデータが狂っていたら本来のoriginalPosを常に維持・保証させます。
-        if (!b.currentPos || b.currentPos === "内野手" || b.currentPos === "外野手") {
-            b.currentPos = b.originalPos;
+        if (candidate) {
+            candidate.role = idx + 1; // 1番~8番スロットに配属
+            candidate.currentPos = pos; // 守備位置を確定
+            assignedCount++;
         }
     });
 
-    // 投手のソートと役割割り当て
-    t.pitchers.sort((a, b) => b.staMax - a.staMax);
+    // 2. もしポジションが埋まらなかったスロットがあれば、まだ余っている野手の上位から滑り込ませる
+    requiredPositions.forEach((pos, idx) => {
+        let slotEmpty = !t.batters.some(b => b.role === (idx + 1));
+        if (slotEmpty) {
+            let backup = t.batters.find(b => b.role === -1);
+            if (backup) {
+                backup.role = idx + 1;
+                backup.currentPos = pos; // 緊急コンバート
+            }
+        }
+    });
+
+    // 3. 残りの選手のうち、上位7人ほどを一軍控え(0)、その他を完全に二軍(-1)へ配属
+    let rCount = 0;
+    t.batters.forEach(b => {
+        if (b.role > 0) return;
+        if (rCount < 7) { b.role = 0; rCount++; } 
+        else { b.role = -1; }
+        b.currentPos = b.originalPos; // 控え・二軍は本来の定位置に戻す
+    });
+
+    // 4. 【二軍先発問題解決】投手の役割の固定化
     t.pitchers.forEach((p, idx) => {
-        if (idx < 5) p.role = "先発";
-        else if (idx === 5) p.role = "守護神";
-        else if (idx < 15) p.role = "リリーフ";
-        else p.role = "二軍リリーフ";
-        
-        p.currentPos = "投手";
+        // 初期化時に設定された「二軍先発」の適性を勝手にリリーフに変更させないガード
+        if (p.role === "先発" || p.role === "守護神" || p.role === "二軍先発") {
+            p.staCurrent = p.staMax;
+            return; 
+        }
+        // それ以外の一軍枠ならリリーフ、溢れたら二軍リリーフ
+        if (idx < 12) {
+            if (p.role !== "先発" && p.role !== "守護神") p.role = "リリーフ";
+        } else {
+            if (p.role !== "二軍先発") p.role = "二軍リリーフ";
+        }
     });
 }
 
