@@ -14,9 +14,12 @@ function createBlankBatter(isStamen, orderIdx) {
     let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
     let pos = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手","内野手"][Math.floor(Math.random() * 9)];
     
+    // 🆕 UZRを初期状態でランダム生成（守備職人は高く、鈍足スラッガーは低く）
+    let initialUzr = parseFloat((Math.random() * 20 - 10).toFixed(1)); // -10.0 ～ +10.0
+
     return {
         name: generateRandomPlayerName(),
-        role: isStamen ? orderIdx : -1, // 数値で管理 (1~9:スタメン, 0:一軍控え, -1:二軍)
+        role: isStamen ? orderIdx : -1, 
         originalPos: pos, currentPos: pos, condition: "普通",
         age: baseAge, hometown: prefectures[Math.floor(Math.random() * prefectures.length)],
         graduation: graduation, proYears: 1, exp: 0,
@@ -24,7 +27,7 @@ function createBlankBatter(isStamen, orderIdx) {
         so: isStamen ? [14, 16, 15, 20, 18, 22, 23, 25, 30][orderIdx-1] : 22.0,
         barrel: isStamen ? [10, 12, 22, 30, 18, 14, 12, 10, 6][orderIdx-1] : 8.0,
         isop: isStamen ? [15, 18, 30, 45, 24, 22, 18, 14, 8][orderIdx-1] : 12,
-        uzr: 0, err: 2.0,
+        uzr: initialUzr, err: 2.0,
         stats: { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 }
     };
 }
@@ -58,16 +61,23 @@ function initializeLeagueData() {
         for(let i=1; i<=40; i++) {
             let isStamen = i <= 9;
             let isFirstTeam = i <= 16;
-            let pos = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手","一塁手","捕手","内野手","内野手","外野手","外野手","外野手","内野手","内野手","外野手","捕手","内野手","内野手","外野手","外野手","捕手","内野手","内野手","外野手","外野手","内野手","内野手","内野手","外野手","外野手","捕手","内野手","内野手","外野手","外野手","内野手","内野手"][i-1];
+            
+            // チーム内で満遍なくポジションが分散するように配置
+            let pos = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手","内野手","捕手","内野手","外野手","外野手","捕手","内野手","外野手"][i-1] || ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手"][i % 8];
             
             let graduation = ["高卒", "大卒", "社会人"][Math.floor(Math.random() * 3)];
             let proYears = Math.floor(Math.random() * 10) + 1; 
             let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
             let age = baseAge + (proYears - 1);
 
+            // 🆕 UZRを初期段階からリアルにばらつかせる (-12.0 ～ +12.0)
+            let initialUzr = parseFloat((Math.random() * 24 - 12).toFixed(1));
+            // 遊撃手や中堅手など、センターラインの選手は若干守備を上手めに補正
+            if (pos === "遊撃手" || pos === "中堅手" || pos === "二塁手") initialUzr += 3.0;
+
             teamObj.batters.push({
                 id: i-1, name: generateRandomPlayerName(),
-                role: isStamen ? i : (isFirstTeam ? 0 : -1), // 1~9:打順、0:一軍控え、-1:二軍
+                role: isStamen ? i : (isFirstTeam ? 0 : -1), 
                 originalPos: pos, currentPos: pos, condition: "普通",
                 age: age, hometown: prefectures[Math.floor(Math.random() * prefectures.length)],
                 graduation: graduation, proYears: proYears, exp: 0,
@@ -75,7 +85,7 @@ function initializeLeagueData() {
                 so: isStamen ? [14, 16, 15, 20, 18, 22, 23, 25, 30][i-1] : 22.0,
                 barrel: isStamen ? [10, 12, 22, 30, 18, 14, 12, 10, 6][i-1] : 8.0, 
                 isop: isStamen ? [15, 18, 30, 45, 24, 22, 18, 14, 8][i-1] : 12,    
-                uzr: 0, err: 2.0,
+                uzr: parseFloat(initialUzr.toFixed(1)), err: 2.0,
                 stats: { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 }
             });
         }
