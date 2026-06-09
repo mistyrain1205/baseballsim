@@ -87,7 +87,7 @@ function executeFrontOfficeAI() {
 }
 
 function reassignTeamRoles(t) {
-    // ⚙️【スペルミス完全修正】"right翼手" を 正しい日本語の "右翼手" に直しました
+    // ⚙️ 【タイポ完全修正】"right翼手" を 正しい日本語の "右翼手" に修正しました
     const requiredPositions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手"];
     
     t.batters.forEach(b => b.role = -1);
@@ -224,14 +224,13 @@ function processOffseasonEvolution() {
 }
 
 function simulateRound() {
-    // 【安全ロック】もし戦力外やドラフト中に進行ボタンが押されたらブロック
     if (totalGamesPlayed === -1) {
         alert("現在はオフシーズン補強中です！「オフシーズン補強」タブから戦力外通告またはドラフト指名を完了させてください。");
         return null;
     }
 
     if (totalGamesPlayed >= MAX_GAMES) {
-        totalGamesPlayed = -1; // ロック状態へ移行
+        totalGamesPlayed = -1; // 安全ロック状態へ移行
         processOffseasonEvolution(); 
         executeOffseasonRosterEvents(); 
         return null; 
@@ -391,7 +390,6 @@ function updateUIAll() {
     let gameCountEl = document.getElementById("current_game_count");
     if(!gameCountEl) return;
     
-    // オフシーズン中(-1)であれば「143試合終了」の見た目をしっかりキープ
     gameCountEl.innerText = totalGamesPlayed === -1 ? 143 : totalGamesPlayed;
     
     let weekCountEl = document.getElementById("current_week_count");
