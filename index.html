@@ -44,7 +44,6 @@
 <div class="container">
     <h1>本格派・プロ野球6球団ペナンシミュレーター & エディタ</h1>
     
-    <!-- 👔 所属球団選択エリア -->
     <div class="card" style="text-align:center; margin-bottom:20px; background:#f0fff4; border: 2px solid #c6f6d5;">
         <h2>👔 GM・監督就任球団選択</h2>
         <div style="margin-bottom: 10px;">
@@ -61,7 +60,6 @@
         <p style="font-size:0.85em; color:#4a5568; margin:0;">※あなたが率いるチームは順位表で <span style="color:#e53e3e; font-weight:bold;">★マーク</span> が表示されます！</p>
     </div>
 
-    <!-- 🕒 リーグ日程進行コントロール -->
     <div class="card" style="text-align:center; margin-bottom:20px; background:#ebf8ff; border: 2px solid #bee3f8;">
         <h2>リーグ消化状況: <span id="current_game_count">0</span> / 143 試合 (第 <span id="current_week_count">1</span> 週目)</h2>
         <div class="btn-group">
@@ -72,9 +70,7 @@
         </div>
     </div>
 
-    <!-- メイングリッド分割表示 -->
     <div class="menu-grid">
-        <!-- 左カラム：順位表＆直近結果 -->
         <div class="card">
             <h2>リーグ順位表</h2>
             <table>
@@ -99,40 +95,62 @@
             </div>
         </div>
 
-        <!-- 右カラム：データダッシュボードタブ -->
         <div class="card" style="padding: 10px;">
             <div class="tabs">
                 <div class="tab active" onclick="switchTab('tab-stats-bat', this)">個人打撃成績</div>
                 <div class="tab" onclick="switchTab('tab-stats-pit', this)">個人投手成績</div>
-                <div class="tab" onclick="switchTab('tab-draft', this)">👔 ドラフト会議</div>
+                <div class="tab" onclick="switchTab('tab-draft', this)">👔 オフシーズン補強</div>
                 <div class="tab" onclick="switchTab('tab-editor', this)">🛠️ 選手能力編集</div>
             </div>
 
-            <!-- 📝 ドラフトタブ表示エリア -->
+            <!-- 📝 オフシーズン補強（戦力外・ドラフト）タブ表示エリア -->
             <div id="tab-draft" class="tab-content">
                 <div style="background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #ffeeba; text-align: center;">
-                    <span id="draft_status_message" style="font-weight: bold; color: #856404;">現在はシーズン中です。143試合消化してオフシーズンになるとドラフト会議が始まります！</span>
+                    <span id="draft_status_message" style="font-weight: bold; color: #856404;">現在はペナントレース中です。143試合消化するとオフシーズン補強が始まります！</span>
                 </div>
+                
+                <!-- 【ステップ1】ユーザーによる手動戦力外通告ゾーン -->
+                <div id="offseason_release_zone" style="display: none; flex-direction: column; gap: 15px;">
+                    <div style="background:#fff5f5; border:1px solid #feb2b2; padding:12px; border-radius:6px; color:#9b2c2c; font-weight:bold; text-align:center;">
+                        🚨 【チーム人員整理】自由契約にする選手を選択してください（最大10名まで）。クビにした人数分だけドラフトで新人を獲得できます！<br>
+                        <span style="font-size:1.1em; color:#e53e3e;">現在の選択数: <span id="ui_release_count">0</span> / 10 名</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                        <div>
+                            <h4>自チーム野手ロスター</h4>
+                            <div style="max-height:350px; overflow-y:scroll; border:1px solid #cbd5e0; background:white; padding:5px; border-radius:4px;">
+                                <table style="font-size:0.85em;"><tbody id="release_batters_body"></tbody></table>
+                            </div>
+                        </div>
+                        <div>
+                            <h4>自チーム投手ロスター</h4>
+                            <div style="max-height:350px; overflow-y:scroll; border:1px solid #cbd5e0; background:white; padding:5px; border-radius:4px;">
+                                <table style="font-size:0.85em;"><tbody id="release_pitchers_body"></tbody></table>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-danger" style="width:100%; padding:12px; font-size:1.1em;" onclick="finalizeUserReleases()">戦力外通告を確定してドラフト会議へ進む ➔</button>
+                </div>
+
+                <!-- 【ステップ2】ドラフト会議ゾーン -->
                 <div id="draft_interaction_zone" style="display: none; grid-template-columns: 1fr 350px; gap: 20px;">
                     <div>
-                        <h3>今年のドラフト候補生一覧 (指名候補を選んでください)</h3>
+                        <h3 id="ui_draft_round_title">今年のドラフト候補生一覧 (第 1 巡目指名)</h3>
                         <table id="draft_pool_table">
                             <thead>
-                                <tr><th>候補No</th><th>名前</th><th>タイプ</th><th>投打/守備</th><th>経歴</th><th>年齢</th><th>注目ステータス</th><th>操作</th></tr>
+                                <tr><th>候補No</th><th>名前</th><th>タイプ</th><th>投打/守備</th><th>経歴</th><th>年齢</th><th>注目アマチュアスタッツ</th><th>操作</th></tr>
                             </thead>
                             <tbody id="draft_pool_body"></tbody>
                         </table>
                     </div>
                     <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <h4 style="margin-top: 0; color: #1a4a75;">自球団の指名状況</h4>
-                        <table style="font-size: 0.9em;">
-                            <thead><tr><th>巡</th><th>指名獲得選手</th></tr></thead>
-                            <tbody id="my_draft_results_body">
-                                <tr><td>1位</td><td id="my_draft_r1">-</td></tr>
-                                <tr><td>2位</td><td id="my_draft_r2">-</td></tr>
-                                <tr><td>3位</td><td id="my_draft_r3">-</td></tr>
-                            </tbody>
-                        </table>
+                        <h4 style="margin-top: 0; color: #1a4a75;">自球団の指名獲得結果 (<span id="ui_draft_quota">-</span>枠)</h4>
+                        <div style="max-height:400px; overflow-y:auto;">
+                            <table style="font-size: 0.9em;">
+                                <thead><tr><th>巡</th><th>指名獲得選手</th></tr></thead>
+                                <tbody id="my_draft_results_body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -231,7 +249,6 @@
     </div>
 </div>
 
-<!-- 📦 スクリプトの読み込み（順序完全固定版） -->
 <script src="names.js"></script>
 <script src="data.js"></script>
 <script src="simulator.js"></script>
