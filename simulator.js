@@ -91,10 +91,8 @@ function executeFrontOfficeAI() {
 function reassignTeamRoles(t) {
     const requiredPositions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手"];
     
-    // 全員の役割を一回リセット
     t.batters.forEach(b => b.role = -1);
 
-    // 1. 各ポジションの「専門職」を優先してスタメンに配属
     requiredPositions.forEach((pos, idx) => {
         let candidate = t.batters.find(b => b.role === -1 && (b.originalPos === pos || (b.subPositions && b.subPositions.includes(pos))));
         if (candidate) {
@@ -103,7 +101,6 @@ function reassignTeamRoles(t) {
         }
     });
 
-    // 2. 埋まらなかった穴があれば、余っている野手の上位から滑り込ませる
     requiredPositions.forEach((pos, idx) => {
         let slotEmpty = !t.batters.some(b => b.role === (idx + 1));
         if (slotEmpty) {
@@ -115,7 +112,6 @@ function reassignTeamRoles(t) {
         }
     });
 
-    // 3. 残りの選手のうち、上位7人ほどを一軍控え(0)、その他を完全に二軍(-1)へ配属
     let rCount = 0;
     t.batters.forEach(b => {
         if (b.role > 0) return;
@@ -124,7 +120,6 @@ function reassignTeamRoles(t) {
         b.currentPos = b.originalPos; 
     });
 
-    // 4. 投手の役割の固定化
     t.pitchers.forEach((p, idx) => {
         if (p.role === "先発" || p.role === "守護神" || p.role === "二軍先発") {
             p.staCurrent = p.staMax;
@@ -256,9 +251,6 @@ function processOffseasonEvolution() {
     });
 }
 
-// ==========================================
-// 3. 試合進行・シミュレーション中枢
-// ==========================================
 function simulateRound() {
     if (totalGamesPlayed >= MAX_GAMES) {
         totalGamesPlayed = 0;
@@ -451,6 +443,9 @@ function switchTab(tabId, el) {
 
 // 🚀 遅延読み込みを安全に処理する初期起動ブロック
 window.addEventListener("DOMContentLoaded", () => {
+    // 1. 【超重要】これの復活によりすべての選手名や順位表が完全復活します！
+    initializeLeagueData();
+
     let editTeamSelect = document.getElementById("edit_team_select");
     if (editTeamSelect) {
         editTeamSelect.innerHTML = "";
