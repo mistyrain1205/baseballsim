@@ -227,12 +227,27 @@ function processOffseasonEvolution() {
 }
 
 function simulateRound() {
+    // 【安全ロック】もし戦力外やドラフト中にボタンが押されたら、処理を完全にブロックする
+    if (totalGamesPlayed === -1) {
+        alert("現在はオフシーズン補強中です！「オフシーズン補強」タブから戦力外通告またはドラフト指名を完了させてください。");
+        return null;
+    }
+
+    // 143試合消化した瞬間の判定
     if (totalGamesPlayed >= MAX_GAMES) {
-        totalGamesPlayed = 0;
+        // 🔥【進行ストップの超重要フラグ設定】
+        // 試合数を一時的に「-1」に設定し、通常の試合進行ボタンを完全にフリーズ（ロック）させます。
+        // これにより、画面の一瞬での強制上書きや無限リスタートを100%回避します。
+        totalGamesPlayed = -1; 
+
+        // オフシーズンの年齢増加と、既存プレイヤーの能力成長・衰退を行う
         processOffseasonEvolution(); 
+        
+        // 手動戦力外通告画面を起動
         executeOffseasonRosterEvents(); 
         return null; 
     }
+    
     changeAllPlayersCondition(); 
     executeFrontOfficeAI();
     let pattern = getDynamicSchedule(totalGamesPlayed);
@@ -243,10 +258,10 @@ function simulateRound() {
         roundResults.push(res);
     });
     teams.forEach(t => { t.pitchers.forEach(p => { let recovery = p.role.includes("二軍") ? 14 : 1.5; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); }); });
+    
     totalGamesPlayed++; 
     return roundResults;
 }
-
 function playNextRound() {
     let res = simulateRound(); if(!res) return;
     let rEl = document.getElementById("quick_match_results");
