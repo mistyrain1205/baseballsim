@@ -44,6 +44,7 @@
 <div class="container">
     <h1>本格派・プロ野球6球団ペナンシミュレーター & エディタ</h1>
     
+    <!-- 👔 所属球団選択エリア -->
     <div class="card" style="text-align:center; margin-bottom:20px; background:#f0fff4; border: 2px solid #c6f6d5;">
         <h2>👔 GM・監督就任球団選択</h2>
         <div style="margin-bottom: 10px;">
@@ -60,6 +61,7 @@
         <p style="font-size:0.85em; color:#4a5568; margin:0;">※あなたが率いるチームは順位表で <span style="color:#e53e3e; font-weight:bold;">★マーク</span> が表示されます！</p>
     </div>
 
+    <!-- 🕒 リーグ日程進行コントロール -->
     <div class="card" style="text-align:center; margin-bottom:20px; background:#ebf8ff; border: 2px solid #bee3f8;">
         <h2>リーグ消化状況: <span id="current_game_count">0</span> / 143 試合 (第 <span id="current_week_count">1</span> 週目)</h2>
         <div class="btn-group">
@@ -70,7 +72,9 @@
         </div>
     </div>
 
+    <!-- メイングリッド分割表示 -->
     <div class="menu-grid">
+        <!-- 左カラム：順位表＆直近結果 -->
         <div class="card">
             <h2>リーグ順位表</h2>
             <table>
@@ -95,41 +99,45 @@
             </div>
         </div>
 
+        <!-- 右カラム：データダッシュボードタブ -->
         <div class="card" style="padding: 10px;">
             <div class="tabs">
-    <div class="tab active" onclick="switchTab('tab-stats-bat', this)">個人打撃成績</div>
-    <div class="tab" onclick="switchTab('tab-stats-pit', this)">個人投手成績</div>
-    <div class="tab" onclick="switchTab('tab-draft', this)">👔 ドラフト会議</div> <div class="tab" onclick="switchTab('tab-editor', this)">🛠️ 選手能力編集</div>
-</div>
+                <div class="tab active" onclick="switchTab('tab-stats-bat', this)">個人打撃成績</div>
+                <div class="tab" onclick="switchTab('tab-stats-pit', this)">個人投手成績</div>
+                <div class="tab" onclick="switchTab('tab-draft', this)">👔 ドラフト会議</div>
+                <div class="tab" onclick="switchTab('tab-editor', this)">🛠️ 選手能力編集</div>
+            </div>
 
-<div id="tab-draft" class="tab-content">
-    <div style="background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #ffeeba; text-align: center;">
-        <span id="draft_status_message" style="font-weight: bold; color: #856404;">現在はシーズン中です。143試合消化してオフシーズンになるとドラフト会議が始まります！</span>
-    </div>
-    <div id="draft_interaction_zone" style="display: none; grid-template-columns: 1fr 350px; gap: 20px;">
-        <div>
-            <h3>今年のドラフト候補生一覧 (指名候補を選んでください)</h3>
-            <table id="draft_pool_table">
-                <thead>
-                    <tr><th>候補No</th><th>名前</th><th>タイプ</th><th>投打/守備</th><th>経歴</th><th>年齢</th><th>注目ステータス</th><th>操作</th></tr>
-                </thead>
-                <tbody id="draft_pool_body"></tbody>
-            </table>
-        </div>
-        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
-            <h4 style="margin-top: 0; color: #1a4a75;">自球団の指名状況</h4>
-            <table style="font-size: 0.9em;">
-                <thead><tr><th>巡</th><th>指名獲得選手</th></tr></thead>
-                <tbody id="my_draft_results_body">
-                    <tr><td>1位</td><td id="my_draft_r1">-</td></tr>
-                    <tr><td>2位</td><td id="my_draft_r2">-</td></tr>
-                    <tr><td>3位</td><td id="my_draft_r3">-</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+            <!-- 📝 ドラフトタブ表示エリア -->
+            <div id="tab-draft" class="tab-content">
+                <div style="background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #ffeeba; text-align: center;">
+                    <span id="draft_status_message" style="font-weight: bold; color: #856404;">現在はシーズン中です。143試合消化してオフシーズンになるとドラフト会議が始まります！</span>
+                </div>
+                <div id="draft_interaction_zone" style="display: none; grid-template-columns: 1fr 350px; gap: 20px;">
+                    <div>
+                        <h3>今年のドラフト候補生一覧 (指名候補を選んでください)</h3>
+                        <table id="draft_pool_table">
+                            <thead>
+                                <tr><th>候補No</th><th>名前</th><th>タイプ</th><th>投打/守備</th><th>経歴</th><th>年齢</th><th>注目ステータス</th><th>操作</th></tr>
+                            </thead>
+                            <tbody id="draft_pool_body"></tbody>
+                        </table>
+                    </div>
+                    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <h4 style="margin-top: 0; color: #1a4a75;">自球団の指名状況</h4>
+                        <table style="font-size: 0.9em;">
+                            <thead><tr><th>巡</th><th>指名獲得選手</th></tr></thead>
+                            <tbody id="my_draft_results_body">
+                                <tr><td>1位</td><td id="my_draft_r1">-</td></tr>
+                                <tr><td>2位</td><td id="my_draft_r2">-</td></tr>
+                                <tr><td>3位</td><td id="my_draft_r3">-</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
             
+            <!-- 📝 打撃成績タブ -->
             <div id="tab-stats-bat" class="tab-content active">
                 <h3>打撃個人成績ランキング（上位15名）</h3>
                 <table id="batting_stats_table">
@@ -140,6 +148,7 @@
                 </table>
             </div>
 
+            <!-- 📝 投手成績タブ -->
             <div id="tab-stats-pit" class="tab-content">
                 <h3>投手個人成績ランキング（防御率順）</h3>
                 <table id="pitching_stats_table">
@@ -150,84 +159,82 @@
                 </table>
             </div>
 
+            <!-- 📝 選手能力編集エディタータブ -->
             <div id="tab-editor" class="tab-content">
-    <h3 style="color: #1a4a75; border-bottom: 2px solid #2b6cb0; padding-bottom: 5px;">🛠️ フロント采配・選手能力詳細エディタ</h3>
-    <div class="editor-box" style="display: grid; grid-template-columns: 220px 220px 1fr; gap: 20px; margin-top: 15px;">
-        <div class="editor-pane">
-            <label style="font-weight:bold; font-size:0.85em; color:#4a5568;">① 球団選択</label>
-            <select id="edit_team_select" class="list-select" size="6" onchange="onEditorTeamChange()"></select>
-        </div>
-        
-        <div class="editor-pane">
-            <label style="font-weight:bold; font-size:0.85em; color:#4a5568;">② 登録選手選択</label>
-            <select id="edit_player_select" class="list-select" size="15" onchange="onEditorPlayerChange()"></select>
-        </div>
-        
-        <div class="editor-pane" style="background:#f8fafc; padding:20px; border-radius:10px; border:1px solid #cbd5e0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
-            <h4 style="margin: 0 0 15px 0; color:#2b6cb0; font-size: 1.1em; display:flex; justify-content:space-between; align-items:center;">
-                <span>③ 選手能力パラメーター</span>
-                <span id="ui_player_type_badge" style="font-size:0.75em; padding:3px 8px; border-radius:20px; color:white; background:#718096;">-</span>
-            </h4>
-            
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; background:white; padding:10px; border-radius:6px; border:1px solid #e2e8f0;">
-                <div class="form-row"><label>選手名</label><input type="text" id="form_name" style="font-weight:bold;"></div>
-                <div class="form-row"><label>年齢</label><input type="number" id="form_age" disabled style="background:#edf2f7; text-align:center;"></div>
-                <div class="form-row"><label>現在役割</label><input type="text" id="form_role" disabled style="background:#edf2f7; text-align:center;"></div>
-                <div class="form-row">
-                    <label>メイン守備</label>
-                    <select id="form_pos">
-                        <option value="捕手">捕手</option><option value="一塁手">一塁手</option>
-                        <option value="二塁手">二塁手</option><option value="三塁手">三塁手</option>
-                        <option value="遊撃手">遊撃手</option><option value="左翼手">左翼手</option>
-                        <option value="中堅手">中堅手</option><option value="右翼手">右翼手</option>
-                        <option value="投手">投手</option>
-                    </select>
+                <h3 style="color: #1a4a75; border-bottom: 2px solid #2b6cb0; padding-bottom: 5px;">🛠️ フロント采配・選手能力詳細エディタ</h3>
+                <div class="editor-box" style="display: grid; grid-template-columns: 220px 220px 1fr; gap: 20px; margin-top: 15px;">
+                    <div class="editor-pane">
+                        <label style="font-weight:bold; font-size:0.85em; color:#4a5568;">① 球団選択</label>
+                        <select id="edit_team_select" class="list-select" size="6" onchange="onEditorTeamChange()"></select>
+                    </div>
+                    
+                    <div class="editor-pane">
+                        <label style="font-weight:bold; font-size:0.85em; color:#4a5568;">② 登録選手選択</label>
+                        <select id="edit_player_select" class="list-select" size="15" onchange="onEditorPlayerChange()"></select>
+                    </div>
+                    
+                    <div class="editor-pane" style="background:#f8fafc; padding:20px; border-radius:10px; border:1px solid #cbd5e0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                        <h4 style="margin: 0 0 15px 0; color:#2b6cb0; font-size: 1.1em; display:flex; justify-content:space-between; align-items:center;">
+                            <span>③ 選手能力パラメーター</span>
+                            <span id="ui_player_type_badge" style="font-size:0.75em; padding:3px 8px; border-radius:20px; color:white; background:#718096;">-</span>
+                        </h4>
+                        
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; background:white; padding:10px; border-radius:6px; border:1px solid #e2e8f0;">
+                            <div class="form-row"><label>選手名</label><input type="text" id="form_name" style="font-weight:bold;"></div>
+                            <div class="form-row"><label>年齢</label><input type="number" id="form_age" disabled style="background:#edf2f7; text-align:center;"></div>
+                            <div class="form-row"><label>現在役割</label><input type="text" id="form_role" disabled style="background:#edf2f7; text-align:center;"></div>
+                            <div class="form-row">
+                                <label>メイン守備</label>
+                                <select id="form_pos">
+                                    <option value="捕手">捕手</option><option value="一塁手">一塁手</option>
+                                    <option value="二塁手">二塁手</option><option value="三塁手">三塁手</option>
+                                    <option value="遊撃手">遊撃手</option><option value="左翼手">左翼手</option>
+                                    <option value="中堅手">中堅手</option><option value="右翼手">右翼手</option>
+                                    <option value="投手">投手</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="form_bat_stats" style="display:none;">
+                            <h5 style="margin:10px 0 5px 0; color:#dd6b20;">📈 打撃・選球眼能力</h5>
+                            <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
+                                <div class="form-row"><label>選球眼 (BB%)</label><input type="number" id="form_bb" step="0.5"></div>
+                                <div class="form-row"><label>コンタクト(SO%)</label><input type="number" id="form_so" step="0.5"></div>
+                                <div class="form-row"><label>バレル率 (%)</label><input type="number" id="form_barrel" step="0.5"></div>
+                                <div class="form-row"><label>長打力 (IsoP)</label><input type="number" id="form_isop"></div>
+                            </div>
+
+                            <h5 style="margin:15px 0 5px 0; color:#38a169;">🛡️ 守備範囲・守備適性</h5>
+                            <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
+                                <div class="form-row"><label>守備範囲 (UZR)</label><input type="number" id="form_uzr" step="0.5"></div>
+                                <div class="form-row"><label>エラー率 (%)</label><input type="number" id="form_err" step="0.1"></div>
+                                <div class="form-row"><label>サブ適性守備</label><input type="text" id="form_sub_pos" placeholder="例: 二塁手, 遊撃手" style="background:#fff; border:1px solid #cbd5e0; padding:5px; border-radius:4px;"></div>
+                            </div>
+                        </div>
+
+                        <div id="form_pit_stats" style="display:none;">
+                            <h5 style="margin:10px 0 5px 0; color:#2b6cb0;">⚾ 投手能力スタッツ</h5>
+                            <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
+                                <div class="form-row"><label>被安打抑制 (H/9)</label><input type="number" id="form_h9"></div>
+                                <div class="form-row"><label>ドクターK (K/9)</label><input type="number" id="form_k9"></div>
+                                <div class="form-row"><label>制球力 (BB/9)</label><input type="number" id="form_bb9"></div>
+                                <div class="form-row"><label>被弾抑制 (HR/9)</label><input type="number" id="form_hr9"></div>
+                                <div class="form-row"><label>スタミナ最大値</label><input type="number" id="form_sta"></div>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-primary" style="width:100%; margin-top:15px; font-size:1em; padding:12px;" onclick="saveEditorData()">💾 編集内容をロスターへ完全適用</button>
+                    </div>
                 </div>
             </div>
-
-            <div id="form_bat_stats" style="display:none;">
-                <h5 style="margin:10px 0 5px 0; color:#dd6b20;">📈 打撃・選球眼能力</h5>
-                <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
-                    <div class="form-row"><label>選球眼 (BB%)</label><input type="number" id="form_bb" step="0.5"></div>
-                    <div class="form-row"><label>コンタクト(SO%)</label><input type="number" id="form_so" step="0.5"></div>
-                    <div class="form-row"><label>バレル率 (%)</label><input type="number" id="form_barrel" step="0.5"></div>
-                    <div class="form-row"><label>長打力 (IsoP)</label><input type="number" id="form_isop"></div>
-                </div>
-
-                <h5 style="margin:15px 0 5px 0; color:#38a169;">🛡️ 守備範囲・守備適性</h5>
-                <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
-                    <div class="form-row"><label>守備範囲 (UZR)</label><input type="number" id="form_uzr" step="0.5"></div>
-                    <div class="form-row"><label>エラー率 (%)</label><input type="number" id="form_err" step="0.1"></div>
-                    <div class="form-row"><label>サブ適性守備</label><input type="text" id="form_sub_pos" placeholder="例: 二塁手, 遊撃手" style="background:#fff; border:1px solid #cbd5e0; padding:5px; border-radius:4px;"></div>
-                </div>
-            </div>
-
-            <div id="form_pit_stats" style="display:none;">
-                <h5 style="margin:10px 0 5px 0; color:#2b6cb0;">⚾ 投手能力スタッツ</h5>
-                <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
-                    <div class="form-row"><label>被安打抑制 (H/9)</label><input type="number" id="form_h9"></div>
-                    <div class="form-row"><label>ドクターK (K/9)</label><input type="number" id="form_k9"></div>
-                    <div class="form-row"><label>制球力 (BB/9)</label><input type="number" id="form_bb9"></div>
-                    <div class="form-row"><label>被弾抑制 (HR/9)</label><input type="number" id="form_hr9"></div>
-                    <div class="form-row"><label>スタミナ最大値</label><input type="number" id="form_sta"></div>
-                </div>
-            </div>
-            
-            <button class="btn btn-primary" style="width:100%; margin-top:15px; font-size:1em; padding:12px;" onclick="saveEditorData()">💾 編集内容をロスターへ完全適用</button>
         </div>
     </div>
 </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- index.html の最下部：古いscriptタグを全部消して、この3行に差し替え -->
+<!-- 📦 スクリプトの読み込み（順序完全固定版） -->
 <script src="names.js"></script>
 <script src="data.js"></script>
 <script src="simulator.js"></script>
-<script src="draft.js"></script> </body>
-</body>
-</html>
+<script src="draft.js"></script>
 </body>
 </html>
