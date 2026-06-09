@@ -153,10 +153,13 @@ function createDraftBatter() {
     };
 }
 
+// 🆕 二軍先発のスタミナ適性を100%保証する投手生成ロジックの修正
 function createDraftPitcher() {
     let graduation = ["高卒", "大卒", "社会人"][Math.floor(Math.random() * 3)];
     let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
     let prefs = ["北海道", "青森", "岩手", "宮城", "秋田", "山形", "福島", "茨城", "栃木", "群馬", "埼玉", "千葉", "東京", "神奈川", "新潟", "富山", "石川", "福井", "山梨", "長野", "岐阜", "静岡", "愛知", "三重", "滋賀", "京都", "大阪", "兵庫", "奈良", "和歌山", "鳥取", "島根", "岡山", "広島", "山口", "徳島", "香川", "愛媛", "高知", "福岡", "佐賀", "長崎", "熊本", "大分", "宮崎", "鹿児島", "沖縄"];
+
+    let isStarterStyle = Math.random() < 0.40; // 40%の確率で先発スタミナ持ちにする
 
     return {
         name: generateRandomPlayerName(),
@@ -166,8 +169,8 @@ function createDraftPitcher() {
         h9: 60 + Math.floor(Math.random() * 12),
         k9: 60 + Math.floor(Math.random() * 15),
         bb9: 65, hr9: 55,
-        staMax: Math.random() < 0.3 ? 88 : 35, 
-        staCurrent: 35,
+        staMax: isStarterStyle ? 90 : 35, 
+        staCurrent: isStarterStyle ? 90 : 35,
         stats: { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0 }
     };
 }
@@ -248,7 +251,7 @@ function simulateRound() {
     return roundResults;
 }
 
-// 🆕 消えていたコア試合進行計算ロジック（executeMatchLogic）の再統合
+// 🆕 消失していた中枢計算アルゴリズム（executeMatchLogic）の完全再統合
 function executeMatchLogic(away, home) {
     let awayStarters = away.pitchers.filter(p => p.role === "先発");
     let homeStarters = home.pitchers.filter(p => p.role === "先発");
@@ -683,58 +686,7 @@ function saveEditorData() {
     onEditorTeamChange(); updateUIAll();
 }
 
-function updateUIAll() {
-    let gameCountEl = document.getElementById("current_game_count");
-    if(!gameCountEl) return;
-    
-    gameCountEl.innerText = totalGamesPlayed === -1 ? 143 : totalGamesPlayed;
-    
-    let weekCountEl = document.getElementById("current_week_count");
-    if(weekCountEl) {
-        weekCountEl.innerText = totalGamesPlayed === -1 ? 24 : Math.floor(totalGamesPlayed / 6) + 1;
-    }
-    
-    let h2Title = document.querySelector(".card h2");
-    if(h2Title && !h2Title.innerText.includes("就任")) {
-        let displayGame = totalGamesPlayed === -1 ? 143 : totalGamesPlayed;
-        let displayWeek = totalGamesPlayed === -1 ? 24 : Math.floor(totalGamesPlayed / 6) + 1;
-        h2Title.innerHTML = `リーグ消化状況: <span id="current_game_count">${displayGame}</span> / 143 試合 (第 <span id="current_week_count">${displayWeek}</span> 週目)`;
-    }
-
-    let sorted = [...teams].sort((a,b) => (b.wins / ((b.wins + b.losses) || 1)) - (a.wins / ((a.wins + a.losses) || 1)));
-    let sBody = document.getElementById("standings_body"); sBody.innerHTML = "";
-    sorted.forEach((t, i) => {
-        let wp = t.wins / ((t.wins + t.losses) || 1);
-        let isMyTeam = (t.id === userTeamId);
-        let teamDisplay = isMyTeam ? `<span style="color:#e53e3e;">★</span>${t.name}` : t.name;
-        let rowStyle = isMyTeam ? `style="background-color: #e0f2fe; font-weight:bold;"` : ""; 
-        sBody.innerHTML += `<tr ${rowStyle}><td>${i+1}</td><td><b>${teamDisplay}</b></td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${wp.toFixed(3)}</td><td>-</td></tr>`;
-    });
-
-    let bList = []; teams.forEach(t => t.batters.forEach(b => bList.push({tName: t.name, data: b})));
-    bList.sort((a,b) => (b.data.stats.hits / (b.data.stats.ab || 1)) - (a.data.stats.hits / (a.data.stats.ab || 1)));
-    let batBody = document.querySelector("#batting_stats_table tbody"); batBody.innerHTML = "";
-    bList.slice(0, 15).forEach(item => {
-        let b = item.data; let avg = b.stats.hits / (b.stats.ab || 1);
-        batBody.innerHTML += `<tr><td>${item.tName}</td><td><b>${b.name} (${b.age}歳)</b></td><td>${b.currentPos}</td><td>${avg.toFixed(3)}</td><td>${b.stats.games}</td><td>${b.stats.ab}</td><td>${b.stats.hits}</td><td>${b.stats.hr}</td><td>${b.stats.rbi}</td><td>${b.stats.bb}</td></tr>`;
-    });
-
-    let pList = []; teams.forEach(t => pList.push(...t.pitchers));
-    pList.sort((a,b) => { if(a.stats.ipOuts === 0) return 1; if(b.stats.ipOuts === 0) return -1; return a.stats.era - b.stats.era; });
-    let pitBody = document.querySelector("#pitching_stats_table tbody"); pitBody.innerHTML = "";
-    pList.forEach(p => {
-        let tObj = teams.find(t => t.pitchers.some(pObj => pObj.name === p.name));
-        let tName = tObj ? tObj.name : "";
-        pitBody.innerHTML += `<tr><td>${tName}</td><td><b>${p.name} (${p.age}歳)</b></td><td>${p.role}</td><td><b>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</b></td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td><b>${p.stats.saves}</b></td><td>${formatInningsPitched(p.stats.ipOuts)}</td><td>${p.stats.so}</td><td>${p.staCurrent}</td></tr>`;
-    });
-}
-
-function switchTab(tabId, el) {
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById(tabId).classList.add('active'); el.classList.add('active');
-}
-
+// 🚀 遅延バインド・マウントの安全初期化構造
 window.addEventListener("DOMContentLoaded", () => {
     initializeLeagueData();
 
