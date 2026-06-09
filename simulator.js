@@ -88,35 +88,29 @@ function executeFrontOfficeAI() {
     });
 }
 
-// simulator.js 内の reassignTeamRoles をこれに上書き
 function reassignTeamRoles(t) {
-    // 守備位置の各スロット（1〜9番）に必要なポジション定義
     const requiredPositions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手"];
-    let assignedCount = 0;
     
     // 全員の役割を一回リセット
     t.batters.forEach(b => b.role = -1);
 
-    // 1. 各ポジションの「専門職」を優先してスタメンに大抜擢する
+    // 1. 各ポジションの「専門職」を優先してスタメンに配属
     requiredPositions.forEach((pos, idx) => {
-        // メイン守備(originalPos)が一致、またはサブポジション(subPositions)に含まれている選手を探す
         let candidate = t.batters.find(b => b.role === -1 && (b.originalPos === pos || (b.subPositions && b.subPositions.includes(pos))));
-        
         if (candidate) {
-            candidate.role = idx + 1; // 1番~8番スロットに配属
-            candidate.currentPos = pos; // 守備位置を確定
-            assignedCount++;
+            candidate.role = idx + 1; 
+            candidate.currentPos = pos; 
         }
     });
 
-    // 2. もしポジションが埋まらなかったスロットがあれば、まだ余っている野手の上位から滑り込ませる
+    // 2. 埋まらなかった穴があれば、余っている野手の上位から滑り込ませる
     requiredPositions.forEach((pos, idx) => {
         let slotEmpty = !t.batters.some(b => b.role === (idx + 1));
         if (slotEmpty) {
             let backup = t.batters.find(b => b.role === -1);
             if (backup) {
                 backup.role = idx + 1;
-                backup.currentPos = pos; // 緊急コンバート
+                backup.currentPos = pos; 
             }
         }
     });
@@ -127,17 +121,15 @@ function reassignTeamRoles(t) {
         if (b.role > 0) return;
         if (rCount < 7) { b.role = 0; rCount++; } 
         else { b.role = -1; }
-        b.currentPos = b.originalPos; // 控え・二軍は本来の定位置に戻す
+        b.currentPos = b.originalPos; 
     });
 
-    // 4. 【二軍先発問題解決】投手の役割の固定化
+    // 4. 投手の役割の固定化
     t.pitchers.forEach((p, idx) => {
-        // 初期化時に設定された「二軍先発」の適性を勝手にリリーフに変更させないガード
         if (p.role === "先発" || p.role === "守護神" || p.role === "二軍先発") {
             p.staCurrent = p.staMax;
             return; 
         }
-        // それ以外の一軍枠ならリリーフ、溢れたら二軍リリーフ
         if (idx < 12) {
             if (p.role !== "先発" && p.role !== "守護神") p.role = "リリーフ";
         } else {
@@ -186,19 +178,13 @@ function createDraftPitcher() {
     };
 }
 
-// simulator.js 内の該当関数をこれに差し替える
 function executeOffseasonRosterEvents() {
     let logMsg = "";
-    let targetCutCount = 6; // 各チーム一律で下位の選手を6人戦力外にする
-
     teams.forEach(t => {
-        // 解雇前の並び替え：純粋に年齢が高く、能力（バレル率や被安打抑制）が低い選手の下位から削る
         t.batters.sort((a,b) => (a.barrel - (a.age * 0.3)) - (b.barrel - (b.age * 0.3)));
         let releasedBatters = 0;
-        let cutMax = 3;
-
         t.batters = t.batters.filter(b => {
-            if (releasedBatters < cutMax) {
+            if (releasedBatters < 3) {
                 releasedBatters++;
                 if(t.id === userTeamId) logMsg += `【戦力外】${b.name} 野手(${b.age}歳)を自由契約に。\n`;
                 return false;
@@ -208,9 +194,8 @@ function executeOffseasonRosterEvents() {
 
         t.pitchers.sort((a,b) => (b.h9 - (a.age * 0.3)) - (a.h9 - (b.age * 0.3)));
         let releasedPitchers = 0;
-
         t.pitchers = t.pitchers.filter(p => {
-            if (releasedPitchers < cutMax) {
+            if (releasedPitchers < 3) {
                 releasedPitchers++;
                 if(t.id === userTeamId) logMsg += `【戦力外】${p.name} 投手(${p.age}歳)を自由契約に。\n`;
                 return false;
@@ -220,19 +205,12 @@ function executeOffseasonRosterEvents() {
     });
 
     alert(`ーーー 👔 オフシーズン戦力外通告速報 (第 ${currentYear} 年目オフ) ーーー\n\n${logMsg}\n\nこれよりドラフト会議を開始します！「ドラフト会議」タブを開いて選手を指名してください！`);
-
-    // 🆕 自動生成をストップし、ドラフト会議システムを起動
     document.getElementById("draft_status_message").innerHTML = "🔥 <b>ドラフト会議が開催中！</b> あなたの球団の1位〜3位指名選手を一覧から選択してください。";
     document.getElementById("draft_interaction_zone").style.display = "grid";
-    
-    // ドラフトプールを生成（draft.jsの関数を呼び出し）
     generateDraftPool();
-    
-    // 強制的にドラフトタブを表示させる
     switchTab('tab-draft', document.querySelectorAll('.tab')[2]);
 }
 
-// simulator.js 内の該当関数をこれに上書き
 function processOffseasonEvolution() {
     teams.forEach(t => {
         t.batters.forEach(b => {
@@ -243,21 +221,17 @@ function processOffseasonEvolution() {
                 b.barrel = Math.min(45, b.barrel + Math.floor(Math.random() * 4) + 1 + growthPotential * 0.2); 
                 b.isop = Math.min(65, b.isop + Math.floor(Math.random() * 5) + 2);
                 b.so = Math.max(10, b.so - Math.floor(Math.random() * 2));
-                // 🆕 若手は守備力（UZR）もぐんぐん成長する
                 b.uzr = parseFloat((b.uzr + Math.random() * 2.5).toFixed(1));
             } else if (b.age <= 29) {
                 if(Math.random() < 0.3) b.barrel = Math.min(45, b.barrel + 1);
-                // 中堅は守備が一番安定する時期
                 if(Math.random() < 0.2) b.uzr = parseFloat((b.uzr + Math.random() * 1.0 - 0.3).toFixed(1));
             } else if (b.age <= 34) {
                 b.barrel = Math.max(5, b.barrel - (Math.floor(Math.random() * 2)));
                 b.isop = Math.max(5, b.isop - (Math.floor(Math.random() * 3)));
-                // ベテランは徐々に守備範囲が狭まる（UZR低下）
                 b.uzr = parseFloat((b.uzr - Math.random() * 1.5).toFixed(1));
             } else {
                 b.barrel = Math.max(3, b.barrel - (Math.floor(Math.random() * 4) + 1));
                 b.so = Math.min(45, b.so + Math.floor(Math.random() * 3));
-                // 大ベテランは守備力の衰えが顕著に
                 b.uzr = parseFloat((b.uzr - Math.random() * 3.0 - 1.0).toFixed(1));
             }
         });
@@ -282,14 +256,13 @@ function processOffseasonEvolution() {
     });
 }
 
-// simulator.js 内の simulateRound
-
+// ==========================================
+// 3. 試合進行・シミュレーション中枢
+// ==========================================
 function simulateRound() {
     if (totalGamesPlayed >= MAX_GAMES) {
-        // オフシーズンの年齢増加と、既存プレイヤーの能力成長・衰退を行う
+        totalGamesPlayed = 0;
         processOffseasonEvolution(); 
-        
-        // 戦力外通告を出し、ドラフト画面を起動（試合数はここでリセットしない）
         executeOffseasonRosterEvents(); 
         return null; 
     }
@@ -307,330 +280,6 @@ function simulateRound() {
     
     totalGamesPlayed++; 
     return roundResults;
-}
-// ==========================================
-// 3. 試合進行・シミュレーション中枢
-// ==========================================
-function executeMatchLogic(away, home) {
-    let awayStarters = away.pitchers.filter(p => p.role === "先発");
-    let homeStarters = home.pitchers.filter(p => p.role === "先発");
-    let pAway = awayStarters[away.rotationIdx % awayStarters.length] || away.pitchers[0];
-    let pHome = homeStarters[home.rotationIdx % homeStarters.length] || home.pitchers[0];
-    
-    pAway.staCurrent = pAway.staMax; 
-    pHome.staCurrent = pHome.staMax;
-
-    let curPitcherAway = pAway; 
-    let curPitcherHome = pHome;
-    curPitcherAway.stats.appearances++; 
-    curPitcherHome.stats.appearances++;
-    
-    pAway.exp = (pAway.exp || 0) + 15; 
-    pHome.exp = (pHome.exp || 0) + 15;
-
-    let appearedAway = [pAway.name]; 
-    let appearedHome = [pHome.name];
-    let awayScore = 0, homeScore = 0; 
-    let awayOrder = 1; 
-    let homeOrder = 1; 
-    let pitchCountAway = 0, pitchCountHome = 0;
-    
-    let pitcherMatchStats = {};
-    const initMatchStat = (name) => {
-        if (!pitcherMatchStats[name]) pitcherMatchStats[name] = { er: 0, outs: 0 };
-    };
-    initMatchStat(pAway.name);
-    initMatchStat(pHome.name);
-
-    for (let inning = 1; inning <= 9; inning++) {
-        // --- 表の攻撃 (Away) ---
-        let outs = 0; 
-        let bases = [false, false, false];
-        while (outs < 3) {
-            let needChange = false;
-            
-            if (inning === 9 && curPitcherHome.role !== "守護神") {
-                let scoreDiff = homeScore - awayScore;
-                if (scoreDiff >= 0 && scoreDiff <= 3) {
-                    let closer = home.pitchers.find(p => p.role === "守護神" && p.staCurrent >= 15);
-                    if (closer) { 
-                        curPitcherHome = closer; 
-                        if (!appearedHome.includes(closer.name)) { 
-                            closer.stats.appearances++; 
-                            appearedHome.push(closer.name); 
-                            closer.exp = (closer.exp||0)+10;
-                        } 
-                        pitchCountHome = 0; 
-                        initMatchStat(closer.name);
-                    }
-                }
-            }
-            
-            if (curPitcherHome.role !== "守護神" && (inning === 7 || inning === 8)) {
-                let scoreDiff = homeScore - awayScore;
-                if (scoreDiff >= -1 && scoreDiff <= 2 && curPitcherHome.role === "先発") {
-                    needChange = true; 
-                }
-            }
-            
-            if (curPitcherHome.role !== "守護神") {
-                if (pitchCountHome >= curPitcherHome.staMax || pitcherMatchStats[curPitcherHome.name].er >= 4) needChange = true;
-            } else { 
-                if (pitcherMatchStats[curPitcherHome.name].er >= 2) needChange = true; 
-            }
-
-            if (needChange) {
-                let available = home.pitchers.filter(p => p.role === "リリーフ" && p.staCurrent >= 20 && !appearedHome.includes(p.name));
-                if (available.length === 0) {
-                    available = home.pitchers.filter(p => p.role.includes("リリーフ") && p.staCurrent > 5);
-                }
-                
-                if (available.length > 0) { 
-                    available.sort((a, b) => {
-                        let scoreA = a.staCurrent * getConditionModifier(a.condition, "batBarrel");
-                        let scoreB = b.staCurrent * getConditionModifier(b.condition, "batBarrel");
-                        return scoreB - scoreA;
-                    });
-                    
-                    curPitcherHome = available[0]; 
-                    if (!appearedHome.includes(curPitcherHome.name)) { 
-                        curPitcherHome.stats.appearances++; 
-                        appearedHome.push(curPitcherHome.name); 
-                    } 
-                    pitchCountHome = 0; 
-                    initMatchStat(curPitcherHome.name);
-                } else {
-                    let minorReliefs = home.pitchers.filter(p => p.role === "二軍リリーフ" && p.staCurrent >= 25);
-                    if (minorReliefs.length > 0) {
-                        curPitcherHome = minorReliefs[0];
-                        if (!appearedHome.includes(curPitcherHome.name)) {
-                            curPitcherHome.stats.appearances++;
-                            appearedHome.push(curPitcherHome.name);
-                        }
-                        pitchCountHome = 0;
-                        initMatchStat(curPitcherHome.name);
-                    }
-                }
-            }
-            
-            let currentBatters = away.batters.filter(bat => bat.role === awayOrder);
-            let b = currentBatters[0];
-            
-            if(!b) {
-                reassignTeamRoles(away);
-                b = away.batters.find(bat => bat.role === awayOrder) || away.batters[0];
-            }
-
-            b.stats.ab++;
-            pitchCountHome += 4; 
-            b.stats.games = (b.stats.games || 0) + 1;
-            
-            let batConditionMod = getConditionModifier(b.condition, "batSo");
-            let pitConditionMod = getConditionModifier(curPitcherHome.condition, "pitPitch"); 
-            
-            let bbP = (b.bb / 100) * BALANCING_CONFIG.plates.bbBaseScale + ((100 - curPitcherHome.bb9) * BALANCING_CONFIG.plates.bbPitcherScale); 
-            let soP = ((b.so / 100) * BALANCING_CONFIG.plates.soBaseScale * batConditionMod) + ((curPitcherHome.k9 * BALANCING_CONFIG.plates.soPitcherScale) * pitConditionMod); 
-            let rand = Math.random();
-            
-            if(rand < bbP) {
-                b.stats.bb++; curPitcherHome.stats.bb++; 
-                let runs = advanceRunners(bases, "BB");
-                awayScore += runs; 
-                curPitcherHome.stats.er += runs; 
-                pitcherMatchStats[curPitcherHome.name].er += runs;
-            } else if(rand < bbP + soP) {
-                outs++; b.stats.so++; curPitcherHome.stats.so++;
-                curPitcherHome.stats.ipOuts = (curPitcherHome.stats.ipOuts || 0) + 1;
-                pitcherMatchStats[curPitcherHome.name].outs += 1;
-            } else {
-                let baseHitChance = BALANCING_CONFIG.batting.baseHitChance; 
-                let h9Effect = ((curPitcherHome.h9 - 65) * BALANCING_CONFIG.batting.pitcherH9Influence) * pitConditionMod; 
-                let finalHitChance = Math.max(0.24, Math.min(0.48, baseHitChance - h9Effect));
-                
-                if (Math.random() < finalHitChance) {
-                    b.stats.hits++; b.exp = (b.exp || 0) + 2;
-                    let hr9Reduction = ((curPitcherHome.hr9 / 100) * BALANCING_CONFIG.batting.pitcherHr9Influence) * pitConditionMod;
-                    let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
-                    
-                    let isHR = Math.random() < (finalBarrel * BALANCING_CONFIG.batting.hrMultiplier); 
-                    let runs = advanceRunners(bases, isHR ? "HR" : "1B");
-                    awayScore += runs; 
-                    curPitcherHome.stats.er += runs; 
-                    pitcherMatchStats[curPitcherHome.name].er += runs;
-                    if(isHR) b.stats.hr++;
-                } else {
-                    outs++; 
-                    curPitcherHome.stats.ipOuts = (curPitcherHome.stats.ipOuts || 0) + 1;
-                    pitcherMatchStats[curPitcherHome.name].outs += 1;
-                }
-            }
-            awayOrder = (awayOrder % 9) + 1;
-        }
-
-        // --- 裏の攻撃 (Home) ---
-        outs = 0; 
-        bases = [false, false, false];
-        while (outs < 3) {
-            let needChange = false;
-            if (inning === 9 && curPitcherAway.role !== "守護神") {
-                let scoreDiff = awayScore - homeScore;
-                if (scoreDiff >= 0 && scoreDiff <= 3) {
-                    let closer = away.pitchers.find(p => p.role === "守護神" && p.staCurrent >= 15);
-                    if (closer) { 
-                        curPitcherAway = closer; 
-                        if (!appearedAway.includes(closer.name)) { 
-                            closer.stats.appearances++; 
-                            appearedAway.push(closer.name); 
-                            closer.exp = (closer.exp||0)+10;
-                        } 
-                        pitchCountAway = 0; 
-                        initMatchStat(closer.name);
-                    }
-                }
-            }
-            if (curPitcherAway.role !== "守護神" && (inning === 7 || inning === 8)) {
-                let scoreDiff = awayScore - homeScore;
-                if (scoreDiff >= -1 && scoreDiff <= 2 && curPitcherAway.role === "先発") {
-                    needChange = true;
-                }
-            }
-            if (curPitcherAway.role !== "守護神") {
-                if (pitchCountAway >= curPitcherAway.staMax || pitcherMatchStats[curPitcherAway.name].er >= 4) needChange = true;
-            } else { 
-                if (pitcherMatchStats[curPitcherAway.name].er >= 2) needChange = true; 
-            }
-
-            if (needChange) {
-                let available = away.pitchers.filter(p => p.role === "リリーフ" && p.staCurrent >= 20 && !appearedAway.includes(p.name));
-                if (available.length === 0) {
-                    available = away.pitchers.filter(p => p.role.includes("リリーフ") && p.staCurrent > 5);
-                }
-                
-                if (available.length > 0) { 
-                    available.sort((a, b) => {
-                        let scoreA = a.staCurrent * getConditionModifier(a.condition, "batBarrel");
-                        let scoreB = b.staCurrent * getConditionModifier(b.condition, "batBarrel");
-                        return scoreB - scoreA;
-                    });
-                    
-                    curPitcherAway = available[0]; 
-                    if (!appearedAway.includes(curPitcherAway.name)) { 
-                        curPitcherAway.stats.appearances++; 
-                        appearedAway.push(curPitcherAway.name); 
-                    } 
-                    pitchCountAway = 0; 
-                    initMatchStat(curPitcherAway.name);
-                }
-            }
-            
-            let currentBattersHome = home.batters.filter(bat => bat.role === homeOrder);
-            let b = currentBattersHome[0];
-            
-            if(!b) {
-                reassignTeamRoles(home);
-                b = home.batters.find(bat => bat.role === homeOrder) || home.batters[0];
-            }
-
-            b.stats.ab++;
-            pitchCountAway += 4; 
-            b.stats.games = (b.stats.games || 0) + 1;
-            
-            let batConditionMod = getConditionModifier(b.condition, "batSo");
-            let pitConditionMod = getConditionModifier(curPitcherAway.condition, "pitPitch");
-            
-            let bbP = (b.bb / 100) * BALANCING_CONFIG.plates.bbBaseScale + ((100 - curPitcherAway.bb9) * BALANCING_CONFIG.plates.bbPitcherScale);
-            let soP = ((b.so / 100) * BALANCING_CONFIG.plates.soBaseScale * batConditionMod) + ((curPitcherAway.k9 * BALANCING_CONFIG.plates.soPitcherScale) * pitConditionMod);
-            let rand = Math.random();
-            
-            if(rand < bbP) {
-                b.stats.bb++; curPitcherAway.stats.bb++; 
-                let runs = advanceRunners(bases, "BB");
-                homeScore += runs; 
-                curPitcherAway.stats.er += runs; 
-                pitcherMatchStats[curPitcherAway.name].er += runs;
-            } else if(rand < bbP + soP) {
-                outs++; b.stats.so++; curPitcherAway.stats.so++;
-                curPitcherAway.stats.ipOuts = (curPitcherAway.stats.ipOuts || 0) + 1;
-                pitcherMatchStats[curPitcherAway.name].outs += 1;
-            } else {
-                let baseHitChance = BALANCING_CONFIG.batting.baseHitChance;
-                let h9Effect = ((curPitcherAway.h9 - 65) * BALANCING_CONFIG.batting.pitcherH9Influence) * pitConditionMod;
-                let finalHitChance = Math.max(0.24, Math.min(0.45, baseHitChance - h9Effect));
-                
-                if (Math.random() < finalHitChance) {
-                    b.stats.hits++; b.exp = (b.exp || 0) + 2;
-                    let hr9Reduction = ((curPitcherAway.hr9 / 100) * BALANCING_CONFIG.batting.pitcherHr9Influence) * pitConditionMod;
-                    let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
-                    
-                    let isHR = Math.random() < (finalBarrel * BALANCING_CONFIG.batting.hrMultiplier);
-                    let runs = advanceRunners(bases, isHR ? "HR" : "1B");
-                    homeScore += runs; 
-                    curPitcherAway.stats.er += runs; 
-                    pitcherMatchStats[curPitcherAway.name].er += runs;
-                    if(isHR) b.stats.hr++;
-                } else {
-                    outs++;
-                    curPitcherAway.stats.ipOuts = (curPitcherAway.stats.ipOuts || 0) + 1;
-                    pitcherMatchStats[curPitcherAway.name].outs += 1;
-                }
-            }
-            homeOrder = (homeOrder % 9) + 1;
-        }
-    }
-
-    if(awayScore > homeScore) { 
-        away.wins++; home.losses++; 
-    } else if(homeScore > awayScore) { 
-        home.wins++; away.losses++; 
-    } else { 
-        away.draws++; home.draws++; 
-    }
-
-    away.pitchers.forEach(p => { 
-        if (appearedAway.includes(p.name)) {
-            let matchOuts = pitcherMatchStats[p.name] ? pitcherMatchStats[p.name].outs : 0;
-            let cost = p.role === "先発" ? 0 : (10 + matchOuts * 4); 
-            if(p.role !== "先発") p.staCurrent = Math.max(0, p.staCurrent - cost);
-        } 
-    });
-    home.pitchers.forEach(p => { 
-        if (appearedHome.includes(p.name)) {
-            let matchOuts = pitcherMatchStats[p.name] ? pitcherMatchStats[p.name].outs : 0;
-            let cost = p.role === "先発" ? 0 : (10 + matchOuts * 4);
-            if(p.role !== "先発") p.staCurrent = Math.max(0, p.staCurrent - cost);
-        } 
-    });
-    
-    away.pitchers.forEach(p => { if (p.stats.ipOuts > 0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
-    home.pitchers.forEach(p => { if (p.stats.ipOuts > 0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
-
-    away.rotationIdx++; 
-    home.rotationIdx++;
-    return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
-}
-
-function formatInningsPitched(totalOuts) {
-    let innings = Math.floor(totalOuts / 3); let remainingOuts = totalOuts % 3;
-    return remainingOuts === 0 ? `${innings}` : `${innings}.${remainingOuts}`;
-}
-
-function advanceRunners(bases, hitKind) {
-    let runs = 0;
-    if (hitKind === "BB") {
-        if (bases[0] && bases[1] && bases[2]) runs++;
-        else if (bases[0] && bases[1]) bases[2] = true;
-        else if (bases[0]) bases[1] = true;
-        bases[0] = true;
-    } else if (hitKind === "1B") {
-        if (bases[2]) { runs++; bases[2] = false; }
-        if (bases[1]) { runs++; bases[1] = false; }
-        if (bases[0]) bases[1] = true;
-        bases[0] = true;
-    } else if (hitKind === "HR") {
-        runs += 1 + (bases[0]?1:0) + (bases[1]?1:0) + (bases[2]?1:0);
-        bases.fill(false);
-    }
-    return runs;
 }
 
 function playNextRound() {
@@ -676,8 +325,6 @@ function onEditorTeamChange() {
     playerSelect.selectedIndex = 0; onEditorPlayerChange();
 }
 
-// simulator.js 内の onEditorPlayerChange と saveEditorData をこれに差し替え
-
 function onEditorPlayerChange() {
     let teamSelect = document.getElementById("edit_team_select");
     let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
@@ -691,7 +338,6 @@ function onEditorPlayerChange() {
     document.getElementById("form_name").value = player.name;
     document.getElementById("form_pos").value = player.currentPos;
     
-    // 年齢と役割の図式化ハメ込み
     document.getElementById("form_age").value = player.age;
     let roleText = player.role >= 1 && player.role <= 9 ? `${player.role}番打者` : (player.role === 0 ? "一軍ベンチ控え" : (player.role === -1 ? "二軍調整中" : player.role));
     document.getElementById("form_role").value = roleText;
@@ -708,7 +354,6 @@ function onEditorPlayerChange() {
         document.getElementById("form_isop").value = player.isop;
         document.getElementById("form_uzr").value = player.uzr;
         document.getElementById("form_err").value = player.err;
-        // サブポジションをカンマ区切りで表示
         document.getElementById("form_sub_pos").value = player.subPositions ? player.subPositions.join(", ") : "なし";
     } else {
         if(badge) { badge.innerText = `投手(${player.role})`; badge.style.background = "#2b6cb0"; }
@@ -741,9 +386,8 @@ function saveEditorData() {
         p.uzr = parseFloat(document.getElementById("form_uzr").value);
         p.err = parseFloat(document.getElementById("form_err").value);
         
-        // 入力された文字列を分解してサブポジション配列に再格納
         let subStr = document.getElementById("form_sub_pos").value;
-        p.subPositions = subStr ? subStr.split(",").map(s => s.trim()) : [];
+        p.subPositions = subStr && subStr !== "なし" ? subStr.split(",").map(s => s.trim()) : [];
     } else {
         let p = team.pitchers[idx];
         p.name = document.getElementById("form_name").value;
@@ -752,29 +396,6 @@ function saveEditorData() {
         p.bb9 = parseFloat(document.getElementById("form_bb9").value);
         p.hr9 = parseFloat(document.getElementById("form_hr9").value);
         p.staMax = parseFloat(document.getElementById("form_sta").value);
-    }
-    onEditorTeamChange(); updateUIAll();
-}
-function saveEditorData() {
-    let teamSelect = document.getElementById("edit_team_select");
-    let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
-    let playerVal = document.getElementById("edit_player_select").value;
-    let type = playerVal.split("_")[0]; let idx = parseInt(playerVal.split("_")[1]);
-    let team = teams[teamIdx];
-    
-    if(type === "bat") {
-        let p = team.batters[idx];
-        p.name = document.getElementById("form_name").value; p.role = parseInt(document.getElementById("form_role").value);
-        p.currentPos = document.getElementById("form_pos").value; p.bb = parseFloat(document.getElementById("form_bb").value);
-        p.so = parseFloat(document.getElementById("form_so").value); p.barrel = parseFloat(document.getElementById("form_barrel").value);
-        p.isop = parseFloat(document.getElementById("form_isop").value); p.uzr = parseFloat(document.getElementById("form_uzr").value);
-        p.err = parseFloat(document.getElementById("form_err").value);
-    } else {
-        let p = team.pitchers[idx];
-        p.name = document.getElementById("form_name").value; p.role = document.getElementById("form_role").value;
-        p.currentPos = document.getElementById("form_pos").value; p.h9 = parseFloat(document.getElementById("form_h9").value);
-        p.k9 = parseFloat(document.getElementById("form_k9").value); p.bb9 = parseFloat(document.getElementById("form_bb9").value);
-        p.hr9 = parseFloat(document.getElementById("form_hr9").value); p.staMax = parseFloat(document.getElementById("form_sta").value);
     }
     onEditorTeamChange(); updateUIAll();
 }
@@ -828,5 +449,16 @@ function switchTab(tabId, el) {
     document.getElementById(tabId).classList.add('active'); el.classList.add('active');
 }
 
-initializeLeagueData();
-selectUserTeam(document.getElementById("user_team_select").value);
+// 🚀 遅延読み込みを安全に処理する初期起動ブロック
+window.addEventListener("DOMContentLoaded", () => {
+    let editTeamSelect = document.getElementById("edit_team_select");
+    if (editTeamSelect) {
+        editTeamSelect.innerHTML = "";
+        teamNames.forEach((name, idx) => {
+            let selectedAttr = idx === userTeamId ? "selected" : "";
+            editTeamSelect.innerHTML += `<option value="${idx}" ${selectedAttr}>${name}</option>`;
+        });
+    }
+    onEditorTeamChange();
+    updateUIAll();
+});
