@@ -69,9 +69,31 @@ function renderDraftPoolUI() {
 
 // ユーザーがボタンを押して選手を指名したときの処理
 function userSelectDraftPlayer(type, index) {
+    // === draft.js 内の userSelectDraftPlayer 関数の下部にある判定部分 ===
+
+    // 全3巡の指名が終わったら、ここで初めて「翌年への完全リセット」を実行する
     if (currentDraftRound > 3) {
-        alert("今年のドラフト指名は3位まで終了しています。シーズンを進行させてください。");
-        return;
+        document.getElementById("draft_status_message").innerText = "🎉 ドラフト会議が終了しました！新シーズンを開幕します。";
+        document.getElementById("draft_interaction_zone").style.display = "none";
+        
+        // 🆕 simulator.js から引っ越しさせてきた「翌年へのデータリセット処理」
+        totalGamesPlayed = 0; 
+        currentYear += 1; 
+        teams.forEach(t => {
+            t.wins = 0; t.losses = 0; t.draws = 0;
+            t.batters.forEach(b => b.stats = { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 });
+            t.pitchers.forEach(p => { p.staCurrent = p.staMax; p.stats = { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0 }; });
+        });
+
+        // 全球団のロスター打順・役割を新戦力込みで再セットアップ
+        teams.forEach(t => reassignTeamRoles(t));
+        
+        // 画面を完全に新シーズン(第〇年目・0試合)の表示に更新
+        updateUIAll();
+        
+        alert(`祝・第 ${currentYear} 年目 開幕！\n新入団選手を組み込んだ新しいペナントレースが始まります！`);
+    } else {
+        renderDraftPoolUI(); // 2巡目、3巡目の指名のためにプールを再描画
     }
 
     let selectedPlayer = type === 'bat' ? draftPool.batters[index] : draftPool.pitchers[index];
