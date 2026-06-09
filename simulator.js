@@ -230,18 +230,14 @@ function processOffseasonEvolution() {
     });
 }
 
-function simulateRound() {
-    // 143試合消化した瞬間の判定
-    if (totalGamesPlayed >= MAX_GAMES) {
-        // 🔥【無限ループ対策】
-        // ドラフト画面を開く前に、試合数カウントを「143 ➔ 0」に手前で落としてしまいます。
-        // これにより、連打してもこのif文の中に二度と入れなくなり、無限ループが100%発生しなくなります。
-        totalGamesPlayed = 0; 
+// simulator.js 内の simulateRound
 
-        // オフシーズンの能力変動
+function simulateRound() {
+    if (totalGamesPlayed >= MAX_GAMES) {
+        // オフシーズンの年齢増加と、既存プレイヤーの能力成長・衰退を行う
         processOffseasonEvolution(); 
         
-        // 戦力外通告とドラフト会議の起動
+        // 戦力外通告を出し、ドラフト画面を起動（試合数はここでリセットしない）
         executeOffseasonRosterEvents(); 
         return null; 
     }
