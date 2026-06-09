@@ -50,6 +50,7 @@ function createBlankPitcher(roleType) {
     };
 }
 
+// data.js の initializeLeagueData をこれに差し替え
 function initializeLeagueData() {
     teams = [];
     for(let t=0; t<6; t++) {
@@ -57,61 +58,74 @@ function initializeLeagueData() {
             id: t, name: teamNames[t], wins: 0, losses: 0, draws: 0, rotationIdx: 0, batters: [], pitchers: []
         };
         
-        // 野手40人生成 (1~9番打者、10~16番が一軍控え、それ以降は二軍)
+        // 1. 野手40人の生成
         for(let i=1; i<=40; i++) {
             let isStamen = i <= 9;
             let isFirstTeam = i <= 16;
             
-            // チーム内で満遍なくポジションが分散するように配置
-            let pos = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手","内野手","捕手","内野手","外野手","外野手","捕手","内野手","外野手"][i-1] || ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手"][i % 8];
-            
-            let graduation = ["高卒", "大卒", "社会人"][Math.floor(Math.random() * 3)];
-            let proYears = Math.floor(Math.random() * 10) + 1; 
-            let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
-            let age = baseAge + (proYears - 1);
+            // チーム内ポジションの綺麗に分散
+            let pos = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手","一塁手","捕手","内野手","内野手","外野手","外野手","外野手","内野手","内野手","外野手","捕手","内野手","内野手","外野手","外野手","捕手","内野手","内野手","外野手","外野手","内野手","内野手","内野手","外野手","外野手","捕手","内野手","内野手","外野手","外野手","内野手","内野手"][i-1] || ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手"][i % 8];
+            if (pos === "内野手") pos = ["二塁手", "三塁手", "遊撃手"][Math.floor(Math.random() * 3)];
+            if (pos === "外野手") pos = ["左翼手", "中堅手", "右翼手"][Math.floor(Math.random() * 3)];
 
-            // 🆕 UZRを初期段階からリアルにばらつかせる (-12.0 ～ +12.0)
-            let initialUzr = parseFloat((Math.random() * 24 - 12).toFixed(1));
-            // 遊撃手や中堅手など、センターラインの選手は若干守備を上手めに補正
-            if (pos === "遊撃手" || pos === "中堅手" || pos === "二塁手") initialUzr += 3.0;
+            // 🆕 サブポジションの複数生成ロジック
+            let subPool = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手"].filter(p => p !== pos);
+            let subPositions = [];
+            // 60%の確率でサブポジションを1～2個持たせる（ユーティリティプレイヤーの表現）
+            if (Math.random() < 0.60 && pos !== "捕手") {
+                let subCount = Math.random() < 0.2 ? 2 : 1;
+                for (let s = 0; s < subCount; s++) {
+                    let randPos = subPool[Math.floor(Math.random() * subPool.length)];
+                    if (!subPositions.includes(randPos)) subPositions.push(randPos);
+                }
+            }
+
+            let proYears = Math.floor(Math.random() * 12) + 1; 
+            let age = (Math.random() < 0.3 ? 18 : 22) + (proYears - 1);
+            let initialUzr = parseFloat((Math.random() * 20 - 10).toFixed(1));
 
             teamObj.batters.push({
                 id: i-1, name: generateRandomPlayerName(),
                 role: isStamen ? i : (isFirstTeam ? 0 : -1), 
-                originalPos: pos, currentPos: pos, condition: "普通",
+                originalPos: pos, currentPos: pos, 
+                subPositions: subPositions, // 🆕 サブポジション配列を追加
+                condition: "普通",
                 age: age, hometown: prefectures[Math.floor(Math.random() * prefectures.length)],
-                graduation: graduation, proYears: proYears, exp: 0,
-                bb: isStamen ? [11, 9, 12, 15, 10, 8, 7, 7, 5][i-1] : 7.0,
-                so: isStamen ? [14, 16, 15, 20, 18, 22, 23, 25, 30][i-1] : 22.0,
-                barrel: isStamen ? [10, 12, 22, 30, 18, 14, 12, 10, 6][i-1] : 8.0, 
-                isop: isStamen ? [15, 18, 30, 45, 24, 22, 18, 14, 8][i-1] : 12,    
-                uzr: parseFloat(initialUzr.toFixed(1)), err: 2.0,
+                graduation: Math.random() < 0.5 ? "高卒" : "大卒", proYears: proYears, exp: 0,
+                bb: isStamen ? [11, 9, 12, 15, 10, 8, 7, 7, 5][i-1] : 6.5,
+                so: isStamen ? [14, 16, 15, 20, 18, 22, 23, 25, 30][i-1] : 24.0,
+                barrel: isStamen ? [10, 12, 22, 30, 18, 14, 12, 10, 6][i-1] : 7.5, 
+                isop: isStamen ? [15, 18, 30, 45, 24, 22, 18, 14, 8][i-1] : 10,    
+                uzr: initialUzr, err: 2.0,
                 stats: { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 }
             });
         }
         
-        // 投手30人生成
+        // 2. 投手30人の生成（二軍の先発適性持ちを確保）
         for(let i=1; i<=30; i++) {
             let isStarter = i <= 5;
             let isCloser = i === 12;
             let isFirstTeam = i <= 12;
             
-            let graduation = ["高卒", "大卒", "社会人"][Math.floor(Math.random() * 3)];
+            // 🆕 二軍（i > 12）の中の、最初の5人を「二軍先発ローテ（スタミナ最大値85）」として適性を持たせる
+            let isMinorStarter = !isFirstTeam && (i <= 17);
+            let roleText = isFirstTeam ? (isCloser ? "守護神" : (isStarter ? "先発" : "リリーフ")) : (isMinorStarter ? "二軍先発" : "二軍リリーフ");
+            
             let proYears = Math.floor(Math.random() * 10) + 1;
-            let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
-            let age = baseAge + (proYears - 1);
+            let age = (isStarter || isMinorStarter ? 22 : 18) + (proYears - 1);
 
             teamObj.pitchers.push({
                 id: i-1, name: generateRandomPlayerName(),
-                role: isFirstTeam ? (isCloser ? "守護神" : (isStarter ? "先発" : "リリーフ")) : "二軍リリーフ",
+                role: roleText,
                 currentPos: "投手", originalPos: "投手", condition: "普通",
                 age: age, hometown: prefectures[Math.floor(Math.random() * prefectures.length)],
-                graduation: graduation, proYears: proYears, exp: 0,
-                h9: isCloser ? 85 : (isStarter ? 60 + i : 65 + (i-5)), 
-                k9: isCloser ? 88 : (isStarter ? 65 - i : 70 + (i-5)), 
-                bb9: isCloser ? 80 : (isStarter ? 70 : 65),
-                hr9: isCloser ? 55 : (isStarter ? 50 : 55), 
-                staMax: isStarter ? 95 : 35, staCurrent: isStarter ? 95 : 35,
+                graduation: "大卒", proYears: proYears, exp: 0,
+                h9: isCloser ? 85 : (isStarter ? 62 + i : 65), 
+                k9: isCloser ? 88 : (isStarter ? 65 : 70), 
+                bb9: 70, hr9: 55,
+                // 先発または二軍先発ならスタミナを大きく設定、それ以外は中継ぎスタミナ
+                staMax: (isStarter || isMinorStarter) ? 90 : 35, 
+                staCurrent: (isStarter || isMinorStarter) ? 90 : 35,
                 stats: { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0 }
             });
         }
