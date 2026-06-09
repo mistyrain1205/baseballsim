@@ -1,6 +1,45 @@
 // simulator.js
 
 // ==========================================
+// ⚙️ ゲームバランス一括設定オブジェクト
+// ==========================================
+const BALANCING_CONFIG = {
+    // 打撃関連のベース確率
+    batting: {
+        baseHitChance: 0.35,        // ヒットの基本確率 (デフォルト0.31から+0.06ブースト中)
+        hrMultiplier: 0.85,         // ホームラン化する最終補正係数 (デフォルト0.45から0.90へ倍増中)
+        pitcherH9Influence: 0.0015, // 投手のH9（被安打抑制力）が打率に与える影響度
+        pitcherHr9Influence: 0.3    // 投手のHR9（被本塁打抑制力）がバレルに与える影響度
+    },
+    // 四死球・三振の係数
+    plates: {
+        bbBaseScale: 0.8,           // 打者の四球率の反映重み
+        bbPitcherScale: 0.0004,     // 投手の与四球率(BB9)の影響重み
+        soBaseScale: 0.7,           // 打者の三振率の反映重み
+        soPitcherScale: 0.001       // 投手の奪三振率(K9)の影響重み
+    }
+};
+
+// ==========================================
+// 1. スケジュール生成アルゴリズム
+// ==========================================
+function getDynamicSchedule(roundCount) {
+    let numTeams = 6; 
+    let totalRounds = numTeams - 1; 
+    let currentRound = roundCount % totalRounds;
+    let pairings = []; 
+    let list = [0, 1, 2, 3, 4, 5];
+    
+    for (let i = 0; i < numTeams / 2; i++) {
+        let awayIdx = (currentRound + i) % (numTeams - 1);
+        let homeIdx = (numTeams - 1 - i + currentRound) % (numTeams - 1);
+        if (i === 0) homeIdx = numTeams - 1; 
+        pairings.push([list[awayIdx], list[homeIdx]]);
+    }
+    return pairings;
+}
+
+// ==========================================
 // 2. コアロジック & ユーザー設定
 // ==========================================
 let userTeamId = 0; 
@@ -220,6 +259,331 @@ function simulateRound() {
     return roundResults;
 }
 
+// ==========================================
+// 3. 試合進行・シミュレーション中枢
+// ==========================================
+function executeMatchLogic(away, home) {
+    let awayStarters = away.pitchers.filter(p => p.role === "先発");
+    let homeStarters = home.pitchers.filter(p => p.role === "先発");
+    let pAway = awayStarters[away.rotationIdx % awayStarters.length] || away.pitchers[0];
+    let pHome = homeStarters[home.rotationIdx % homeStarters.length] || home.pitchers[0];
+    
+    pAway.staCurrent = pAway.staMax; 
+    pHome.staCurrent = pHome.staMax;
+
+    let curPitcherAway = pAway; 
+    let curPitcherHome = pHome;
+    curPitcherAway.stats.appearances++; 
+    curPitcherHome.stats.appearances++;
+    
+    pAway.exp = (pAway.exp || 0) + 15; 
+    pHome.exp = (pHome.exp || 0) + 15;
+
+    let appearedAway = [pAway.name]; 
+    let appearedHome = [pHome.name];
+    let awayScore = 0, homeScore = 0; 
+    let awayOrder = 1; 
+    let homeOrder = 1; 
+    let pitchCountAway = 0, pitchCountHome = 0;
+    
+    let pitcherMatchStats = {};
+    const initMatchStat = (name) => {
+        if (!pitcherMatchStats[name]) pitcherMatchStats[name] = { er: 0, outs: 0 };
+    };
+    initMatchStat(pAway.name);
+    initMatchStat(pHome.name);
+
+    for (let inning = 1; inning <= 9; inning++) {
+        // --- 表の攻撃 (Away) ---
+        let outs = 0; 
+        let bases = [false, false, false];
+        while (outs < 3) {
+            let needChange = false;
+            
+            if (inning === 9 && curPitcherHome.role !== "守護神") {
+                let scoreDiff = homeScore - awayScore;
+                if (scoreDiff >= 0 && scoreDiff <= 3) {
+                    let closer = home.pitchers.find(p => p.role === "守護神" && p.staCurrent >= 15);
+                    if (closer) { 
+                        curPitcherHome = closer; 
+                        if (!appearedHome.includes(closer.name)) { 
+                            closer.stats.appearances++; 
+                            appearedHome.push(closer.name); 
+                            closer.exp = (closer.exp||0)+10;
+                        } 
+                        pitchCountHome = 0; 
+                        initMatchStat(closer.name);
+                    }
+                }
+            }
+            
+            if (curPitcherHome.role !== "守護神" && (inning === 7 || inning === 8)) {
+                let scoreDiff = homeScore - awayScore;
+                if (scoreDiff >= -1 && scoreDiff <= 2 && curPitcherHome.role === "先発") {
+                    needChange = true; 
+                }
+            }
+            
+            if (curPitcherHome.role !== "守護神") {
+                if (pitchCountHome >= curPitcherHome.staMax || pitcherMatchStats[curPitcherHome.name].er >= 4) needChange = true;
+            } else { 
+                if (pitcherMatchStats[curPitcherHome.name].er >= 2) needChange = true; 
+            }
+
+            if (needChange) {
+                let available = home.pitchers.filter(p => p.role === "リリーフ" && p.staCurrent >= 20 && !appearedHome.includes(p.name));
+                if (available.length === 0) {
+                    available = home.pitchers.filter(p => p.role.includes("リリーフ") && p.staCurrent > 5);
+                }
+                
+                if (available.length > 0) { 
+                    available.sort((a, b) => {
+                        let scoreA = a.staCurrent * getConditionModifier(a.condition, "batBarrel");
+                        let scoreB = b.staCurrent * getConditionModifier(b.condition, "batBarrel");
+                        return scoreB - scoreA;
+                    });
+                    
+                    curPitcherHome = available[0]; 
+                    if (!appearedHome.includes(curPitcherHome.name)) { 
+                        curPitcherHome.stats.appearances++; 
+                        appearedHome.push(curPitcherHome.name); 
+                    } 
+                    pitchCountHome = 0; 
+                    initMatchStat(curPitcherHome.name);
+                } else {
+                    let minorReliefs = home.pitchers.filter(p => p.role === "二軍リリーフ" && p.staCurrent >= 25);
+                    if (minorReliefs.length > 0) {
+                        curPitcherHome = minorReliefs[0];
+                        if (!appearedHome.includes(curPitcherHome.name)) {
+                            curPitcherHome.stats.appearances++;
+                            appearedHome.push(curPitcherHome.name);
+                        }
+                        pitchCountHome = 0;
+                        initMatchStat(curPitcherHome.name);
+                    }
+                }
+            }
+            
+            let currentBatters = away.batters.filter(bat => bat.role === awayOrder);
+            let b = currentBatters[0];
+            
+            if(!b) {
+                reassignTeamRoles(away);
+                b = away.batters.find(bat => bat.role === awayOrder) || away.batters[0];
+            }
+
+            b.stats.ab++;
+            pitchCountHome += 4; 
+            b.stats.games = (b.stats.games || 0) + 1;
+            
+            let batConditionMod = getConditionModifier(b.condition, "batSo");
+            let pitConditionMod = getConditionModifier(curPitcherHome.condition, "pitPitch"); 
+            
+            let bbP = (b.bb / 100) * BALANCING_CONFIG.plates.bbBaseScale + ((100 - curPitcherHome.bb9) * BALANCING_CONFIG.plates.bbPitcherScale); 
+            let soP = ((b.so / 100) * BALANCING_CONFIG.plates.soBaseScale * batConditionMod) + ((curPitcherHome.k9 * BALANCING_CONFIG.plates.soPitcherScale) * pitConditionMod); 
+            let rand = Math.random();
+            
+            if(rand < bbP) {
+                b.stats.bb++; curPitcherHome.stats.bb++; 
+                let runs = advanceRunners(bases, "BB");
+                awayScore += runs; 
+                curPitcherHome.stats.er += runs; 
+                pitcherMatchStats[curPitcherHome.name].er += runs;
+            } else if(rand < bbP + soP) {
+                outs++; b.stats.so++; curPitcherHome.stats.so++;
+                curPitcherHome.stats.ipOuts = (curPitcherHome.stats.ipOuts || 0) + 1;
+                pitcherMatchStats[curPitcherHome.name].outs += 1;
+            } else {
+                let baseHitChance = BALANCING_CONFIG.batting.baseHitChance; 
+                let h9Effect = ((curPitcherHome.h9 - 65) * BALANCING_CONFIG.batting.pitcherH9Influence) * pitConditionMod; 
+                let finalHitChance = Math.max(0.24, Math.min(0.48, baseHitChance - h9Effect));
+                
+                if (Math.random() < finalHitChance) {
+                    b.stats.hits++; b.exp = (b.exp || 0) + 2;
+                    let hr9Reduction = ((curPitcherHome.hr9 / 100) * BALANCING_CONFIG.batting.pitcherHr9Influence) * pitConditionMod;
+                    let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
+                    
+                    let isHR = Math.random() < (finalBarrel * BALANCING_CONFIG.batting.hrMultiplier); 
+                    let runs = advanceRunners(bases, isHR ? "HR" : "1B");
+                    awayScore += runs; 
+                    curPitcherHome.stats.er += runs; 
+                    pitcherMatchStats[curPitcherHome.name].er += runs;
+                    if(isHR) b.stats.hr++;
+                } else {
+                    outs++; 
+                    curPitcherHome.stats.ipOuts = (curPitcherHome.stats.ipOuts || 0) + 1;
+                    pitcherMatchStats[curPitcherHome.name].outs += 1;
+                }
+            }
+            awayOrder = (awayOrder % 9) + 1;
+        }
+
+        // --- 裏の攻撃 (Home) ---
+        outs = 0; 
+        bases = [false, false, false];
+        while (outs < 3) {
+            let needChange = false;
+            if (inning === 9 && curPitcherAway.role !== "守護神") {
+                let scoreDiff = awayScore - homeScore;
+                if (scoreDiff >= 0 && scoreDiff <= 3) {
+                    let closer = away.pitchers.find(p => p.role === "守護神" && p.staCurrent >= 15);
+                    if (closer) { 
+                        curPitcherAway = closer; 
+                        if (!appearedAway.includes(closer.name)) { 
+                            closer.stats.appearances++; 
+                            appearedAway.push(closer.name); 
+                            closer.exp = (closer.exp||0)+10;
+                        } 
+                        pitchCountAway = 0; 
+                        initMatchStat(closer.name);
+                    }
+                }
+            }
+            if (curPitcherAway.role !== "守護神" && (inning === 7 || inning === 8)) {
+                let scoreDiff = awayScore - homeScore;
+                if (scoreDiff >= -1 && scoreDiff <= 2 && curPitcherAway.role === "先発") {
+                    needChange = true;
+                }
+            }
+            if (curPitcherAway.role !== "守護神") {
+                if (pitchCountAway >= curPitcherAway.staMax || pitcherMatchStats[curPitcherAway.name].er >= 4) needChange = true;
+            } else { 
+                if (pitcherMatchStats[curPitcherAway.name].er >= 2) needChange = true; 
+            }
+
+            if (needChange) {
+                let available = away.pitchers.filter(p => p.role === "リリーフ" && p.staCurrent >= 20 && !appearedAway.includes(p.name));
+                if (available.length === 0) {
+                    available = away.pitchers.filter(p => p.role.includes("リリーフ") && p.staCurrent > 5);
+                }
+                
+                if (available.length > 0) { 
+                    available.sort((a, b) => {
+                        let scoreA = a.staCurrent * getConditionModifier(a.condition, "batBarrel");
+                        let scoreB = b.staCurrent * getConditionModifier(b.condition, "batBarrel");
+                        return scoreB - scoreA;
+                    });
+                    
+                    curPitcherAway = available[0]; 
+                    if (!appearedAway.includes(curPitcherAway.name)) { 
+                        curPitcherAway.stats.appearances++; 
+                        appearedAway.push(curPitcherAway.name); 
+                    } 
+                    pitchCountAway = 0; 
+                    initMatchStat(curPitcherAway.name);
+                }
+            }
+            
+            let currentBattersHome = home.batters.filter(bat => bat.role === homeOrder);
+            let b = currentBattersHome[0];
+            
+            if(!b) {
+                reassignTeamRoles(home);
+                b = home.batters.find(bat => bat.role === homeOrder) || home.batters[0];
+            }
+
+            b.stats.ab++;
+            pitchCountAway += 4; 
+            b.stats.games = (b.stats.games || 0) + 1;
+            
+            let batConditionMod = getConditionModifier(b.condition, "batSo");
+            let pitConditionMod = getConditionModifier(curPitcherAway.condition, "pitPitch");
+            
+            let bbP = (b.bb / 100) * BALANCING_CONFIG.plates.bbBaseScale + ((100 - curPitcherAway.bb9) * BALANCING_CONFIG.plates.bbPitcherScale);
+            let soP = ((b.so / 100) * BALANCING_CONFIG.plates.soBaseScale * batConditionMod) + ((curPitcherAway.k9 * BALANCING_CONFIG.plates.soPitcherScale) * pitConditionMod);
+            let rand = Math.random();
+            
+            if(rand < bbP) {
+                b.stats.bb++; curPitcherAway.stats.bb++; 
+                let runs = advanceRunners(bases, "BB");
+                homeScore += runs; 
+                curPitcherAway.stats.er += runs; 
+                pitcherMatchStats[curPitcherAway.name].er += runs;
+            } else if(rand < bbP + soP) {
+                outs++; b.stats.so++; curPitcherAway.stats.so++;
+                curPitcherAway.stats.ipOuts = (curPitcherAway.stats.ipOuts || 0) + 1;
+                pitcherMatchStats[curPitcherAway.name].outs += 1;
+            } else {
+                let baseHitChance = BALANCING_CONFIG.batting.baseHitChance;
+                let h9Effect = ((curPitcherAway.h9 - 65) * BALANCING_CONFIG.batting.pitcherH9Influence) * pitConditionMod;
+                let finalHitChance = Math.max(0.24, Math.min(0.45, baseHitChance - h9Effect));
+                
+                if (Math.random() < finalHitChance) {
+                    b.stats.hits++; b.exp = (b.exp || 0) + 2;
+                    let hr9Reduction = ((curPitcherAway.hr9 / 100) * BALANCING_CONFIG.batting.pitcherHr9Influence) * pitConditionMod;
+                    let finalBarrel = ((b.barrel / 100) * getConditionModifier(b.condition, "batBarrel")) * (1 - hr9Reduction);
+                    
+                    let isHR = Math.random() < (finalBarrel * BALANCING_CONFIG.batting.hrMultiplier);
+                    let runs = advanceRunners(bases, isHR ? "HR" : "1B");
+                    homeScore += runs; 
+                    curPitcherAway.stats.er += runs; 
+                    pitcherMatchStats[curPitcherAway.name].er += runs;
+                    if(isHR) b.stats.hr++;
+                } else {
+                    outs++;
+                    curPitcherAway.stats.ipOuts = (curPitcherAway.stats.ipOuts || 0) + 1;
+                    pitcherMatchStats[curPitcherAway.name].outs += 1;
+                }
+            }
+            homeOrder = (homeOrder % 9) + 1;
+        }
+    }
+
+    if(awayScore > homeScore) { 
+        away.wins++; home.losses++; 
+    } else if(homeScore > awayScore) { 
+        home.wins++; away.losses++; 
+    } else { 
+        away.draws++; home.draws++; 
+    }
+
+    away.pitchers.forEach(p => { 
+        if (appearedAway.includes(p.name)) {
+            let matchOuts = pitcherMatchStats[p.name] ? pitcherMatchStats[p.name].outs : 0;
+            let cost = p.role === "先発" ? 0 : (10 + matchOuts * 4); 
+            if(p.role !== "先発") p.staCurrent = Math.max(0, p.staCurrent - cost);
+        } 
+    });
+    home.pitchers.forEach(p => { 
+        if (appearedHome.includes(p.name)) {
+            let matchOuts = pitcherMatchStats[p.name] ? pitcherMatchStats[p.name].outs : 0;
+            let cost = p.role === "先発" ? 0 : (10 + matchOuts * 4);
+            if(p.role !== "先発") p.staCurrent = Math.max(0, p.staCurrent - cost);
+        } 
+    });
+    
+    away.pitchers.forEach(p => { if (p.stats.ipOuts > 0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
+    home.pitchers.forEach(p => { if (p.stats.ipOuts > 0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
+
+    away.rotationIdx++; 
+    home.rotationIdx++;
+    return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
+}
+
+function formatInningsPitched(totalOuts) {
+    let innings = Math.floor(totalOuts / 3); let remainingOuts = totalOuts % 3;
+    return remainingOuts === 0 ? `${innings}` : `${innings}.${remainingOuts}`;
+}
+
+function advanceRunners(bases, hitKind) {
+    let runs = 0;
+    if (hitKind === "BB") {
+        if (bases[0] && bases[1] && bases[2]) runs++;
+        else if (bases[0] && bases[1]) bases[2] = true;
+        else if (bases[0]) bases[1] = true;
+        bases[0] = true;
+    } else if (hitKind === "1B") {
+        if (bases[2]) { runs++; bases[2] = false; }
+        if (bases[1]) { runs++; bases[1] = false; }
+        if (bases[0]) bases[1] = true;
+        bases[0] = true;
+    } else if (hitKind === "HR") {
+        runs += 1 + (bases[0]?1:0) + (bases[1]?1:0) + (bases[2]?1:0);
+        bases.fill(false);
+    }
+    return runs;
+}
+
 function playNextRound() {
     let res = simulateRound(); if(!res) return;
     let rEl = document.getElementById("quick_match_results");
@@ -342,7 +706,7 @@ function updateUIAll() {
         let wp = t.wins / ((t.wins + t.losses) || 1);
         let isMyTeam = (t.id === userTeamId);
         let teamDisplay = isMyTeam ? `<span style="color:#e53e3e;">★</span>${t.name}` : t.name;
-        let rowStyle = isMyTeam ? `style="background-color: #e0f2fe; font-weight:bold;"` : "";
+        let rowStyle = isMyTeam ? `style="background-color: #e0f2fe; font-weight:bold;"` : ""; 
         sBody.innerHTML += `<tr ${rowStyle}><td>${i+1}</td><td><b>${teamDisplay}</b></td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${wp.toFixed(3)}</td><td>-</td></tr>`;
     });
 
@@ -370,6 +734,5 @@ function switchTab(tabId, el) {
     document.getElementById(tabId).classList.add('active'); el.classList.add('active');
 }
 
-// ⚠️ 初期起動時の重複を排除し、GM球団選択ボックスの値を初期適用
 initializeLeagueData();
 selectUserTeam(document.getElementById("user_team_select").value);
