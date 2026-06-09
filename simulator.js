@@ -145,14 +145,16 @@ function createDraftPitcher() {
     };
 }
 
+// simulator.js 内の該当関数をこれに差し替える
 function executeOffseasonRosterEvents() {
     let logMsg = "";
-    let targetCutCount = Math.floor(Math.random() * 4) + 6; 
+    let targetCutCount = 6; // 各チーム一律で下位の選手を6人戦力外にする
 
     teams.forEach(t => {
+        // 解雇前の並び替え：純粋に年齢が高く、能力（バレル率や被安打抑制）が低い選手の下位から削る
         t.batters.sort((a,b) => (a.barrel - (a.age * 0.3)) - (b.barrel - (b.age * 0.3)));
         let releasedBatters = 0;
-        let cutMax = Math.floor(targetCutCount / 2);
+        let cutMax = 3;
 
         t.batters = t.batters.filter(b => {
             if (releasedBatters < cutMax) {
@@ -174,22 +176,19 @@ function executeOffseasonRosterEvents() {
             }
             return true;
         });
-
-        let draftRound = 1;
-        while(t.batters.length < 40) {
-            let newBat = createDraftBatter();
-            t.batters.push(newBat);
-            if(t.id === userTeamId) { logMsg += `【ドラフト${draftRound}位】${newBat.name} 野手獲得！\n`; draftRound++; }
-        }
-        while(t.pitchers.length < 30) {
-            let newPit = createDraftPitcher();
-            t.pitchers.push(newPit);
-            if(t.id === userTeamId) { logMsg += `【ドラフト${draftRound}位】${newPit.name} 投手獲得！\n`; draftRound++; }
-        }
-
-        reassignTeamRoles(t);
     });
-    alert(`ーーー 👔 オフシーズン更新速報 (第 ${currentYear} 年目オフ) ーーー\n\n${logMsg}`);
+
+    alert(`ーーー 👔 オフシーズン戦力外通告速報 (第 ${currentYear} 年目オフ) ーーー\n\n${logMsg}\n\nこれよりドラフト会議を開始します！「ドラフト会議」タブを開いて選手を指名してください！`);
+
+    // 🆕 自動生成をストップし、ドラフト会議システムを起動
+    document.getElementById("draft_status_message").innerHTML = "🔥 <b>ドラフト会議が開催中！</b> あなたの球団の1位〜3位指名選手を一覧から選択してください。";
+    document.getElementById("draft_interaction_zone").style.display = "grid";
+    
+    // ドラフトプールを生成（draft.jsの関数を呼び出し）
+    generateDraftPool();
+    
+    // 強制的にドラフトタブを表示させる
+    switchTab('tab-draft', document.querySelectorAll('.tab')[2]);
 }
 
 function processOffseasonEvolution() {
