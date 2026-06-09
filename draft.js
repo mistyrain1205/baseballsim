@@ -80,7 +80,7 @@ function finalizeUserReleases() {
 
     maxDraftRounds = total; 
     
-    // ⚙️ HTML側の表記ゆれ(ui_quota)に対応する安全ガードガード
+    // ⚙️ HTML側の表記ゆれ(ui_draft_quota)に対応する安全ガード
     let quotaEl = document.getElementById("ui_draft_quota");
     if(quotaEl) quotaEl.innerText = maxDraftRounds;
 
