@@ -4,19 +4,17 @@
 // ⚙️ ゲームバランス一括設定オブジェクト
 // ==========================================
 const BALANCING_CONFIG = {
-    // 打撃関連のベース確率
     batting: {
-        baseHitChance: 0.35,        // ヒットの基本確率 (デフォルト0.31から+0.06ブースト中)
-        hrMultiplier: 0.85,         // ホームラン化する最終補正係数 (デフォルト0.45から0.90へ倍増中)
-        pitcherH9Influence: 0.0015, // 投手のH9（被安打抑制力）が打率に与える影響度
-        pitcherHr9Influence: 0.3    // 投手のHR9（被本塁打抑制力）がバレルに与える影響度
+        baseHitChance: 0.35,
+        hrMultiplier: 0.85,
+        pitcherH9Influence: 0.0015,
+        pitcherHr9Influence: 0.3
     },
-    // 四死球・三振の係数
     plates: {
-        bbBaseScale: 0.8,           // 打者の四球率の反映重み
-        bbPitcherScale: 0.0004,     // 投手の与四球率(BB9)の影響重み
-        soBaseScale: 0.7,           // 打者の三振率の反映重み
-        soPitcherScale: 0.001       // 投手の奪三振率(K9)の影響重み
+        bbBaseScale: 0.8,
+        bbPitcherScale: 0.0004,
+        soBaseScale: 0.7,
+        soPitcherScale: 0.001
     }
 };
 
@@ -89,11 +87,12 @@ function executeFrontOfficeAI() {
 }
 
 function reassignTeamRoles(t) {
-    const requiredPositions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手"];
+    const requiredPositions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "right翼手"];
+    const fixedPos = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手"];
     
     t.batters.forEach(b => b.role = -1);
 
-    requiredPositions.forEach((pos, idx) => {
+    fixedPos.forEach((pos, idx) => {
         let candidate = t.batters.find(b => b.role === -1 && (b.originalPos === pos || (b.subPositions && b.subPositions.includes(pos))));
         if (candidate) {
             candidate.role = idx + 1; 
@@ -101,10 +100,11 @@ function reassignTeamRoles(t) {
         }
     });
 
-    requiredPositions.forEach((pos, idx) => {
+    fixedPos.forEach((pos, idx) => {
         let slotEmpty = !t.batters.some(b => b.role === (idx + 1));
         if (slotEmpty) {
-            let backup = t.batters.find(b => b.role === -1);
+            let backup = t.batters.find(b => b.role === -1 && (b.originalPos === pos || (b.subPositions && b.subPositions.includes(pos))));
+            if (!backup) backup = t.batters.find(b => b.role === -1);
             if (backup) {
                 backup.role = idx + 1;
                 backup.currentPos = pos; 
@@ -136,20 +136,20 @@ function reassignTeamRoles(t) {
 function createDraftBatter() {
     let graduation = ["高卒", "大卒", "社会人"][Math.floor(Math.random() * 3)];
     let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
-    let pos = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手","内野手"][Math.floor(Math.random() * 9)];
+    let pos = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手"][Math.floor(Math.random() * 8)];
     let prefs = ["北海道", "青森", "岩手", "宮城", "秋田", "山形", "福島", "茨城", "栃木", "群馬", "埼玉", "千葉", "東京", "神奈川", "新潟", "富山", "石川", "福井", "山梨", "長野", "岐阜", "静岡", "愛知", "三重", "滋賀", "京都", "大阪", "兵庫", "奈良", "和歌山", "鳥取", "島根", "岡山", "広島", "山口", "徳島", "香川", "愛媛", "高知", "福岡", "佐賀", "長崎", "熊本", "大分", "宮崎", "鹿児島", "沖縄"];
     
     return {
         name: generateRandomPlayerName(),
         role: -1, 
-        originalPos: pos, currentPos: pos, condition: "普通",
+        originalPos: pos, currentPos: pos, subPositions: [], condition: "普通",
         age: baseAge, hometown: prefs[Math.floor(Math.random() * prefs.length)],
         graduation: graduation, proYears: 1, exp: 0,
         bb: 6.0 + Math.random() * 4,
         so: 15.0 + Math.random() * 10,
         barrel: 6.0 + Math.random() * 8, 
         isop: 10 + Math.floor(Math.random() * 15),
-        uzr: 0, err: 2.0,
+        uzr: parseFloat((Math.random() * 10 - 5).toFixed(1)), err: 2.0,
         stats: { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 }
     };
 }
@@ -167,42 +167,19 @@ function createDraftPitcher() {
         h9: 60 + Math.floor(Math.random() * 12),
         k9: 60 + Math.floor(Math.random() * 15),
         bb9: 65, hr9: 55,
-        staMax: Math.random() < 0.2 ? 85 : 35, 
+        staMax: Math.random() < 0.3 ? 88 : 35, 
         staCurrent: 35,
         stats: { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0 }
     };
 }
 
 function executeOffseasonRosterEvents() {
-    let logMsg = "";
-    teams.forEach(t => {
-        t.batters.sort((a,b) => (a.barrel - (a.age * 0.3)) - (b.barrel - (b.age * 0.3)));
-        let releasedBatters = 0;
-        t.batters = t.batters.filter(b => {
-            if (releasedBatters < 3) {
-                releasedBatters++;
-                if(t.id === userTeamId) logMsg += `【戦力外】${b.name} 野手(${b.age}歳)を自由契約に。\n`;
-                return false;
-            }
-            return true;
-        });
-
-        t.pitchers.sort((a,b) => (b.h9 - (a.age * 0.3)) - (a.h9 - (b.age * 0.3)));
-        let releasedPitchers = 0;
-        t.pitchers = t.pitchers.filter(p => {
-            if (releasedPitchers < 3) {
-                releasedPitchers++;
-                if(t.id === userTeamId) logMsg += `【戦力外】${p.name} 投手(${p.age}歳)を自由契約に。\n`;
-                return false;
-            }
-            return true;
-        });
-    });
-
-    alert(`ーーー 👔 オフシーズン戦力外通告速報 (第 ${currentYear} 年目オフ) ーーー\n\n${logMsg}\n\nこれよりドラフト会議を開始します！「ドラフト会議」タブを開いて選手を指名してください！`);
-    document.getElementById("draft_status_message").innerHTML = "🔥 <b>ドラフト会議が開催中！</b> あなたの球団の1位〜3位指名選手を一覧から選択してください。";
-    document.getElementById("draft_interaction_zone").style.display = "grid";
-    generateDraftPool();
+    alert(`ーーー 👔 ペナントレース終了 (ペナント第 ${currentYear} 年目) ーーー\n\nこれより「人員整理（戦力外通告）」を行います。\n「オフシーズン補強」タブを開いて、自由契約にする選手をあなたの手で選択してください！`);
+    document.getElementById("draft_status_message").innerHTML = "📢 <b>オフシーズン・球団人員整理フェーズ</b>。不要な選手に戦力外通告を行ってください。";
+    
+    // draft.js の手動戦力外選択関数を呼び出し
+    startUserReleasePhase();
+    
     switchTab('tab-draft', document.querySelectorAll('.tab')[2]);
 }
 
@@ -211,7 +188,6 @@ function processOffseasonEvolution() {
         t.batters.forEach(b => {
             b.age += 1; b.proYears += 1;
             let growthPotential = Math.min(10, Math.floor((b.exp || 0) / 15)); b.exp = 0;
-            
             if (b.age <= 24) {
                 b.barrel = Math.min(45, b.barrel + Math.floor(Math.random() * 4) + 1 + growthPotential * 0.2); 
                 b.isop = Math.min(65, b.isop + Math.floor(Math.random() * 5) + 2);
@@ -230,7 +206,6 @@ function processOffseasonEvolution() {
                 b.uzr = parseFloat((b.uzr - Math.random() * 3.0 - 1.0).toFixed(1));
             }
         });
-        
         t.pitchers.forEach(p => {
             p.age += 1; p.proYears += 1;
             let growthPotential = Math.min(10, Math.floor((p.exp || 0) / 15)); p.exp = 0;
@@ -258,7 +233,6 @@ function simulateRound() {
         executeOffseasonRosterEvents(); 
         return null; 
     }
-    
     changeAllPlayersCondition(); 
     executeFrontOfficeAI();
     let pattern = getDynamicSchedule(totalGamesPlayed);
@@ -269,7 +243,6 @@ function simulateRound() {
         roundResults.push(res);
     });
     teams.forEach(t => { t.pitchers.forEach(p => { let recovery = p.role.includes("二軍") ? 14 : 1.5; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); }); });
-    
     totalGamesPlayed++; 
     return roundResults;
 }
@@ -328,8 +301,33 @@ function onEditorPlayerChange() {
     let player = type === "bat" ? teams[teamIdx].batters[idx] : teams[teamIdx].pitchers[idx];
 
     document.getElementById("form_name").value = player.name;
-    document.getElementById("form_pos").value = player.currentPos;
     
+    // 🆕【守備コンバートのロック機構】
+    // エディターで、その選手が持っていないポジションを選択できないようロックをかける
+    let formPos = document.getElementById("form_pos");
+    if (formPos) {
+        for (let i = 0; i < formPos.options.length; i++) {
+            formPos.options[i].disabled = false; // 一旦全解除
+        }
+        if (type === "bat") {
+            for (let i = 0; i < formPos.options.length; i++) {
+                let optVal = formPos.options[i].value;
+                let isMain = (player.originalPos === optVal);
+                let isSub = (player.subPositions && player.subPositions.includes(optVal));
+                // メインでもサブでもない適性外ポジションは disabled にしてロック
+                if (!isMain && !isSub) {
+                    formPos.options[i].disabled = true;
+                }
+            }
+        } else {
+            // 投手登録の場合は「投手」以外を完全ロック
+            for (let i = 0; i < formPos.options.length; i++) {
+                if (formPos.options[i].value !== "投手") formPos.options[i].disabled = true;
+            }
+        }
+    }
+    
+    document.getElementById("form_pos").value = player.currentPos;
     document.getElementById("form_age").value = player.age;
     let roleText = player.role >= 1 && player.role <= 9 ? `${player.role}番打者` : (player.role === 0 ? "一軍ベンチ控え" : (player.role === -1 ? "二軍調整中" : player.role));
     document.getElementById("form_role").value = roleText;
@@ -443,7 +441,6 @@ function switchTab(tabId, el) {
 
 // 🚀 遅延読み込みを安全に処理する初期起動ブロック
 window.addEventListener("DOMContentLoaded", () => {
-    // 1. 【超重要】これの復活によりすべての選手名や順位表が完全復活します！
     initializeLeagueData();
 
     let editTeamSelect = document.getElementById("edit_team_select");
