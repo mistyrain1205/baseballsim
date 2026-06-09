@@ -2,15 +2,104 @@
 
 let draftPool = { batters: [], pitchers: [] };
 let currentDraftRound = 1; 
+let userReleaseList = { batters: [], pitchers: [] }; // 戦力外候補のインデックス保存
+let maxDraftRounds = 0; // 今回ユーザーが獲得できる枠数（クビにした数と一致）
+
+// シーズン終了時に呼び出され、手動戦力外通告画面を構築する
+function startUserReleasePhase() {
+    userReleaseList.batters = [];
+    userReleaseList.pitchers = [];
+    document.getElementById("ui_release_count").innerText = "0";
+    
+    let myTeam = teams[userTeamId];
+    
+    // 野手解雇リストの描画
+    let bBody = document.getElementById("release_batters_body");
+    bBody.innerHTML = myTeam.batters.map((b, idx) => {
+        let roleText = b.role >= 1 && b.role <= 9 ? `${b.role}番` : (b.role === 0 ? "一軍控" : "二軍");
+        return `<tr>
+            <td><input type="checkbox" class="rel-check-bat" value="${idx}" onchange="updateReleaseCount()"></td>
+            <td>[${roleText}] <b>${b.name}</b> (${b.age}歳)</td>
+            <td>弾道:${b.barrel.toFixed(1)}%</td>
+            <td>UZR:${b.uzr}</td>
+        </tr>`;
+    }).join("");
+
+    // 投手解雇リストの描画
+    let pBody = document.getElementById("release_pitchers_body");
+    pBody.innerHTML = myTeam.pitchers.map((p, idx) => {
+        return `<tr>
+            <td><input type="checkbox" class="rel-check-pit" value="${idx}" onchange="updateReleaseCount()"></td>
+            <td>[${p.role}] <b>${p.name}</b> (${p.age}歳)</td>
+            <td>K/9:${p.k9}</td>
+            <td>スタミナ:${p.staMax}</td>
+        </tr>`;
+    }).join("");
+
+    document.getElementById("offseason_release_zone").style.display = "flex";
+    document.getElementById("draft_interaction_zone").style.display = "none";
+}
+
+function updateReleaseCount() {
+    let batChecks = document.querySelectorAll(".rel-check-bat:checked").length;
+    let pitChecks = document.querySelectorAll(".rel-check-pit:checked").length;
+    let total = batChecks + pitChecks;
+    document.getElementById("ui_release_count").innerText = total;
+    
+    if(total > 10) {
+        alert("戦力外通告は最大10名までです！枠数を調整してください。");
+    }
+}
+
+// 戦力外通告を確定し、ドラフト枠数を決定してドラフトプールを作る
+function finalizeUserReleases() {
+    let batChecked = Array.from(document.querySelectorAll(".rel-check-bat:checked")).map(el => parseInt(el.value));
+    let pitChecked = Array.from(document.querySelectorAll(".rel-check-pit:checked")).map(el => parseInt(el.value));
+    let total = batChecked.length + pitChecked.length;
+
+    if (total === 0) {
+        alert("最低1名は戦力外通告（解雇）を行ってください。");
+        return;
+    }
+    if (total > 10) {
+        alert("10名を超えています。自由契約にする選手を絞り込んでください。");
+        return;
+    }
+
+    maxDraftRounds = total; // ドラフト巡枠の確定
+    document.getElementById("ui_quota").innerText = maxDraftRounds;
+
+    let myTeam = teams[userTeamId];
+    
+    // ユーザーの選んだ選手を実際に戦力外（配列から削除）
+    myTeam.batters = myTeam.batters.filter((_, idx) => !batChecked.includes(idx));
+    myTeam.pitchers = myTeam.pitchers.filter((_, idx) => !pitChecked.includes(idx));
+
+    // 🤖 CPU球団（他の5チーム）も裏で自動的に高年齢・低能力の選手を今回の獲得枠分（一律6名）戦力外にする
+    executeCPUReleases();
+
+    // ドラフトプール生成
+    generateDraftPool();
+}
+
+function executeCPUReleases() {
+    teams.forEach(t => {
+        if (t.id === userTeamId) return;
+        t.batters.sort((a,b) => (a.barrel - (a.age * 0.3)) - (b.barrel - (b.age * 0.3)));
+        t.batters.splice(0, 3); // 下位3名クビ
+        t.pitchers.sort((a,b) => (b.h9 - (a.age * 0.3)) - (a.h9 - (b.age * 0.3)));
+        t.pitchers.splice(0, 3); // 下位3名クビ
+    });
+}
 
 function generateDraftPool() {
     draftPool.batters = [];
     draftPool.pitchers = [];
     currentDraftRound = 1;
 
-    for (let i = 0; i < 15; i++) { // プールを少し多めの15人ずつに拡大
+    // 大規模10巡指名に耐えられるよう、プールを各35人の超大型新人に拡張
+    for (let i = 0; i < 35; i++) {
         let bat = createDraftBatter();
-        // 🆕 アマチュア打撃成績とタイトルのシミュレート
         let amAvg = (0.240 + Math.random() * 0.120) + (bat.barrel * 0.003);
         let amHr = Math.floor((bat.isop * 0.4) + Math.random() * 5);
         bat.amateurStats = `【アマ通算】打率.${Math.floor(amAvg*1000)}  ${amHr}本塁打`;
@@ -21,7 +110,6 @@ function generateDraftPool() {
         draftPool.batters.push(bat);
 
         let pit = createDraftPitcher();
-        // 🆕 アマチュア投手成績とタイトルのシミュレート
         let amEra = Math.max(0.80, (5.50 - (pit.k9 * 0.04)) + (Math.random() * 1.5));
         let amWins = Math.floor((pit.h9 * 0.1) + Math.random() * 8);
         pit.amateurStats = `【アマ通算】防御率 ${amEra.toFixed(2)}  ${amWins}勝`;
@@ -32,10 +120,16 @@ function generateDraftPool() {
         draftPool.pitchers.push(pit);
     }
     
-    for(let r=1; r<=3; r++) {
-        let el = document.getElementById(`my_draft_r${r}`);
-        if(el) el.innerText = "-";
+    // ドラフト指名リザルト枠の動的生成
+    let resBody = document.getElementById("my_draft_results_body");
+    resBody.innerHTML = "";
+    for(let r=1; r<=maxDraftRounds; r++) {
+        resBody.innerHTML += `<tr><td>${r}位</td><td id="my_draft_r${r}">-</td></tr>`;
     }
+    
+    document.getElementById("offseason_release_zone").style.display = "none";
+    document.getElementById("draft_interaction_zone").style.display = "grid";
+    document.getElementById("ui_draft_round_title").innerText = `今年のドラフト候補生一覧 (第 1 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
     
     renderDraftPoolUI();
 }
@@ -45,49 +139,44 @@ function renderDraftPoolUI() {
     if (!tbody) return;
     tbody.innerHTML = "";
 
-    // 野手候補の描画
     draftPool.batters.forEach((b, idx) => {
         if (b.isDrafted) return;
         let titleBadge = b.amateurTitle !== "なし" ? `<span style="background:#e53e3e; color:white; padding:2px 5px; border-radius:3px; font-size:0.8em; margin-left:5px;">${b.amateurTitle}</span>` : "";
-        let row = `<tr>
+        tbody.innerHTML += `<tr>
             <td>野-${idx}</td>
             <td><b>${b.name}</b>${titleBadge}</td>
             <td><span style="color: #dd6b20; font-weight:bold;">野手</span></td>
             <td>${b.currentPos}</td>
             <td>${b.graduation}</td>
             <td>${b.age}歳</td>
-            <td style="text-align:left; padding-left:10px; color:#2d3748;"><b>${b.amateurStats}</b><br><small style="color:#718096;">(能力目安: IsoP ${b.isop} / 弾道 ${b.barrel.toFixed(1)}%)</small></td>
+            <td style="text-align:left; padding-left:10px;"><b>${b.amateurStats}</b><br><small style="color:#718096;">(能力目安: IsoP ${b.isop} / 弾道 ${b.barrel.toFixed(1)}%)</small></td>
             <td><button class="btn btn-success" style="padding:4px 10px; font-size:0.85em;" onclick="userSelectDraftPlayer('bat', ${idx})">指名</button></td>
         </tr>`;
-        tbody.innerHTML += row;
     });
 
-    // 投手候補の描画
     draftPool.pitchers.forEach((p, idx) => {
         if (p.isDrafted) return;
         let pType = p.staMax > 50 ? "先発型" : "リリーフ型";
         let titleBadge = p.amateurTitle !== "なし" ? `<span style="background:#2b6cb0; color:white; padding:2px 5px; border-radius:3px; font-size:0.8em; margin-left:5px;">${p.amateurTitle}</span>` : "";
-        let row = `<tr>
+        tbody.innerHTML += `<tr>
             <td>投-${idx}</td>
             <td><b>${p.name}</b>${titleBadge}</td>
             <td><span style="color: #2b6cb0; font-weight:bold;">投手(${pType})</span></td>
             <td>投手</td>
             <td>${p.graduation}</td>
             <td>${p.age}歳</td>
-            <td style="text-align:left; padding-left:10px; color:#2d3748;"><b>${p.amateurStats}</b><br><small style="color:#718096;">(能力目安: K/9 ${p.k9} / 被安打抑制 ${p.h9})</small></td>
+            <td style="text-align:left; padding-left:10px;"><b>${p.amateurStats}</b><br><small style="color:#718096;">(能力目安: K/9 ${p.k9} / 被安打 ${p.h9})</small></td>
             <td><button class="btn btn-success" style="padding:4px 10px; font-size:0.85em;" onclick="userSelectDraftPlayer('pit', ${idx})">指名</button></td>
         </tr>`;
-        tbody.innerHTML += row;
     });
 }
 
 function userSelectDraftPlayer(type, index) {
-    if (currentDraftRound > 3) return;
+    if (currentDraftRound > maxDraftRounds) return;
 
     let selectedPlayer = type === 'bat' ? draftPool.batters[index] : draftPool.pitchers[index];
     selectedPlayer.isDrafted = true;
 
-    // ユーザー球団（配列の末尾）へ完全追加
     let userTeam = teams[userTeamId];
     if (type === 'bat') {
         userTeam.batters.push(selectedPlayer);
@@ -98,38 +187,33 @@ function userSelectDraftPlayer(type, index) {
     let resEl = document.getElementById(`my_draft_r${currentDraftRound}`);
     if (resEl) resEl.innerHTML = `<b style="color:#2b6cb0;">${selectedPlayer.name}</b> <small>(${selectedPlayer.currentPos})</small>`;
 
+    // CPUも同時に指名（CPUは一律6人補充固定）
     executeCPUDraft(currentDraftRound);
     currentDraftRound++;
 
-    if (currentDraftRound > 3) {
-        document.getElementById("draft_status_message").innerHTML = "🎉 <b>ドラフト会議が終了しました！</b>";
+    if (currentDraftRound > maxDraftRounds) {
+        document.getElementById("draft_status_message").innerHTML = "🎉 <b>オフシーズン補強・ドラフト会議がすべて完了しました！</b>";
         
-        // 🆕【重要バグ修正】新シーズン開幕に伴う「全所属選手のデータ初期化」をここで行う
-        // 配列（ルーキーがpushされた後の状態）を維持したまま、通算年数増加とスタッツのみを真っ新にする
         currentYear += 1; 
         totalGamesPlayed = 0;
 
         teams.forEach(t => {
             t.wins = 0; t.losses = 0; t.draws = 0;
-            // 既存選手もルーキーも全員生存させたまま、シーズン成績だけを0にリセット
-            t.batters.forEach(b => {
-                b.stats = { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 };
-            });
+            t.batters.forEach(b => b.stats = { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 });
             t.pitchers.forEach(p => {
                 p.staCurrent = p.staMax;
                 p.stats = { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0 };
             });
-            
-            // 打順・投手配置の完全な再配置
             reassignTeamRoles(t);
         });
 
         updateUIAll();
         setTimeout(() => {
-            alert(`祝・ペナント第 ${currentYear} 年目 開幕！\n獲得したルーキーを二軍ロスターに格納し、チームを再編成しました！`);
-            switchTab('tab-stats-bat', document.querySelectorAll('.tab')[0]); // 成績タブに戻す
+            alert(`祝・ペナント第 ${currentYear} 年目 開幕！\nあなたが自ら厳選解雇・指名獲得した新ロスターで新シーズンが始まります！`);
+            switchTab('tab-stats-bat', document.querySelectorAll('.tab')[0]);
         }, 200);
     } else {
+        document.getElementById("ui_draft_round_title").innerText = `今年のドラフト候補生一覧 (第 ${currentDraftRound} 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
         renderDraftPoolUI();
     }
 }
@@ -137,6 +221,7 @@ function userSelectDraftPlayer(type, index) {
 function executeCPUDraft(round) {
     teams.forEach(t => {
         if (t.id === userTeamId) return;
+        if (round > 6) return; // CPUは6位指名で終了
 
         let cpuChoiceType = Math.random() < 0.5 ? 'bat' : 'pit';
         let picked = null;
