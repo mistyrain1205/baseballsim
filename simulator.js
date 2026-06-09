@@ -233,12 +233,17 @@ function processOffseasonEvolution() {
 function simulateRound() {
     // 143試合消化した瞬間の判定
     if (totalGamesPlayed >= MAX_GAMES) {
-        // オフシーズンの選手能力の成長・衰退を実行
+        // 🔥【無限ループ対策】
+        // ドラフト画面を開く前に、試合数カウントを「143 ➔ 0」に手前で落としてしまいます。
+        // これにより、連打してもこのif文の中に二度と入れなくなり、無限ループが100%発生しなくなります。
+        totalGamesPlayed = 0; 
+
+        // オフシーズンの能力変動
         processOffseasonEvolution(); 
         
-        // 戦力外通告とドラフト会議の起動（ここで進行を完全にストップさせる）
+        // 戦力外通告とドラフト会議の起動
         executeOffseasonRosterEvents(); 
-        return null; // 翌年へのリセット処理はここからは削除し、draft.js側にバトンを渡す
+        return null; 
     }
     
     changeAllPlayersCondition(); 
@@ -251,6 +256,7 @@ function simulateRound() {
         roundResults.push(res);
     });
     teams.forEach(t => { t.pitchers.forEach(p => { let recovery = p.role.includes("二軍") ? 14 : 1.5; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); }); });
+    
     totalGamesPlayed++; 
     return roundResults;
 }
