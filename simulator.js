@@ -88,20 +88,38 @@ function executeFrontOfficeAI() {
     });
 }
 
+// simulator.js 内の該当関数をこれに上書き
 function reassignTeamRoles(t) {
+    // バレル率（打撃力）の順に並び替え
     t.batters.sort((a, b) => b.barrel - a.barrel);
+    
     t.batters.forEach((b, idx) => {
-        if (idx < 9) b.role = idx + 1;
-        else if (idx < 16) b.role = 0;
-        else b.role = -1;
+        // 1～9番打者に打順を割り当て
+        if (idx < 9) {
+            b.role = idx + 1;
+        } else if (idx < 16) {
+            b.role = 0;   // 一軍控え枠
+        } else {
+            b.role = -1;  // 二軍枠
+        }
+        
+        // ⚠️【ポジション消失バグ破壊】
+        // currentPosが消えたり空になったりするのを防ぐため、
+        // もしポジションデータが狂っていたら本来のoriginalPosを常に維持・保証させます。
+        if (!b.currentPos || b.currentPos === "内野手" || b.currentPos === "外野手") {
+            b.currentPos = b.originalPos;
+        }
     });
 
+    // 投手のソートと役割割り当て
     t.pitchers.sort((a, b) => b.staMax - a.staMax);
     t.pitchers.forEach((p, idx) => {
         if (idx < 5) p.role = "先発";
         else if (idx === 5) p.role = "守護神";
         else if (idx < 15) p.role = "リリーフ";
         else p.role = "二軍リリーフ";
+        
+        p.currentPos = "投手";
     });
 }
 
@@ -191,25 +209,36 @@ function executeOffseasonRosterEvents() {
     switchTab('tab-draft', document.querySelectorAll('.tab')[2]);
 }
 
+// simulator.js 内の該当関数をこれに上書き
 function processOffseasonEvolution() {
     teams.forEach(t => {
         t.batters.forEach(b => {
             b.age += 1; b.proYears += 1;
             let growthPotential = Math.min(10, Math.floor((b.exp || 0) / 15)); b.exp = 0;
+            
             if (b.age <= 24) {
                 b.barrel = Math.min(45, b.barrel + Math.floor(Math.random() * 4) + 1 + growthPotential * 0.2); 
                 b.isop = Math.min(65, b.isop + Math.floor(Math.random() * 5) + 2);
                 b.so = Math.max(10, b.so - Math.floor(Math.random() * 2));
+                // 🆕 若手は守備力（UZR）もぐんぐん成長する
+                b.uzr = parseFloat((b.uzr + Math.random() * 2.5).toFixed(1));
             } else if (b.age <= 29) {
                 if(Math.random() < 0.3) b.barrel = Math.min(45, b.barrel + 1);
+                // 中堅は守備が一番安定する時期
+                if(Math.random() < 0.2) b.uzr = parseFloat((b.uzr + Math.random() * 1.0 - 0.3).toFixed(1));
             } else if (b.age <= 34) {
                 b.barrel = Math.max(5, b.barrel - (Math.floor(Math.random() * 2)));
                 b.isop = Math.max(5, b.isop - (Math.floor(Math.random() * 3)));
+                // ベテランは徐々に守備範囲が狭まる（UZR低下）
+                b.uzr = parseFloat((b.uzr - Math.random() * 1.5).toFixed(1));
             } else {
                 b.barrel = Math.max(3, b.barrel - (Math.floor(Math.random() * 4) + 1));
                 b.so = Math.min(45, b.so + Math.floor(Math.random() * 3));
+                // 大ベテランは守備力の衰えが顕著に
+                b.uzr = parseFloat((b.uzr - Math.random() * 3.0 - 1.0).toFixed(1));
             }
         });
+        
         t.pitchers.forEach(p => {
             p.age += 1; p.proYears += 1;
             let growthPotential = Math.min(10, Math.floor((p.exp || 0) / 15)); p.exp = 0;
