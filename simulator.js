@@ -231,19 +231,16 @@ function processOffseasonEvolution() {
 }
 
 function simulateRound() {
-    if(totalGamesPlayed >= MAX_GAMES) {
+    // 143試合消化した瞬間の判定
+    if (totalGamesPlayed >= MAX_GAMES) {
+        // オフシーズンの選手能力の成長・衰退を実行
         processOffseasonEvolution(); 
+        
+        // 戦力外通告とドラフト会議の起動（ここで進行を完全にストップさせる）
         executeOffseasonRosterEvents(); 
-        totalGamesPlayed = 0; 
-        currentYear += 1; 
-        teams.forEach(t => {
-            t.wins = 0; t.losses = 0; t.draws = 0;
-            t.batters.forEach(b => b.stats = { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 });
-            t.pitchers.forEach(p => { p.staCurrent = p.staMax; p.stats = { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0 }; });
-        });
-        updateUIAll(); 
-        return null;
+        return null; // 翌年へのリセット処理はここからは削除し、draft.js側にバトンを渡す
     }
+    
     changeAllPlayersCondition(); 
     executeFrontOfficeAI();
     let pattern = getDynamicSchedule(totalGamesPlayed);
@@ -257,7 +254,6 @@ function simulateRound() {
     totalGamesPlayed++; 
     return roundResults;
 }
-
 // ==========================================
 // 3. 試合進行・シミュレーション中枢
 // ==========================================
