@@ -2,49 +2,61 @@
 
 let draftPool = { batters: [], pitchers: [] };
 let currentDraftRound = 1; 
-let userReleaseList = { batters: [], pitchers: [] }; // 戦力外候補のインデックス保存
-let maxDraftRounds = 0; // 今回ユーザーが獲得できる枠数（クビにした数と一致）
+let userReleaseList = { batters: [], pitchers: [] }; 
+let maxDraftRounds = 0; 
 
 // シーズン終了時に呼び出され、手動戦力外通告画面を構築する
 function startUserReleasePhase() {
     userReleaseList.batters = [];
     userReleaseList.pitchers = [];
-    document.getElementById("ui_release_count").innerText = "0";
+    
+    let relCountEl = document.getElementById("ui_release_count");
+    if(relCountEl) relCountEl.innerText = "0";
     
     let myTeam = teams[userTeamId];
+    if(!myTeam) return;
     
     // 野手解雇リストの描画
     let bBody = document.getElementById("release_batters_body");
-    bBody.innerHTML = myTeam.batters.map((b, idx) => {
-        let roleText = b.role >= 1 && b.role <= 9 ? `${b.role}番` : (b.role === 0 ? "一軍控" : "二軍");
-        return `<tr>
-            <td><input type="checkbox" class="rel-check-bat" value="${idx}" onchange="updateReleaseCount()"></td>
-            <td>[${roleText}] <b>${b.name}</b> (${b.age}歳)</td>
-            <td>弾道:${b.barrel.toFixed(1)}%</td>
-            <td>UZR:${b.uzr}</td>
-        </tr>`;
-    }).join("");
+    if(bBody) {
+        bBody.innerHTML = myTeam.batters.map((b, idx) => {
+            let roleText = b.role >= 1 && b.role <= 9 ? `${b.role}番` : (b.role === 0 ? "一軍控" : "二軍");
+            return `<tr>
+                <td><input type="checkbox" class="rel-check-bat" value="${idx}" onchange="updateReleaseCount()"></td>
+                <td>[${roleText}] <b>${b.name}</b> (${b.age}歳)</td>
+                <td>弾道:${b.barrel.toFixed(1)}%</td>
+                <td>UZR:${b.uzr}</td>
+            </tr>`;
+        }).join("");
+    }
 
     // 投手解雇リストの描画
     let pBody = document.getElementById("release_pitchers_body");
-    pBody.innerHTML = myTeam.pitchers.map((p, idx) => {
-        return `<tr>
-            <td><input type="checkbox" class="rel-check-pit" value="${idx}" onchange="updateReleaseCount()"></td>
-            <td>[${p.role}] <b>${p.name}</b> (${p.age}歳)</td>
-            <td>K/9:${p.k9}</td>
-            <td>スタミナ:${p.staMax}</td>
-        </tr>`;
-    }).join("");
+    if(pBody) {
+        pBody.innerHTML = myTeam.pitchers.map((p, idx) => {
+            return `<tr>
+                <td><input type="checkbox" class="rel-check-pit" value="${idx}" onchange="updateReleaseCount()"></td>
+                <td>[${p.role}] <b>${p.name}</b> (${p.age}歳)</td>
+                <td>K/9:${p.k9}</td>
+                <td>スタミナ:${p.staMax}</td>
+            </tr>`;
+        }).join("");
+    }
 
-    document.getElementById("offseason_release_zone").style.display = "flex";
-    document.getElementById("draft_interaction_zone").style.display = "none";
+    let relZone = document.getElementById("offseason_release_zone");
+    if(relZone) relZone.style.display = "flex";
+    
+    let drfZone = document.getElementById("draft_interaction_zone");
+    if(drfZone) drfZone.style.display = "none";
 }
 
 function updateReleaseCount() {
     let batChecks = document.querySelectorAll(".rel-check-bat:checked").length;
     let pitChecks = document.querySelectorAll(".rel-check-pit:checked").length;
     let total = batChecks + pitChecks;
-    document.getElementById("ui_release_count").innerText = total;
+    
+    let relCountEl = document.getElementById("ui_release_count");
+    if(relCountEl) relCountEl.innerText = total;
     
     if(total > 10) {
         alert("戦力外通告は最大10名までです！枠数を調整してください。");
@@ -66,19 +78,18 @@ function finalizeUserReleases() {
         return;
     }
 
-    maxDraftRounds = total; // ドラフト巡枠の確定
-    document.getElementById("ui_quota").innerText = maxDraftRounds;
+    maxDraftRounds = total; 
+    
+    // ⚙️ HTML側の表記ゆれ(ui_quota)に対応する安全ガードガード
+    let quotaEl = document.getElementById("ui_draft_quota");
+    if(quotaEl) quotaEl.innerText = maxDraftRounds;
 
     let myTeam = teams[userTeamId];
     
-    // ユーザーの選んだ選手を実際に戦力外（配列から削除）
     myTeam.batters = myTeam.batters.filter((_, idx) => !batChecked.includes(idx));
     myTeam.pitchers = myTeam.pitchers.filter((_, idx) => !pitChecked.includes(idx));
 
-    // 🤖 CPU球団（他の5チーム）も裏で自動的に高年齢・低能力の選手を今回の獲得枠分（一律6名）戦力外にする
     executeCPUReleases();
-
-    // ドラフトプール生成
     generateDraftPool();
 }
 
@@ -86,9 +97,9 @@ function executeCPUReleases() {
     teams.forEach(t => {
         if (t.id === userTeamId) return;
         t.batters.sort((a,b) => (a.barrel - (a.age * 0.3)) - (b.barrel - (b.age * 0.3)));
-        t.batters.splice(0, 3); // 下位3名クビ
+        t.batters.splice(0, 3); 
         t.pitchers.sort((a,b) => (b.h9 - (a.age * 0.3)) - (a.h9 - (b.age * 0.3)));
-        t.pitchers.splice(0, 3); // 下位3名クビ
+        t.pitchers.splice(0, 3); 
     });
 }
 
@@ -97,7 +108,6 @@ function generateDraftPool() {
     draftPool.pitchers = [];
     currentDraftRound = 1;
 
-    // 大規模10巡指名に耐えられるよう、プールを各35人の超大型新人に拡張
     for (let i = 0; i < 35; i++) {
         let bat = createDraftBatter();
         let amAvg = (0.240 + Math.random() * 0.120) + (bat.barrel * 0.003);
@@ -120,16 +130,22 @@ function generateDraftPool() {
         draftPool.pitchers.push(pit);
     }
     
-    // ドラフト指名リザルト枠の動的生成
     let resBody = document.getElementById("my_draft_results_body");
-    resBody.innerHTML = "";
-    for(let r=1; r<=maxDraftRounds; r++) {
-        resBody.innerHTML += `<tr><td>${r}位</td><td id="my_draft_r${r}">-</td></tr>`;
+    if(resBody) {
+        resBody.innerHTML = "";
+        for(let r=1; r<=maxDraftRounds; r++) {
+            resBody.innerHTML += `<tr><td>${r}位</td><td id="my_draft_r${r}">-</td></tr>`;
+        }
     }
     
-    document.getElementById("offseason_release_zone").style.display = "none";
-    document.getElementById("draft_interaction_zone").style.display = "grid";
-    document.getElementById("ui_draft_round_title").innerText = `今年のドラフト候補生一覧 (第 1 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
+    let relZone = document.getElementById("offseason_release_zone");
+    if(relZone) relZone.style.display = "none";
+    
+    let drfZone = document.getElementById("draft_interaction_zone");
+    if(drfZone) drfZone.style.display = "grid";
+    
+    let roundTitleEl = document.getElementById("ui_draft_round_title");
+    if(roundTitleEl) roundTitleEl.innerText = `今年のドラフト候補生一覧 (第 1 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
     
     renderDraftPoolUI();
 }
@@ -187,12 +203,12 @@ function userSelectDraftPlayer(type, index) {
     let resEl = document.getElementById(`my_draft_r${currentDraftRound}`);
     if (resEl) resEl.innerHTML = `<b style="color:#2b6cb0;">${selectedPlayer.name}</b> <small>(${selectedPlayer.currentPos})</small>`;
 
-    // CPUも同時に指名（CPUは一律6人補充固定）
     executeCPUDraft(currentDraftRound);
     currentDraftRound++;
 
     if (currentDraftRound > maxDraftRounds) {
-        document.getElementById("draft_status_message").innerHTML = "🎉 <b>オフシーズン補強・ドラフト会議がすべて完了しました！</b>";
+        let statusMsgEl = document.getElementById("draft_status_message");
+        if(statusMsgEl) statusMsgEl.innerHTML = "🎉 <b>オフシーズン補強・ドラフト会議がすべて完了しました！</b>";
         
         currentYear += 1; 
         totalGamesPlayed = 0;
@@ -213,7 +229,8 @@ function userSelectDraftPlayer(type, index) {
             switchTab('tab-stats-bat', document.querySelectorAll('.tab')[0]);
         }, 200);
     } else {
-        document.getElementById("ui_draft_round_title").innerText = `今年のドラフト候補生一覧 (第 ${currentDraftRound} 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
+        let roundTitleEl = document.getElementById("ui_draft_round_title");
+        if(roundTitleEl) roundTitleEl.innerText = `今年のドラフト候補生一覧 (第 ${currentDraftRound} 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
         renderDraftPoolUI();
     }
 }
@@ -221,7 +238,7 @@ function userSelectDraftPlayer(type, index) {
 function executeCPUDraft(round) {
     teams.forEach(t => {
         if (t.id === userTeamId) return;
-        if (round > 6) return; // CPUは6位指名で終了
+        if (round > 6) return; 
 
         let cpuChoiceType = Math.random() < 0.5 ? 'bat' : 'pit';
         let picked = null;
