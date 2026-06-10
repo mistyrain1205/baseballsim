@@ -257,57 +257,70 @@ function executeMatchLogic(away, home) {
     return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
 }
 
-function simulateRound() {
-    // 【安全ロック】もし戦力外やドラフト中に進行ボタンが押されたらブロック
+// simulator.js 内の以下の3つの関数をこれに丸ごと差し替え
+
+function playNextRound() {
+    // 試合数がすでに -1（オフシーズン中）なら、ボタンの処理を一切行わず即座に終了
     if (totalGamesPlayed === -1) {
         alert("現在はオフシーズン補強中です！「オフシーズン補強」タブから戦力外通告またはドラフト指名を完了させてください。");
-        return null;
+        return;
     }
 
-    // 143試合消化した瞬間の判定
-    if (totalGamesPlayed >= MAX_GAMES) {
-        totalGamesPlayed = -1; // ロック状態へ移行
-        processOffseasonEvolution(); 
+    let res = simulateRound(); 
+    
+    // 🔥【超重要：オフシーズン突入時の即時強制離脱】
+    // simulateRoundを実行した結果、143試合目に達してオフシーズン画面が立ち上がった場合、
+    // resには「null」が返ってきます。その場合は下のUI更新を完全にスキップして即終了させます。
+    // これにより、せっかく切り替わったオフシータブが元の成績タブに引き戻されるバグを100%阻止します！
+    if (res === null) return; 
+
+    let rEl = document.getElementById("quick_match_results");
+    if(rEl) rEl.innerHTML = res.map(r => `<tr><td><b>${r}</b></td></tr>`).join("");
+    updateUIAll();
+}
+
+function playOneWeek() {
+    if (totalGamesPlayed === -1) {
+        alert("現在はオフシーズン補強中です！「オフシーズン補強」タブから戦力外通告またはドラフト指名を完了させてください。");
+        return;
+    }
+
+    let lastRes = null;
+    for(let i=0; i<6; i++) { 
+        // 途中で143試合（オフシーズン）に達したら、その瞬間にループを強制脱出
+        if (totalGamesPlayed === -1) break;
         
-        // ➔➔➔ ここからオフシーズン突入＆自動タブ切り替えロジック ➔➔➔
-        alert(`ーーー 👔 ペナントレース終了 (ペナント第 ${currentYear} 年目) ーーー\n\nこれより「人員整理（戦力外通告）」を行います。\n「オフシーズン補強」タブを開いて、自由契約にする選手をあなたの手で選択してください！`);
-        
-        let statusMsgEl = document.getElementById("draft_status_message");
-        if(statusMsgEl) {
-            statusMsgEl.innerHTML = "📢 <b>オフシーズン・球団人員整理フェーズ</b>。不要な選手に戦力外通告を行ってください。";
-        }
-        
-        // draft.js の手動戦力外通告画面（成績＆WAR付き）を構築
-        startUserReleasePhase();
-        
-        // 🔥【タブ強制ジャンプ完全修正】
-        // インデックスのズレに左右されず、「オフシーズン」の文字が含まれるタブを自動検知してジャンプします
-        let allTabs = document.querySelectorAll('.tab');
-        let targetTabBtn = Array.from(allTabs).find(tab => tab.innerText.includes("オフシーズン"));
-        
-        if (targetTabBtn) {
-            switchTab('tab-draft', targetTabBtn);
-        } else {
-            switchTab('tab-draft', allTabs[2] || allTabs[0]); // 見つからない場合の保険
-        }
-        
-        return null; // カウントアップを完全にブロックして離脱
+        let res = simulateRound(); 
+        if(res) lastRes = res; 
     }
     
-    changeAllPlayersCondition(); 
-    executeFrontOfficeAI();
-    let pattern = getDynamicSchedule(totalGamesPlayed);
-    let roundResults = [];
-    pattern.forEach(pair => {
-        let res = executeMatchLogic(teams[pair[0]], teams[pair[1]]);
-        roundResults.push(res);
-    });
-    teams.forEach(t => { t.pitchers.forEach(p => { let rec = p.role.includes("二軍") ? 15 : 1.8; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + rec); }); });
-    
-    totalGamesPlayed++; 
+    // オフシーズンに突入していたら、余計なUI更新処理をスルーして終了
+    if (totalGamesPlayed === -1) return;
+
+    if(lastRes) {
+        let rEl = document.getElementById("quick_match_results");
+        if(rEl) rEl.innerHTML = "<tr><td style='color:green;'><b>一週間分(6カード)を一括消化しました</b></td></tr>" + lastRes.map(r => `<tr><td>${r}</td></tr>`).join("");
+    }
     updateUIAll();
-    return roundResults;
 }
+
+function playAllSeason() {
+    if (totalGamesPlayed === -1) {
+        alert("現在はオフシーズン補強中です！「オフシーズン補強」タブから戦力外通告またはドラフト指名を完了させてください。");
+        return;
+    }
+
+    // 143試合に達して -1 になるまで、安全に超高速で回し続けます
+    while(totalGamesPlayed < MAX_GAMES && totalGamesPlayed !== -1) { 
+        simulateRound(); 
+    }
+    
+    // オフシーズンに入った瞬間なら、ここでの不要なupdateUIAllをブロック
+    if (totalGamesPlayed === -1) return;
+    
+    updateUIAll();
+}
+
 function playNextRound() { simulateRound(); }
 function playOneWeek() { for(let i=0; i<6; i++) simulateRound(); }
 function playAllSeason() { while(totalGamesPlayed < MAX_GAMES && totalGamesPlayed !== -1) simulateRound(); }
