@@ -149,7 +149,7 @@ function createDraftBatter() {
         barrel: 6.0 + Math.random() * 8, 
         isop: 10 + Math.floor(Math.random() * 15),
         uzr: parseFloat((Math.random() * 10 - 5).toFixed(1)), err: 2.0,
-        stats: { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 }
+        stats: { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0, war: 0.0 }
     };
 }
 
@@ -170,7 +170,7 @@ function createDraftPitcher() {
         bb9: 65, hr9: 55,
         staMax: isStarterStyle ? 90 : 35, 
         staCurrent: isStarterStyle ? 90 : 35,
-        stats: { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0 }
+        stats: { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0, war: 0.0 }
     };
 }
 
@@ -224,7 +224,6 @@ function processOffseasonEvolution() {
     });
 }
 
-// ⚠️【順序バグ完全破壊】依存関係をクリーンにするため、最下部にあったロジック群を上に引っ越しさせました
 function formatInningsPitched(totalOuts) {
     let innings = Math.floor(totalOuts / 3); let remainingOuts = totalOuts % 3;
     return remainingOuts === 0 ? `${innings}` : `${innings}.${remainingOuts}`;
@@ -702,6 +701,25 @@ function updateUIAll() {
         h2Title.innerHTML = `リーグ消化状況: <span id="current_game_count">${displayGame}</span> / 143 試合 (第 <span id="current_week_count">${displayWeek}</span> 週目)`;
     }
 
+    // 🔥【リアルタイムWAR自動シミュレート＆算出ロジック】
+    teams.forEach(t => {
+        t.batters.forEach(b => {
+            if(!b.stats.ab) { b.stats.war = 0.0; return; }
+            let avg = b.stats.hits / b.stats.ab;
+            let batContribution = (avg - 0.250) * 15 + (b.stats.hr * 0.2) + (b.stats.bb * 0.08);
+            let defContribution = (b.uzr || 0) * 0.08;
+            b.stats.war = Math.max(-2.5, batContribution + defContribution);
+        });
+        t.pitchers.forEach(p => {
+            if(!p.stats.ipOuts) { p.stats.war = 0.0; return; }
+            let ip = p.stats.ipOuts / 3;
+            let replacementEra = p.role.includes("先発") ? 4.50 : 3.80;
+            let eraDiff = replacementEra - (p.stats.era || 4.50);
+            let scale = p.role.includes("先発") ? 0.08 : 0.18;
+            p.stats.war = Math.max(-1.5, (eraDiff * ip * scale) + (p.stats.so * 0.015) + (p.stats.saves * 0.1));
+        });
+    });
+
     let sorted = [...teams].sort((a,b) => (b.wins / ((b.wins + b.losses) || 1)) - (a.wins / ((a.wins + a.losses) || 1)));
     let sBody = document.getElementById("standings_body"); sBody.innerHTML = "";
     sorted.forEach((t, i) => {
@@ -712,22 +730,36 @@ function updateUIAll() {
         sBody.innerHTML += `<tr ${rowStyle}><td>${i+1}</td><td><b>${teamDisplay}</b></td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${wp.toFixed(3)}</td><td>-</td></tr>`;
     });
 
-    let bList = []; teams.forEach(t => t.batters.forEach(b => bList.push({tName: t.name, data: b})));
-    bList.sort((a,b) => (b.data.stats.hits / (b.data.stats.ab || 1)) - (a.data.stats.hits / (a.data.stats.ab || 1)));
-    let batBody = document.querySelector("#batting_stats_table tbody"); batBody.innerHTML = "";
-    bList.slice(0, 15).forEach(item => {
-        let b = item.data; let avg = b.stats.hits / (b.stats.ab || 1);
-        batBody.innerHTML += `<tr><td>${item.tName}</td><td><b>${b.name} (${b.age}歳)</b></td><td>${b.currentPos}</td><td>${avg.toFixed(3)}</td><td>${b.stats.games}</td><td>${b.stats.ab}</td><td>${b.stats.hits}</td><td>${b.stats.hr}</td><td>${b.stats.rbi}</td><td>${b.stats.bb}</td></tr>`;
-    });
+    // 個人打撃成績テーブルヘッダーに「WAR」を組み込んで拡張
+    let batHeader = document.querySelector("#batting_stats_table ready");
+    let batBody = document.querySelector("#batting_stats_table tbody"); 
+    if(batBody) {
+        let bList = []; teams.forEach(t => t.batters.forEach(b => bList.push({tName: t.name, data: b})));
+        bList.sort((a,b) => (b.data.stats.hits / (b.data.stats.ab || 1)) - (a.data.stats.hits / (a.data.stats.ab || 1)));
+        batBody.innerHTML = "";
+        // 各自、WAR列の表示を追加
+        document.querySelector("#batting_stats_table thead tr").innerHTML = `<th>球団</th><th>選手名</th><th>守備</th><th>打率</th><th>試合</th><th>打数</th><th>安打</th><th>本塁打</th><th>打点</th><th>WAR</th>`;
+        bList.slice(0, 15).forEach(item => {
+            let b = item.data; let avg = b.stats.hits / (b.stats.ab || 1);
+            let wColor = b.stats.war >= 3.0 ? "color:green; font-weight:bold;" : (b.stats.war < 0 ? "color:red;" : "");
+            batBody.innerHTML += `<tr><td>${item.tName}</td><td><b>${b.name} (${b.age}歳)</b></td><td>${b.currentPos}</td><td>${avg.toFixed(3)}</td><td>${b.stats.games}</td><td>${b.stats.ab}</td><td>${b.stats.hits}</td><td>${b.stats.hr}</td><td>${b.stats.rbi}</td><td style="${wColor}">${b.stats.war.toFixed(1)}</td></tr>`;
+        });
+    }
 
-    let pList = []; teams.forEach(t => pList.push(...t.pitchers));
-    pList.sort((a,b) => { if(a.stats.ipOuts === 0) return 1; if(b.stats.ipOuts === 0) return -1; return a.stats.era - b.stats.era; });
-    let pitBody = document.querySelector("#pitching_stats_table tbody"); pitBody.innerHTML = "";
-    pList.forEach(p => {
-        let tObj = teams.find(t => t.pitchers.some(pObj => pObj.name === p.name));
-        let tName = tObj ? tObj.name : "";
-        pitBody.innerHTML += `<tr><td>${tName}</td><td><b>${p.name} (${p.age}歳)</b></td><td>${p.role}</td><td><b>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</b></td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td><b>${p.stats.saves}</b></td><td>${formatInningsPitched(p.stats.ipOuts)}</td><td>${p.stats.so}</td><td>${p.staCurrent}</td></tr>`;
-    });
+    // 個人投手成績テーブルヘッダーに「WAR」を組み込んで拡張
+    let pitBody = document.querySelector("#pitching_stats_table tbody"); 
+    if(pitBody) {
+        let pList = []; teams.forEach(t => pList.push(...t.pitchers));
+        pList.sort((a,b) => { if(a.stats.ipOuts === 0) return 1; if(b.stats.ipOuts === 0) return -1; return a.stats.era - b.stats.era; });
+        document.querySelector("#pitching_stats_table thead tr").innerHTML = `<th>球団</th><th>選手名</th><th>役割</th><th>防御率</th><th>登板</th><th>勝</th><th>敗</th><th>セーブ</th><th>投球回</th><th>残りSTA</th><th>WAR</th>`;
+        pitBody.innerHTML = "";
+        pList.forEach(p => {
+            let tObj = teams.find(t => t.pitchers.some(pObj => pObj.name === p.name));
+            let tName = tObj ? tObj.name : "";
+            let wColor = p.stats.war >= 2.0 ? "color:green; font-weight:bold;" : (p.stats.war < 0 ? "color:red;" : "");
+            pitBody.innerHTML += `<tr><td>${tName}</td><td><b>${p.name} (${p.age}歳)</b></td><td>${p.role}</td><td><b>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</b></td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td><b>${p.stats.saves}</b></td><td>${formatInningsPitched(p.stats.ipOuts)}</td><td>${p.staCurrent}</td><td style="${wColor}">${p.stats.war.toFixed(1)}</td></tr>`;
+        });
+    }
 }
 
 function switchTab(tabId, el) {
@@ -736,7 +768,6 @@ function switchTab(tabId, el) {
     document.getElementById(tabId).classList.add('active'); el.classList.add('active');
 }
 
-// 🚀 すべての依存関係が読み込まれた後に発火する安全な初期化ブロック
 window.addEventListener("DOMContentLoaded", () => {
     initializeLeagueData();
 
