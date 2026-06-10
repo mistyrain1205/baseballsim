@@ -16,29 +16,36 @@ function startUserReleasePhase() {
     let myTeam = teams[userTeamId];
     if(!myTeam) return;
     
-    // 野手解雇リストの描画
+    // 野手解雇リストの描画（今季の成績とWARを表示！）
     let bBody = document.getElementById("release_batters_body");
     if(bBody) {
         bBody.innerHTML = myTeam.batters.map((b, idx) => {
             let roleText = b.role >= 1 && b.role <= 9 ? `${b.role}番` : (b.role === 0 ? "一軍控" : "二軍");
+            let avg = b.stats.hits / (b.stats.ab || 1);
+            let warColor = b.stats.war >= 2.0 ? "color:green; font-weight:bold;" : (b.stats.war < 0 ? "color:red; font-weight:bold;" : "");
+            
             return `<tr>
                 <td><input type="checkbox" class="rel-check-bat" value="${idx}" onchange="updateReleaseCount()"></td>
                 <td>[${roleText}] <b>${b.name}</b> (${b.age}歳)</td>
-                <td>弾道:${b.barrel.toFixed(1)}%</td>
-                <td>UZR:${b.uzr}</td>
+                <td style="text-align:left; color:#4a5568;">.${Math.floor(avg*1000)} ${b.stats.hr}本 ${b.stats.rbi}打点</td>
+                <td style="${warColor}">WAR: ${b.stats.war.toFixed(1)}</td>
             </tr>`;
         }).join("");
     }
 
-    // 投手解雇リストの描画
+    // 投手解雇リストの描画（今季の成績とWARを表示！）
     let pBody = document.getElementById("release_pitchers_body");
     if(pBody) {
         pBody.innerHTML = myTeam.pitchers.map((p, idx) => {
+            let eraText = p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : "-.--";
+            let warColor = p.stats.war >= 2.0 ? "color:green; font-weight:bold;" : (p.stats.war < 0 ? "color:red; font-weight:bold;" : "");
+            let ipText = Math.floor(p.stats.ipOuts / 3);
+            
             return `<tr>
                 <td><input type="checkbox" class="rel-check-pit" value="${idx}" onchange="updateReleaseCount()"></td>
                 <td>[${p.role}] <b>${p.name}</b> (${p.age}歳)</td>
-                <td>K/9:${p.k9}</td>
-                <td>スタミナ:${p.staMax}</td>
+                <td style="text-align:left; color:#4a5568;">防 ${eraText} | ${p.stats.wins}勝${p.stats.losses}敗 ${ipText}回</td>
+                <td style="${warColor}">WAR: ${p.stats.war.toFixed(1)}</td>
             </tr>`;
         }).join("");
     }
@@ -63,7 +70,6 @@ function updateReleaseCount() {
     }
 }
 
-// 戦力外通告を確定し、ドラフト枠数を決定してドラフトプールを作る
 function finalizeUserReleases() {
     let batChecked = Array.from(document.querySelectorAll(".rel-check-bat:checked")).map(el => parseInt(el.value));
     let pitChecked = Array.from(document.querySelectorAll(".rel-check-pit:checked")).map(el => parseInt(el.value));
@@ -80,7 +86,6 @@ function finalizeUserReleases() {
 
     maxDraftRounds = total; 
     
-    // ⚙️ HTML側の表記ゆれ(ui_draft_quota)に対応する安全ガード
     let quotaEl = document.getElementById("ui_draft_quota");
     if(quotaEl) quotaEl.innerText = maxDraftRounds;
 
@@ -96,9 +101,10 @@ function finalizeUserReleases() {
 function executeCPUReleases() {
     teams.forEach(t => {
         if (t.id === userTeamId) return;
-        t.batters.sort((a,b) => (a.barrel - (a.age * 0.3)) - (b.barrel - (b.age * 0.3)));
+        // CPUはWARの低い実質足を引っ張っている選手から順に3人解雇する賢いAIに変更
+        t.batters.sort((a,b) => a.stats.war - b.stats.war);
         t.batters.splice(0, 3); 
-        t.pitchers.sort((a,b) => (b.h9 - (a.age * 0.3)) - (a.h9 - (b.age * 0.3)));
+        t.pitchers.sort((a,b) => a.stats.war - b.stats.war);
         t.pitchers.splice(0, 3); 
     });
 }
@@ -215,10 +221,10 @@ function userSelectDraftPlayer(type, index) {
 
         teams.forEach(t => {
             t.wins = 0; t.losses = 0; t.draws = 0;
-            t.batters.forEach(b => b.stats = { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0 });
+            t.batters.forEach(b => b.stats = { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0, war: 0.0 });
             t.pitchers.forEach(p => {
                 p.staCurrent = p.staMax;
-                p.stats = { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0 };
+                p.stats = { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0, war: 0.0 };
             });
             reassignTeamRoles(t);
         });
