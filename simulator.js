@@ -266,20 +266,32 @@ function simulateRound() {
 
     // 143試合消化した瞬間の判定
     if (totalGamesPlayed >= MAX_GAMES) {
-        // 🔥【オフシーズン突入ロック】
-        // 試合数を一時的に「-1」に設定し、日程進行を完全にストップさせます。
-        totalGamesPlayed = -1; 
-
-        // オフシーズンの年齢増加と、既存プレイヤーの能力成長・衰退を行う
+        totalGamesPlayed = -1; // ロック状態へ移行
         processOffseasonEvolution(); 
         
-        // 手動戦力外通告画面を起動
-        executeOffseasonRosterEvents(); 
+        // ➔➔➔ ここからオフシーズン突入＆自動タブ切り替えロジック ➔➔➔
+        alert(`ーーー 👔 ペナントレース終了 (ペナント第 ${currentYear} 年目) ーーー\n\nこれより「人員整理（戦力外通告）」を行います。\n「オフシーズン補強」タブを開いて、自由契約にする選手をあなたの手で選択してください！`);
         
-        // 🚨【超重要バグ修正】
-        // ここで関数の処理を完全に終わらせます（return null）。
-        // これにより、最下部にある「totalGamesPlayed++」が誤って暴発するのを100%防ぎます。
-        return null; 
+        let statusMsgEl = document.getElementById("draft_status_message");
+        if(statusMsgEl) {
+            statusMsgEl.innerHTML = "📢 <b>オフシーズン・球団人員整理フェーズ</b>。不要な選手に戦力外通告を行ってください。";
+        }
+        
+        // draft.js の手動戦力外通告画面（成績＆WAR付き）を構築
+        startUserReleasePhase();
+        
+        // 🔥【タブ強制ジャンプ完全修正】
+        // インデックスのズレに左右されず、「オフシーズン」の文字が含まれるタブを自動検知してジャンプします
+        let allTabs = document.querySelectorAll('.tab');
+        let targetTabBtn = Array.from(allTabs).find(tab => tab.innerText.includes("オフシーズン"));
+        
+        if (targetTabBtn) {
+            switchTab('tab-draft', targetTabBtn);
+        } else {
+            switchTab('tab-draft', allTabs[2] || allTabs[0]); // 見つからない場合の保険
+        }
+        
+        return null; // カウントアップを完全にブロックして離脱
     }
     
     changeAllPlayersCondition(); 
@@ -292,7 +304,6 @@ function simulateRound() {
     });
     teams.forEach(t => { t.pitchers.forEach(p => { let rec = p.role.includes("二軍") ? 15 : 1.8; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + rec); }); });
     
-    // 通常のシーズン中のみ、日程カウントを進めて画面を更新
     totalGamesPlayed++; 
     updateUIAll();
     return roundResults;
