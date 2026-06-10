@@ -5,14 +5,14 @@
 // ==========================================
 const BALANCING_CONFIG = {
     batting: {
-        baseHitChance: 0.34,
-        hrMultiplier: 0.80,
-        pitcherH9Influence: 0.0012,
-        pitcherHr9Influence: 0.25
+        baseHitChance: 0.35,
+        hrMultiplier: 0.85,
+        pitcherH9Influence: 0.0015,
+        pitcherHr9Influence: 0.3
     },
     plates: {
-        bbBaseScale: 0.75,
-        bbPitcherScale: 0.0003,
+        bbBaseScale: 0.8,
+        bbPitcherScale: 0.0004,
         soBaseScale: 0.7,
         soPitcherScale: 0.001
     }
@@ -27,6 +27,7 @@ function getDynamicSchedule(roundCount) {
     let currentRound = roundCount % totalRounds;
     let pairings = []; 
     let list = [0, 1, 2, 3, 4, 5];
+    
     for (let i = 0; i < numTeams / 2; i++) {
         let awayIdx = (currentRound + i) % (numTeams - 1);
         let homeIdx = (numTeams - 1 - i + currentRound) % (numTeams - 1);
@@ -52,11 +53,11 @@ function selectUserTeam(val) {
 
 function getConditionModifier(condition, type) {
     const modifiers = {
-        "絶好調": { batBarrel: 1.20, batSo: 0.85, pitPitch: 1.10 }, 
-        "好調":   { batBarrel: 1.10, batSo: 0.95, pitPitch: 1.05 },
+        "絶好調": { batBarrel: 1.25, batSo: 0.80, pitPitch: 1.12 }, 
+        "好調":   { batBarrel: 1.12, batSo: 0.90, pitPitch: 1.05 },
         "普通":   { batBarrel: 1.00, batSo: 1.00, pitPitch: 1.00 },
-        "不調":   { batBarrel: 0.90, batSo: 1.10, pitPitch: 0.95 },
-        "絶不調": { batBarrel: 0.80, batSo: 1.20, pitPitch: 0.90 }
+        "不調":   { batBarrel: 0.85, batSo: 1.15, pitPitch: 0.92 },
+        "絶不調": { batBarrel: 0.70, batSo: 1.30, pitPitch: 0.82 }
     };
     return modifiers[condition] ? modifiers[condition][type] : 1.0;
 }
@@ -71,38 +72,168 @@ function changeAllPlayersCondition() {
 
 function executeFrontOfficeAI() {
     teams.forEach(t => {
-        let tiredRelief = t.pitchers.find(p => p.role === "リリーフ" && p.staCurrent <= 12);
-        let freshMinorRelief = t.pitchers.find(p => p.role === "二軍リリーフ" && p.staCurrent >= 32);
+        let tiredRelief = t.pitchers.find(p => p.role === "リリーフ" && p.staCurrent <= 15);
+        let freshMinorRelief = t.pitchers.find(p => p.role === "二軍リリーフ" && p.staCurrent >= 30);
         if (tiredRelief && freshMinorRelief) {
             tiredRelief.role = "二軍リリーフ"; 
             freshMinorRelief.role = "リリーフ";
+        }
+        let slumpReserve = t.batters.find(b => b.role === 0 && (b.condition === "絶不調" || b.condition === "不調"));
+        let hotMinorTeam = t.batters.find(b => b.role === -1 && (b.condition === "絶好調" || b.condition === "好調"));
+        if (slumpReserve && hotMinorTeam) {
+            slumpReserve.role = -1; hotMinorTeam.role = 0;
         }
     });
 }
 
 function reassignTeamRoles(t) {
-    const fixedPos = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手"];
+    const requiredPositions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手"];
+    
     t.batters.forEach(b => b.role = -1);
-    fixedPos.forEach((pos, idx) => {
+
+    requiredPositions.forEach((pos, idx) => {
         let candidate = t.batters.find(b => b.role === -1 && (b.originalPos === pos || (b.subPositions && b.subPositions.includes(pos))));
-        if (candidate) { candidate.role = idx + 1; candidate.currentPos = pos; }
-    });
-    fixedPos.forEach((pos, idx) => {
-        if (!t.batters.some(b => b.role === (idx + 1))) {
-            let backup = t.batters.find(b => b.role === -1);
-            if (backup) { backup.role = idx + 1; backup.currentPos = pos; }
+        if (candidate) {
+            candidate.role = idx + 1; 
+            candidate.currentPos = pos; 
         }
     });
+
+    requiredPositions.forEach((pos, idx) => {
+        let slotEmpty = !t.batters.some(b => b.role === (idx + 1));
+        if (slotEmpty) {
+            let backup = t.batters.find(b => b.role === -1 && (b.originalPos === pos || (b.subPositions && b.subPositions.includes(pos))));
+            if (!backup) backup = t.batters.find(b => b.role === -1);
+            if (backup) {
+                backup.role = idx + 1;
+                backup.currentPos = pos; 
+            }
+        }
+    });
+
     let rCount = 0;
     t.batters.forEach(b => {
         if (b.role > 0) return;
-        if (rCount < 7) { b.role = 0; rCount++; } else { b.role = -1; }
+        if (rCount < 7) { b.role = 0; rCount++; } 
+        else { b.role = -1; }
         b.currentPos = b.originalPos; 
     });
+
     t.pitchers.forEach((p, idx) => {
-        if (p.role === "先発" || p.role === "守護神" || p.role === "二軍先発") { p.staCurrent = p.staMax; return; }
-        if (idx < 12) { if (p.role !== "先発" && p.role !== "守護神") p.role = "リリーフ"; }
-        else { if (p.role !== "二軍先発") p.role = "二軍リリーフ"; }
+        if (p.role === "先発" || p.role === "守護神" || p.role === "二軍先発") {
+            p.staCurrent = p.staMax;
+            return; 
+        }
+        if (idx < 12) {
+            if (p.role !== "先発" && p.role !== "守護神") p.role = "リリーフ";
+        } else {
+            if (p.role !== "二軍先発") p.role = "二軍リリーフ";
+        }
+    });
+}
+
+function createDraftBatter() {
+    let graduation = ["高卒", "大卒", "社会人"][Math.floor(Math.random() * 3)];
+    let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
+    let pos = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手"][Math.floor(Math.random() * 8)];
+    let prefs = ["北海道", "青森", "岩手", "宮城", "秋田", "山形", "福島", "茨城", "栃木", "群馬", "埼玉", "千葉", "東京", "神奈川", "新潟", "富山", "石川", "福井", "山梨", "長野", "岐阜", "静岡", "愛知", "三重", "滋賀", "京都", "大阪", "兵庫", "奈良", "和歌山", "鳥取", "島根", "岡山", "広島", "山口", "徳島", "香川", "愛媛", "高知", "福岡", "佐賀", "長崎", "熊本", "大分", "宮崎", "鹿児島", "沖縄"];
+    
+    return {
+        name: generateRandomPlayerName(),
+        role: -1, 
+        originalPos: pos, currentPos: pos, subPositions: [], condition: "普通",
+        age: baseAge, hometown: prefs[Math.floor(Math.random() * prefs.length)],
+        graduation: graduation, proYears: 1, exp: 0,
+        bb: 6.0 + Math.random() * 4,
+        so: 15.0 + Math.random() * 10,
+        barrel: 6.0 + Math.random() * 8, 
+        isop: 10 + Math.floor(Math.random() * 15),
+        uzr: parseFloat((Math.random() * 10 - 5).toFixed(1)), err: 2.0,
+        stats: { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0, war: 0.0 }
+    };
+}
+
+function createDraftPitcher() {
+    let graduation = ["高卒", "大卒", "社会人"][Math.floor(Math.random() * 3)];
+    let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
+    let prefs = ["北海道", "青森", "岩手", "宮城", "秋田", "山形", "福島", "茨城", "栃木", "群馬", "埼玉", "千葉", "東京", "神奈川", "新潟", "富山", "石川", "福井", "山梨", "長野", "岐阜", "静岡", "愛知", "三重", "滋賀", "京都", "大阪", "兵庫", "奈良", "和歌山", "鳥取", "島根", "岡山", "広島", "山口", "徳島", "香川", "愛媛", "高知", "福岡", "佐賀", "長崎", "熊本", "大分", "宮崎", "鹿児島", "沖縄"];
+
+    let isStarterStyle = Math.random() < 0.40;
+
+    return {
+        name: generateRandomPlayerName(),
+        role: "二軍リリーフ", originalPos: "投手", currentPos: "投手", condition: "普通",
+        age: baseAge, hometown: prefs[Math.floor(Math.random() * prefs.length)],
+        graduation: graduation, proYears: 1, exp: 0,
+        h9: 60 + Math.floor(Math.random() * 12),
+        k9: 60 + Math.floor(Math.random() * 15),
+        bb9: 65, hr9: 55,
+        staMax: isStarterStyle ? 90 : 35, 
+        staCurrent: isStarterStyle ? 90 : 35,
+        stats: { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0, war: 0.0 }
+    };
+}
+
+function executeOffseasonRosterEvents() {
+    alert(`ーーー 👔 ペナントレース終了 (ペナント第 ${currentYear} 年目) ーーー\n\nこれより「人員整理（戦力外通告）」を行います。\n「オフシーズン補強」タブを開いて、自由契約にする選手をあなたの手で選択してください！`);
+    
+    let statusMsgEl = document.getElementById("draft_status_message");
+    if(statusMsgEl) {
+        statusMsgEl.innerHTML = "📢 <b>オフシーズン・球団人員整理フェーズ</b>。不要な選手に戦力外通告を行ってください。";
+    }
+    
+    startUserReleasePhase();
+    
+    let allTabs = document.querySelectorAll('.tab');
+    let targetTabBtn = Array.from(allTabs).find(tab => tab.innerText.includes("オフシーズン"));
+    
+    if (targetTabBtn) {
+        switchTab('tab-draft', targetTabBtn);
+    } else {
+        switchTab('tab-draft', allTabs[2] || allTabs[0]);
+    }
+}
+
+function processOffseasonEvolution() {
+    teams.forEach(t => {
+        t.batters.forEach(b => {
+            b.age += 1; b.proYears += 1;
+            let growthPotential = Math.min(10, Math.floor((b.exp || 0) / 15)); b.exp = 0;
+            if (b.age <= 24) {
+                b.barrel = Math.min(45, b.barrel + Math.floor(Math.random() * 4) + 1 + growthPotential * 0.2); 
+                b.isop = Math.min(65, b.isop + Math.floor(Math.random() * 5) + 2);
+                b.so = Math.max(10, b.so - Math.floor(Math.random() * 2));
+                b.uzr = parseFloat((b.uzr + Math.random() * 2.5).toFixed(1));
+            } else if (b.age <= 29) {
+                if(Math.random() < 0.3) b.barrel = Math.min(45, b.barrel + 1);
+                if(Math.random() < 0.2) b.uzr = parseFloat((b.uzr + Math.random() * 1.0 - 0.3).toFixed(1));
+            } else if (b.age <= 34) {
+                b.barrel = Math.max(5, b.barrel - (Math.floor(Math.random() * 2)));
+                b.isop = Math.max(5, b.isop - (Math.floor(Math.random() * 3)));
+                b.uzr = parseFloat((b.uzr - Math.random() * 1.5).toFixed(1));
+            } else {
+                b.barrel = Math.max(3, b.barrel - (Math.floor(Math.random() * 4) + 1));
+                b.so = Math.min(45, b.so + Math.floor(Math.random() * 3));
+                b.uzr = parseFloat((b.uzr - Math.random() * 3.0 - 1.0).toFixed(1));
+            }
+        });
+        t.pitchers.forEach(p => {
+            p.age += 1; p.proYears += 1;
+            let growthPotential = Math.min(10, Math.floor((p.exp || 0) / 15)); p.exp = 0;
+            if (p.age <= 24) {
+                p.h9 = Math.min(99, p.h9 + Math.floor(Math.random() * 3) + 1);
+                p.k9 = Math.min(99, p.k9 + Math.floor(Math.random() * 3) + 1);
+            } else if (p.age <= 29) {
+                if(Math.random() < 0.3) p.h9 = Math.min(99, p.h9 + 1);
+            } else if (p.age <= 34) {
+                p.h9 = Math.max(30, p.h9 - Math.floor(Math.random() * 3));
+                p.k9 = Math.max(30, p.k9 - Math.floor(Math.random() * 3));
+            } else {
+                p.h9 = Math.max(20, p.h9 - (Math.floor(Math.random() * 5) + 2));
+                p.k9 = Math.max(20, p.k9 - (Math.floor(Math.random() * 5) + 2));
+                p.staMax = Math.max(20, p.staMax - 4);
+            }
+        });
     });
 }
 
@@ -131,7 +262,7 @@ function advanceRunners(bases, hitKind) {
 }
 
 // ==========================================
-// 3. 試合進行・シミュレーション中枢（個人勝敗・交代AI搭載）
+// 3. 試合進行・シミュレーション中枢
 // ==========================================
 function executeMatchLogic(away, home) {
     let awayStarters = away.pitchers.filter(p => p.role === "先発");
@@ -147,13 +278,10 @@ function executeMatchLogic(away, home) {
     let awayOrder = 1; let homeOrder = 1;
     let pitchAway = 0; let pitchHome = 0;
     
-    // 勝敗投手判定用データ
-    let leadHistory = []; // {leadTeam: teamObj, pitcher: pitcherObj}
     let pitcherMatchStats = new Map();
     const initPS = (p) => { if(!pitcherMatchStats.has(p.name)) pitcherMatchStats.set(p.name, {er:0, outs:0}); };
     initPS(curPAway); initPS(curPHome);
 
-    // 野手交代AI（スタメンが絶不調なら控えと入れ替えて試合に臨む）
     const getGameLineup = (team) => {
         let lineup = [];
         for(let i=1; i<=9; i++) {
@@ -172,7 +300,6 @@ function executeMatchLogic(away, home) {
         // 表の攻撃
         let outs = 0; let bases = [false, false, false];
         while (outs < 3) {
-            // 投手交代チェック(Home)
             if(pitchHome > curPHome.staMax || (inning >= 7 && homeScore - awayScore <= 2)) {
                 let nextP = home.pitchers.find(p => (p.role === (inning === 9 ? "守護神" : "リリーフ")) && p.staCurrent > 15 && !appearedHome.includes(p));
                 if(nextP) { curPHome = nextP; appearedHome.push(nextP); pitchHome = 0; curPHome.stats.appearances++; initPS(nextP); }
@@ -197,13 +324,11 @@ function executeMatchLogic(away, home) {
                     pitcherMatchStats.get(curPHome.name).er += r; if(isHR) b.stats.hr++;
                 } else { outs++; curPHome.stats.ipOuts++; pitcherMatchStats.get(curPHome.name).outs++; }
             }
-            if(awayScore > homeScore) leadHistory.push({team: "away", pitcher: curPAway});
             awayOrder++;
         }
         // 裏の攻撃
         outs = 0; bases = [false, false, false];
         while (outs < 3) {
-            // 投手交代チェック(Away)
             if(pitchAway > curPAway.staMax || (inning >= 7 && awayScore - homeScore <= 2)) {
                 let nextP = away.pitchers.find(p => (p.role === (inning === 9 ? "守護神" : "リリーフ")) && p.staCurrent > 15 && !appearedAway.includes(p));
                 if(nextP) { curPAway = nextP; appearedAway.push(nextP); pitchAway = 0; curPAway.stats.appearances++; initPS(nextP); }
@@ -227,29 +352,24 @@ function executeMatchLogic(away, home) {
                     pitcherMatchStats.get(curPAway.name).er += r; if(isHR) b.stats.hr++;
                 } else { outs++; curPAway.stats.ipOuts++; pitcherMatchStats.get(curPAway.name).outs++; }
             }
-            if(homeScore > awayScore) leadHistory.push({team: "home", pitcher: curPHome});
             homeOrder++;
         }
     }
 
-    // 勝敗付け
     if(awayScore > homeScore) {
         away.wins++; home.losses++;
-        let winP = appearedAway[0]; // 暫定で先発
-        let loseP = appearedHome[0];
+        let winP = appearedAway[0]; let loseP = appearedHome[0];
         winP.stats.wins++; loseP.stats.losses++;
         if(homeScore >= awayScore - 3 && appearedAway.length > 1) appearedAway[appearedAway.length-1].stats.saves++;
     } else if(homeScore > awayScore) {
         home.wins++; away.losses++;
-        let winP = appearedHome[0];
-        let loseP = appearedAway[0];
+        let winP = appearedHome[0]; let loseP = appearedAway[0];
         winP.stats.wins++; loseP.stats.losses++;
         if(awayScore >= homeScore - 3 && appearedHome.length > 1) appearedHome[appearedHome.length-1].stats.saves++;
     } else { away.draws++; home.draws++; }
 
-    // スタミナ消費
     appearedAway.forEach(p => { if(p.role!=="先発") p.staCurrent = Math.max(0, p.staCurrent - (15 + pitcherMatchStats.get(p.name).outs*2)); });
-    appearedHome.forEach(p => { if(p.role!=="先発") p.staCurrent = Math.max(0, p.staCurrent - (15 + pitcherMatchStats.get(p.name).outs*2)); });
+    home.pitchers.forEach(p => { if(p.role!=="先発") p.staCurrent = Math.max(0, p.staCurrent - (15 + pitcherMatchStats.get(p.name).outs*2)); });
 
     away.pitchers.forEach(p => { if(p.stats.ipOuts>0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
     home.pitchers.forEach(p => { if(p.stats.ipOuts>0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
@@ -257,46 +377,46 @@ function executeMatchLogic(away, home) {
     return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
 }
 
-// simulator.js 内の以下の3つの関数をこれに丸ごと差し替え
-
-function playNextRound() {
-    // 試合数がすでに -1（オフシーズン中）なら、ボタンの処理を一切行わず即座に終了
-    if (totalGamesPlayed === -1) {
-        alert("現在はオフシーズン補強中です！「オフシーズン補強」タブから戦力外通告またはドラフト指名を完了させてください。");
-        return;
+function simulateRound() {
+    if (totalGamesPlayed === -1) return null;
+    if (totalGamesPlayed >= MAX_GAMES) {
+        totalGamesPlayed = -1; 
+        processOffseasonEvolution(); 
+        executeOffseasonRosterEvents(); 
+        return null; 
     }
+    changeAllPlayersCondition(); 
+    executeFrontOfficeAI();
+    let pattern = getDynamicSchedule(totalGamesPlayed);
+    let roundResults = [];
+    pattern.forEach(pair => {
+        let res = executeMatchLogic(teams[pair[0]], teams[pair[1]]);
+        roundResults.push(res);
+    });
+    teams.forEach(t => { t.pitchers.forEach(p => { let rec = p.role.includes("二軍") ? 15 : 1.8; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + rec); }); });
+    totalGamesPlayed++; 
+    return roundResults;
+}
 
+// ⚙️【2重上書きバグ大爆殺】ボタン連動側のタイムラインを完全固定
+function playNextRound() {
+    if (totalGamesPlayed === -1) return;
     let res = simulateRound(); 
-    
-    // 🔥【超重要：オフシーズン突入時の即時強制離脱】
-    // simulateRoundを実行した結果、143試合目に達してオフシーズン画面が立ち上がった場合、
-    // resには「null」が返ってきます。その場合は下のUI更新を完全にスキップして即終了させます。
-    // これにより、せっかく切り替わったオフシータブが元の成績タブに引き戻されるバグを100%阻止します！
     if (res === null) return; 
-
     let rEl = document.getElementById("quick_match_results");
     if(rEl) rEl.innerHTML = res.map(r => `<tr><td><b>${r}</b></td></tr>`).join("");
     updateUIAll();
 }
 
 function playOneWeek() {
-    if (totalGamesPlayed === -1) {
-        alert("現在はオフシーズン補強中です！「オフシーズン補強」タブから戦力外通告またはドラフト指名を完了させてください。");
-        return;
-    }
-
+    if (totalGamesPlayed === -1) return;
     let lastRes = null;
     for(let i=0; i<6; i++) { 
-        // 途中で143試合（オフシーズン）に達したら、その瞬間にループを強制脱出
         if (totalGamesPlayed === -1) break;
-        
         let res = simulateRound(); 
         if(res) lastRes = res; 
     }
-    
-    // オフシーズンに突入していたら、余計なUI更新処理をスルーして終了
     if (totalGamesPlayed === -1) return;
-
     if(lastRes) {
         let rEl = document.getElementById("quick_match_results");
         if(rEl) rEl.innerHTML = "<tr><td style='color:green;'><b>一週間分(6カード)を一括消化しました</b></td></tr>" + lastRes.map(r => `<tr><td>${r}</td></tr>`).join("");
@@ -305,33 +425,26 @@ function playOneWeek() {
 }
 
 function playAllSeason() {
-    if (totalGamesPlayed === -1) {
-        alert("現在はオフシーズン補強中です！「オフシーズン補強」タブから戦力外通告またはドラフト指名を完了させてください。");
-        return;
-    }
-
-    // 143試合に達して -1 になるまで、安全に超高速で回し続けます
+    if (totalGamesPlayed === -1) return;
     while(totalGamesPlayed < MAX_GAMES && totalGamesPlayed !== -1) { 
         simulateRound(); 
     }
-    
-    // オフシーズンに入った瞬間なら、ここでの不要なupdateUIAllをブロック
     if (totalGamesPlayed === -1) return;
-    
     updateUIAll();
 }
 
-function playNextRound() { simulateRound(); }
-function playOneWeek() { for(let i=0; i<6; i++) simulateRound(); }
-function playAllSeason() { while(totalGamesPlayed < MAX_GAMES && totalGamesPlayed !== -1) simulateRound(); }
-function resetSeason() { totalGamesPlayed = 0; currentYear = 1; initializeLeagueData(); updateUIAll(); }
+function resetSeason() { 
+    totalGamesPlayed = 0; 
+    currentYear = 1; 
+    initializeLeagueData(); 
+    updateUIAll(); 
+}
 
 function updateUIAll() {
     let gameCountEl = document.getElementById("current_game_count");
     if(!gameCountEl) return;
     gameCountEl.innerText = totalGamesPlayed === -1 ? 143 : totalGamesPlayed;
     
-    // WAR計算ロジック（デフレ調整済）
     teams.forEach(t => {
         t.batters.forEach(b => {
             if(!b.stats.ab) { b.stats.war = 0.0; return; }
@@ -377,12 +490,6 @@ function updateUIAll() {
             pitBody.innerHTML += `<tr><td>${tName}</td><td><b>${p.name}</b></td><td>${p.role}</td><td>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td>${p.stats.saves}</td><td>${formatInningsPitched(p.stats.ipOuts)}</td><td>${p.staCurrent.toFixed(0)}</td><td>${p.stats.war.toFixed(1)}</td></tr>`;
         });
     }
-}
-
-function switchTab(tabId, el) {
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById(tabId).classList.add('active'); el.classList.add('active');
 }
 
 window.addEventListener("DOMContentLoaded", () => {
