@@ -153,13 +153,12 @@ function createDraftBatter() {
     };
 }
 
-// 🆕 二軍先発のスタミナ適性を100%保証する投手生成ロジックの修正
 function createDraftPitcher() {
     let graduation = ["高卒", "大卒", "社会人"][Math.floor(Math.random() * 3)];
     let baseAge = graduation === "高卒" ? 18 : (graduation === "大卒" ? 22 : 24);
     let prefs = ["北海道", "青森", "岩手", "宮城", "秋田", "山形", "福島", "茨城", "栃木", "群馬", "埼玉", "千葉", "東京", "神奈川", "新潟", "富山", "石川", "福井", "山梨", "長野", "岐阜", "静岡", "愛知", "三重", "滋賀", "京都", "大阪", "兵庫", "奈良", "和歌山", "鳥取", "島根", "岡山", "広島", "山口", "徳島", "香川", "愛媛", "高知", "福岡", "佐賀", "長崎", "熊本", "大分", "宮崎", "鹿児島", "沖縄"];
 
-    let isStarterStyle = Math.random() < 0.40; // 40%の確率で先発スタミナ持ちにする
+    let isStarterStyle = Math.random() < 0.40;
 
     return {
         name: generateRandomPlayerName(),
@@ -225,33 +224,31 @@ function processOffseasonEvolution() {
     });
 }
 
-function simulateRound() {
-    if (totalGamesPlayed === -1) {
-        alert("現在はオフシーズン補強中です！「オフシーズン補強」タブから戦力外通告またはドラフト指名を完了させてください。");
-        return null;
-    }
-
-    if (totalGamesPlayed >= MAX_GAMES) {
-        totalGamesPlayed = -1; 
-        processOffseasonEvolution(); 
-        executeOffseasonRosterEvents(); 
-        return null; 
-    }
-    changeAllPlayersCondition(); 
-    executeFrontOfficeAI();
-    let pattern = getDynamicSchedule(totalGamesPlayed);
-    let roundResults = [];
-    pattern.forEach(pair => {
-        let teamAway = teams[pair[0]]; let teamHome = teams[pair[1]];
-        let res = executeMatchLogic(teamAway, teamHome);
-        roundResults.push(res);
-    });
-    teams.forEach(t => { t.pitchers.forEach(p => { let recovery = p.role.includes("二軍") ? 14 : 1.5; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); }); });
-    totalGamesPlayed++; 
-    return roundResults;
+// ⚠️【順序バグ完全破壊】依存関係をクリーンにするため、最下部にあったロジック群を上に引っ越しさせました
+function formatInningsPitched(totalOuts) {
+    let innings = Math.floor(totalOuts / 3); let remainingOuts = totalOuts % 3;
+    return remainingOuts === 0 ? `${innings}` : `${innings}.${remainingOuts}`;
 }
 
-// 🆕 消失していた中枢計算アルゴリズム（executeMatchLogic）の完全再統合
+function advanceRunners(bases, hitKind) {
+    let runs = 0;
+    if (hitKind === "BB") {
+        if (bases[0] && bases[1] && bases[2]) runs++;
+        else if (bases[0] && bases[1]) bases[2] = true;
+        else if (bases[0]) bases[1] = true;
+        bases[0] = true;
+    } else if (hitKind === "1B") {
+        if (bases[2]) { runs++; bases[2] = false; }
+        if (bases[1]) { runs++; bases[1] = false; }
+        if (bases[0]) bases[1] = true;
+        bases[0] = true;
+    } else if (hitKind === "HR") {
+        runs += 1 + (bases[0]?1:0) + (bases[1]?1:0) + (bases[2]?1:0);
+        bases.fill(false);
+    }
+    return runs;
+}
+
 function executeMatchLogic(away, home) {
     let awayStarters = away.pitchers.filter(p => p.role === "先発");
     let homeStarters = home.pitchers.filter(p => p.role === "先発");
@@ -524,29 +521,30 @@ function executeMatchLogic(away, home) {
     return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
 }
 
-// 🆕 消えていたイニング表示整形ロジック（formatInningsPitched）の再統合
-function formatInningsPitched(totalOuts) {
-    let innings = Math.floor(totalOuts / 3); let remainingOuts = totalOuts % 3;
-    return remainingOuts === 0 ? `${innings}` : `${innings}.${remainingOuts}`;
-}
-
-function advanceRunners(bases, hitKind) {
-    let runs = 0;
-    if (hitKind === "BB") {
-        if (bases[0] && bases[1] && bases[2]) runs++;
-        else if (bases[0] && bases[1]) bases[2] = true;
-        else if (bases[0]) bases[1] = true;
-        bases[0] = true;
-    } else if (hitKind === "1B") {
-        if (bases[2]) { runs++; bases[2] = false; }
-        if (bases[1]) { runs++; bases[1] = false; }
-        if (bases[0]) bases[1] = true;
-        bases[0] = true;
-    } else if (hitKind === "HR") {
-        runs += 1 + (bases[0]?1:0) + (bases[1]?1:0) + (bases[2]?1:0);
-        bases.fill(false);
+function simulateRound() {
+    if (totalGamesPlayed === -1) {
+        alert("現在はオフシーズン補強中です！「オフシーズン補強」タブから戦力外通告またはドラフト指名を完了させてください。");
+        return null;
     }
-    return runs;
+
+    if (totalGamesPlayed >= MAX_GAMES) {
+        totalGamesPlayed = -1; 
+        processOffseasonEvolution(); 
+        executeOffseasonRosterEvents(); 
+        return null; 
+    }
+    changeAllPlayersCondition(); 
+    executeFrontOfficeAI();
+    let pattern = getDynamicSchedule(totalGamesPlayed);
+    let roundResults = [];
+    pattern.forEach(pair => {
+        let teamAway = teams[pair[0]]; let teamHome = teams[pair[1]];
+        let res = executeMatchLogic(teamAway, teamHome);
+        roundResults.push(res);
+    });
+    teams.forEach(t => { t.pitchers.forEach(p => { let recovery = p.role.includes("二軍") ? 14 : 1.5; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + recovery); }); });
+    totalGamesPlayed++; 
+    return roundResults;
 }
 
 function playNextRound() {
@@ -686,7 +684,59 @@ function saveEditorData() {
     onEditorTeamChange(); updateUIAll();
 }
 
-// 🚀 遅延バインド・マウントの安全初期化構造
+function updateUIAll() {
+    let gameCountEl = document.getElementById("current_game_count");
+    if(!gameCountEl) return;
+    
+    gameCountEl.innerText = totalGamesPlayed === -1 ? 143 : totalGamesPlayed;
+    
+    let weekCountEl = document.getElementById("current_week_count");
+    if(weekCountEl) {
+        weekCountEl.innerText = totalGamesPlayed === -1 ? 24 : Math.floor(totalGamesPlayed / 6) + 1;
+    }
+    
+    let h2Title = document.querySelector(".card h2");
+    if(h2Title && !h2Title.innerText.includes("就任")) {
+        let displayGame = totalGamesPlayed === -1 ? 143 : totalGamesPlayed;
+        let displayWeek = totalGamesPlayed === -1 ? 24 : Math.floor(totalGamesPlayed / 6) + 1;
+        h2Title.innerHTML = `リーグ消化状況: <span id="current_game_count">${displayGame}</span> / 143 試合 (第 <span id="current_week_count">${displayWeek}</span> 週目)`;
+    }
+
+    let sorted = [...teams].sort((a,b) => (b.wins / ((b.wins + b.losses) || 1)) - (a.wins / ((a.wins + a.losses) || 1)));
+    let sBody = document.getElementById("standings_body"); sBody.innerHTML = "";
+    sorted.forEach((t, i) => {
+        let wp = t.wins / ((t.wins + t.losses) || 1);
+        let isMyTeam = (t.id === userTeamId);
+        let teamDisplay = isMyTeam ? `<span style="color:#e53e3e;">★</span>${t.name}` : t.name;
+        let rowStyle = isMyTeam ? `style="background-color: #e0f2fe; font-weight:bold;"` : ""; 
+        sBody.innerHTML += `<tr ${rowStyle}><td>${i+1}</td><td><b>${teamDisplay}</b></td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${wp.toFixed(3)}</td><td>-</td></tr>`;
+    });
+
+    let bList = []; teams.forEach(t => t.batters.forEach(b => bList.push({tName: t.name, data: b})));
+    bList.sort((a,b) => (b.data.stats.hits / (b.data.stats.ab || 1)) - (a.data.stats.hits / (a.data.stats.ab || 1)));
+    let batBody = document.querySelector("#batting_stats_table tbody"); batBody.innerHTML = "";
+    bList.slice(0, 15).forEach(item => {
+        let b = item.data; let avg = b.stats.hits / (b.stats.ab || 1);
+        batBody.innerHTML += `<tr><td>${item.tName}</td><td><b>${b.name} (${b.age}歳)</b></td><td>${b.currentPos}</td><td>${avg.toFixed(3)}</td><td>${b.stats.games}</td><td>${b.stats.ab}</td><td>${b.stats.hits}</td><td>${b.stats.hr}</td><td>${b.stats.rbi}</td><td>${b.stats.bb}</td></tr>`;
+    });
+
+    let pList = []; teams.forEach(t => pList.push(...t.pitchers));
+    pList.sort((a,b) => { if(a.stats.ipOuts === 0) return 1; if(b.stats.ipOuts === 0) return -1; return a.stats.era - b.stats.era; });
+    let pitBody = document.querySelector("#pitching_stats_table tbody"); pitBody.innerHTML = "";
+    pList.forEach(p => {
+        let tObj = teams.find(t => t.pitchers.some(pObj => pObj.name === p.name));
+        let tName = tObj ? tObj.name : "";
+        pitBody.innerHTML += `<tr><td>${tName}</td><td><b>${p.name} (${p.age}歳)</b></td><td>${p.role}</td><td><b>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</b></td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td><b>${p.stats.saves}</b></td><td>${formatInningsPitched(p.stats.ipOuts)}</td><td>${p.stats.so}</td><td>${p.staCurrent}</td></tr>`;
+    });
+}
+
+function switchTab(tabId, el) {
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active'); el.classList.add('active');
+}
+
+// 🚀 すべての依存関係が読み込まれた後に発火する安全な初期化ブロック
 window.addEventListener("DOMContentLoaded", () => {
     initializeLeagueData();
 
