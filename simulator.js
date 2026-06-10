@@ -258,11 +258,32 @@ function executeMatchLogic(away, home) {
 }
 
 function simulateRound() {
-    if (totalGamesPlayed === -1) return null;
-    if (totalGamesPlayed >= MAX_GAMES) {
-        totalGamesPlayed = -1; processOffseasonEvolution(); executeOffseasonRosterEvents(); return null; 
+    // 【安全ロック】もし戦力外やドラフト中に進行ボタンが押されたらブロック
+    if (totalGamesPlayed === -1) {
+        alert("現在はオフシーズン補強中です！「オフシーズン補強」タブから戦力外通告またはドラフト指名を完了させてください。");
+        return null;
     }
-    changeAllPlayersCondition(); executeFrontOfficeAI();
+
+    // 143試合消化した瞬間の判定
+    if (totalGamesPlayed >= MAX_GAMES) {
+        // 🔥【オフシーズン突入ロック】
+        // 試合数を一時的に「-1」に設定し、日程進行を完全にストップさせます。
+        totalGamesPlayed = -1; 
+
+        // オフシーズンの年齢増加と、既存プレイヤーの能力成長・衰退を行う
+        processOffseasonEvolution(); 
+        
+        // 手動戦力外通告画面を起動
+        executeOffseasonRosterEvents(); 
+        
+        // 🚨【超重要バグ修正】
+        // ここで関数の処理を完全に終わらせます（return null）。
+        // これにより、最下部にある「totalGamesPlayed++」が誤って暴発するのを100%防ぎます。
+        return null; 
+    }
+    
+    changeAllPlayersCondition(); 
+    executeFrontOfficeAI();
     let pattern = getDynamicSchedule(totalGamesPlayed);
     let roundResults = [];
     pattern.forEach(pair => {
@@ -270,7 +291,10 @@ function simulateRound() {
         roundResults.push(res);
     });
     teams.forEach(t => { t.pitchers.forEach(p => { let rec = p.role.includes("二軍") ? 15 : 1.8; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + rec); }); });
-    totalGamesPlayed++; updateUIAll();
+    
+    // 通常のシーズン中のみ、日程カウントを進めて画面を更新
+    totalGamesPlayed++; 
+    updateUIAll();
     return roundResults;
 }
 
