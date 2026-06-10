@@ -297,7 +297,6 @@ function simulateRound() {
     updateUIAll();
     return roundResults;
 }
-
 function playNextRound() { simulateRound(); }
 function playOneWeek() { for(let i=0; i<6; i++) simulateRound(); }
 function playAllSeason() { while(totalGamesPlayed < MAX_GAMES && totalGamesPlayed !== -1) simulateRound(); }
