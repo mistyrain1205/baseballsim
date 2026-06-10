@@ -5,14 +5,14 @@
 // ==========================================
 const BALANCING_CONFIG = {
     batting: {
-        baseHitChance: 0.35,
-        hrMultiplier: 0.85,
-        pitcherH9Influence: 0.0015,
-        pitcherHr9Influence: 0.3
+        baseHitChance: 0.34,
+        hrMultiplier: 0.80,
+        pitcherH9Influence: 0.0012,
+        pitcherHr9Influence: 0.25
     },
     plates: {
-        bbBaseScale: 0.8,
-        bbPitcherScale: 0.0004,
+        bbBaseScale: 0.75,
+        bbPitcherScale: 0.0003,
         soBaseScale: 0.7,
         soPitcherScale: 0.001
     }
@@ -27,7 +27,6 @@ function getDynamicSchedule(roundCount) {
     let currentRound = roundCount % totalRounds;
     let pairings = []; 
     let list = [0, 1, 2, 3, 4, 5];
-    
     for (let i = 0; i < numTeams / 2; i++) {
         let awayIdx = (currentRound + i) % (numTeams - 1);
         let homeIdx = (numTeams - 1 - i + currentRound) % (numTeams - 1);
@@ -53,11 +52,11 @@ function selectUserTeam(val) {
 
 function getConditionModifier(condition, type) {
     const modifiers = {
-        "絶好調": { batBarrel: 1.25, batSo: 0.80, pitPitch: 1.12 }, 
-        "好調":   { batBarrel: 1.12, batSo: 0.90, pitPitch: 1.05 },
+        "絶好調": { batBarrel: 1.20, batSo: 0.85, pitPitch: 1.10 }, 
+        "好調":   { batBarrel: 1.10, batSo: 0.95, pitPitch: 1.05 },
         "普通":   { batBarrel: 1.00, batSo: 1.00, pitPitch: 1.00 },
-        "不調":   { batBarrel: 0.85, batSo: 1.15, pitPitch: 0.92 },
-        "絶不調": { batBarrel: 0.70, batSo: 1.30, pitPitch: 0.82 }
+        "不調":   { batBarrel: 0.90, batSo: 1.10, pitPitch: 0.95 },
+        "絶不調": { batBarrel: 0.80, batSo: 1.20, pitPitch: 0.90 }
     };
     return modifiers[condition] ? modifiers[condition][type] : 1.0;
 }
@@ -72,16 +71,11 @@ function changeAllPlayersCondition() {
 
 function executeFrontOfficeAI() {
     teams.forEach(t => {
-        let tiredRelief = t.pitchers.find(p => p.role === "リリーフ" && p.staCurrent <= 15);
-        let freshMinorRelief = t.pitchers.find(p => p.role === "二軍リリーフ" && p.staCurrent >= 30);
+        let tiredRelief = t.pitchers.find(p => p.role === "リリーフ" && p.staCurrent <= 12);
+        let freshMinorRelief = t.pitchers.find(p => p.role === "二軍リリーフ" && p.staCurrent >= 32);
         if (tiredRelief && freshMinorRelief) {
             tiredRelief.role = "二軍リリーフ"; 
             freshMinorRelief.role = "リリーフ";
-        }
-        let slumpReserve = t.batters.find(b => b.role === 0 && (b.condition === "絶不調" || b.condition === "不調"));
-        let hotMinorTeam = t.batters.find(b => b.role === -1 && (b.condition === "絶好調" || b.condition === "好調"));
-        if (slumpReserve && hotMinorTeam) {
-            slumpReserve.role = -1; hotMinorTeam.role = 0;
         }
     });
 }
@@ -308,7 +302,7 @@ function executeMatchLogic(away, home) {
             b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
             pitchHome += 4;
             let rand = Math.random();
-            let bbP = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-curPHome.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
+            let bbP = (b.bb/100)*BALBAL = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-curPHome.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
             let soP = ((b.so/100)*BALANCING_CONFIG.plates.soBaseScale) + ((curPHome.k9*BALANCING_CONFIG.plates.soPitcherScale));
             
             if(rand < bbP) {
@@ -398,7 +392,6 @@ function simulateRound() {
     return roundResults;
 }
 
-// ⚙️【2重上書きバグ大爆殺】ボタン連動側のタイムラインを完全固定
 function playNextRound() {
     if (totalGamesPlayed === -1) return;
     let res = simulateRound(); 
@@ -438,6 +431,119 @@ function resetSeason() {
     currentYear = 1; 
     initializeLeagueData(); 
     updateUIAll(); 
+}
+
+// 🆕 消えていたエディター連動関数 (onEditorTeamChange) の大復活
+function onEditorTeamChange() {
+    let teamSelect = document.getElementById("edit_team_select");
+    let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
+    let team = teams[teamIdx];
+    let playerSelect = document.getElementById("edit_player_select");
+    if(!playerSelect || !team) return;
+    playerSelect.innerHTML = "";
+
+    team.batters.forEach((p, idx) => { 
+        let roleText = p.role >= 1 && p.role <= 9 ? `${p.role}番` : (p.role === 0 ? "一軍控え" : "二軍");
+        playerSelect.innerHTML += `<option value="bat_${idx}">[野手] ${roleText} - ${p.name}</option>`; 
+    });
+    team.pitchers.forEach((p, idx) => { playerSelect.innerHTML += `<option value="pit_${idx}">[投手] ${p.role} - ${p.name}</option>`; });
+    playerSelect.selectedIndex = 0; onEditorPlayerChange();
+}
+
+// 🆕 消えていたエディター連動関数 (onEditorPlayerChange) の大復活
+function onEditorPlayerChange() {
+    let teamSelect = document.getElementById("edit_team_select");
+    let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
+    let playerSelect = document.getElementById("edit_player_select");
+    if(!playerSelect || !playerSelect.value) return;
+    let playerVal = playerSelect.value;
+    
+    let type = playerVal.split("_")[0]; let idx = parseInt(playerVal.split("_")[1]);
+    let player = type === "bat" ? teams[teamIdx].batters[idx] : teams[teamIdx].pitchers[idx];
+
+    document.getElementById("form_name").value = player.name;
+    
+    let formPos = document.getElementById("form_pos");
+    if (formPos) {
+        for (let i = 0; i < formPos.options.length; i++) {
+            formPos.options[i].disabled = false; 
+        }
+        if (type === "bat") {
+            for (let i = 0; i < formPos.options.length; i++) {
+                let optVal = formPos.options[i].value;
+                let isMain = (player.originalPos === optVal);
+                let isSub = (player.subPositions && player.subPositions.includes(optVal));
+                if (!isMain && !isSub) formPos.options[i].disabled = true;
+            }
+        } else {
+            for (let i = 0; i < formPos.options.length; i++) {
+                if (formPos.options[i].value !== "投手") formPos.options[i].disabled = true;
+            }
+        }
+    }
+    
+    document.getElementById("form_pos").value = player.currentPos;
+    document.getElementById("form_age").value = player.age;
+    let roleText = player.role >= 1 && player.role <= 9 ? `${player.role}番打者` : (player.role === 0 ? "一軍ベンチ控え" : (player.role === -1 ? "二軍調整中" : player.role));
+    document.getElementById("form_role").value = roleText;
+
+    let badge = document.getElementById("ui_player_type_badge");
+
+    if(type === "bat") {
+        if(badge) { badge.innerText = "野手登録"; badge.style.background = "#dd6b20"; }
+        document.getElementById("form_bat_stats").style.display = "block";
+        document.getElementById("form_pit_stats").style.display = "none";
+        document.getElementById("form_bb").value = player.bb;
+        document.getElementById("form_so").value = player.so;
+        document.getElementById("form_barrel").value = player.barrel;
+        document.getElementById("form_isop").value = player.isop;
+        document.getElementById("form_uzr").value = player.uzr;
+        document.getElementById("form_err").value = player.err;
+        document.getElementById("form_sub_pos").value = player.subPositions ? player.subPositions.join(", ") : "なし";
+    } else {
+        if(badge) { badge.innerText = `投手(${player.role})`; badge.style.background = "#2b6cb0"; }
+        document.getElementById("form_bat_stats").style.display = "none";
+        document.getElementById("form_pit_stats").style.display = "block";
+        document.getElementById("form_h9").value = player.h9;
+        document.getElementById("form_k9").value = player.k9;
+        document.getElementById("form_bb9").value = player.bb9;
+        document.getElementById("form_hr9").value = player.hr9;
+        document.getElementById("form_sta").value = player.staMax;
+    }
+}
+
+// 🆕 消えていたエディター保存関数 (saveEditorData) の大復活
+function saveEditorData() {
+    let teamSelect = document.getElementById("edit_team_select");
+    let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
+    let playerVal = document.getElementById("edit_player_select").value;
+    let type = playerVal.split("_")[0]; let idx = parseInt(playerVal.split("_")[1]);
+    let team = teams[teamIdx];
+    
+    if(type === "bat") {
+        let p = team.batters[idx];
+        p.name = document.getElementById("form_name").value;
+        p.originalPos = document.getElementById("form_pos").value;
+        p.currentPos = p.originalPos;
+        p.bb = parseFloat(document.getElementById("form_bb").value);
+        p.so = parseFloat(document.getElementById("form_so").value);
+        p.barrel = parseFloat(document.getElementById("form_barrel").value);
+        p.isop = parseFloat(document.getElementById("form_isop").value);
+        p.uzr = parseFloat(document.getElementById("form_uzr").value);
+        p.err = parseFloat(document.getElementById("form_err").value);
+        
+        let subStr = document.getElementById("form_sub_pos").value;
+        p.subPositions = subStr && subStr !== "なし" ? subStr.split(",").map(s => s.trim()) : [];
+    } else {
+        let p = team.pitchers[idx];
+        p.name = document.getElementById("form_name").value;
+        p.h9 = parseFloat(document.getElementById("form_h9").value);
+        p.k9 = parseFloat(document.getElementById("form_k9").value);
+        p.bb9 = parseFloat(document.getElementById("form_bb9").value);
+        p.hr9 = parseFloat(document.getElementById("form_hr9").value);
+        p.staMax = parseFloat(document.getElementById("form_sta").value);
+    }
+    onEditorTeamChange(); updateUIAll();
 }
 
 function updateUIAll() {
@@ -490,6 +596,16 @@ function updateUIAll() {
             pitBody.innerHTML += `<tr><td>${tName}</td><td><b>${p.name}</b></td><td>${p.role}</td><td>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td>${p.stats.saves}</td><td>${formatInningsPitched(p.stats.ipOuts)}</td><td>${p.staCurrent.toFixed(0)}</td><td>${p.stats.war.toFixed(1)}</td></tr>`;
         });
     }
+}
+
+// 🆕 消えていた汎用タブ切り替え関数 (switchTab) の超完全復活
+function switchTab(tabId, el) {
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    
+    let targetContent = document.getElementById(tabId);
+    if(targetContent) targetContent.classList.add('active');
+    if(el) el.classList.add('active');
 }
 
 window.addEventListener("DOMContentLoaded", () => {
