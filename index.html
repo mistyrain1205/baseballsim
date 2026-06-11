@@ -237,7 +237,7 @@
 </div>
 
 <script>
-// --- [0] グローバル領域：すべての変数を一番最初に定義 ---
+// --- [0] グローバル領域：変数の完全トップ配置 ---
 let userTeamId = 0;
 let currentYear = 1;
 let totalGamesPlayed = 0;
@@ -346,12 +346,48 @@ function advanceRunners(bases, hitKind) {
     return runs;
 }
 
-// 🔥【完全復活】削れ落ちていた調子変動システム本体を完全内蔵！
 function changeAllPlayersCondition() {
     const conds = ["絶好調", "好調", "普通", "不調", "絶不調"];
     teams.forEach(t => {
         t.batters.forEach(b => { b.condition = conds[Math.floor(Math.random() * conds.length)]; });
         t.pitchers.forEach(p => { p.condition = conds[Math.floor(Math.random() * conds.length)]; });
+    });
+}
+
+// 🔥【タイポ大修正】文字化けしていた「executeFrontOffice二軍」を「executeFrontOfficeAI」へ完全修復！
+function executeFrontOfficeAI() {
+    teams.forEach(t => {
+        let tiredRelief = t.pitchers.find(p => p.role === "リリーフ" && p.staCurrent <= 12);
+        let freshMinorRelief = t.pitchers.find(p => p.role === "二軍リリーフ" && p.staCurrent >= 32);
+        if (tiredRelief && freshMinorRelief) {
+            tiredRelief.role = "二軍リリーフ"; freshMinorRelief.role = "リリーフ";
+        }
+    });
+}
+
+function reassignTeamRoles(t) {
+    const requiredPositions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手"];
+    t.batters.forEach(b => b.role = -1);
+    requiredPositions.forEach((pos, idx) => {
+        let candidate = t.batters.find(b => b.role === -1 && (b.originalPos === pos || (b.subPositions && b.subPositions.includes(pos))));
+        if (candidate) { candidate.role = idx + 1; candidate.currentPos = pos; }
+    });
+    requiredPositions.forEach((pos, idx) => {
+        if (!t.batters.some(b => b.role === (idx + 1))) {
+            let backup = t.batters.find(b => b.role === -1);
+            if (backup) { backup.role = idx + 1; backup.currentPos = pos; }
+        }
+    });
+    let rCount = 0;
+    t.batters.forEach(b => {
+        if (b.role > 0) return;
+        if (rCount < 7) { b.role = 0; rCount++; } else { b.role = -1; }
+        b.currentPos = b.originalPos;
+    });
+    t.pitchers.forEach((p, idx) => {
+        if (p.role === "先発" || p.role === "守護神" || p.role === "二軍先発") { p.staCurrent = p.staMax; return; }
+        if (idx < 12) { if (p.role !== "先発" && p.role !== "守護神") p.role = "リリーフ"; }
+        else { if (p.role !== "二軍先発") p.role = "二軍リリーフ"; }
     });
 }
 
@@ -724,7 +760,7 @@ function generateDraftPool() {
     if(resBody) resBody.innerHTML = Array.from({length: maxDraftRounds}, (_, r) => `<tr><td>${r+1}位</td><td id="my_draft_r${r+1}">-</td></tr>`).join("");
     document.getElementById("offseason_release_zone").style.display = "none";
     document.getElementById("draft_interaction_zone").style.display = "grid";
-    let title = document.getElementById("ui_draft_round_title"); if(title) title.innerText = `今年のドラフト候補生一覧 (第 1 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
+    let title = document.getElementById("ui_draft_round_title"); if(title) title.innerText = `今年のドラフト候補生一覧 (第 ${currentDraftRound} 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
     renderDraftPoolUI();
 }
 
@@ -736,6 +772,7 @@ function renderDraftPoolUI() {
         tbody.innerHTML += `<tr><td>野-${idx}</td><td><b>${b.name}</b>${badge}</td><td><span style="color:#dd6b20; font-weight:bold;">野手</span></td><td>${b.currentPos}</td><td>${b.graduation}</td><td>${b.age}歳</td><td>${b.amateurStats}</td><td><button class="btn btn-success" onclick="userSelectDraftPlayer('bat', ${idx})">指名</button></td></tr>`;
     });
     draftPool.pitchers.forEach((p, idx) => {
+        if (p.isOver) return;
         if (p.isDrafted) return;
         let badge = p.amateurTitle !== "なし" ? `<span style="background:#2b6cb0; color:white; padding:2px 5px; border-radius:3px; font-size:0.8em; margin-left:5px;">${p.amateurTitle}</span>` : "";
         tbody.innerHTML += `<tr><td>投-${idx}</td><td><b>${p.name}</b>${badge}</td><td><span style="color:#2b6cb0; font-weight:bold;">投手</span></td><td>投手</td><td>${p.graduation}</td><td>${p.age}歳</td><td>${p.amateurStats}</td><td><button class="btn btn-success" onclick="userSelectDraftPlayer('pit', ${idx})">指名</button></td></tr>`;
