@@ -1,32 +1,828 @@
+index.html
+
 <!DOCTYPE html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>Baseball Tycoon</title></head>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本格派・プロ野球6球団ペナンシミュレーター & エディタ</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #1a4a75; margin-top: 0; }
+        .menu-grid { display: grid; grid-template-columns: 380px 1fr; gap: 20px; margin-bottom: 20px; }
+        .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; }
+        .btn-group { display: flex; gap: 10px; margin-bottom: 15px; justify-content: center; flex-wrap: wrap; }
+        .btn { padding: 10px 18px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; color: white; font-size: 0.9em; }
+        .btn-primary { background: #2b6cb0; }
+        .btn-success { background: #2f855a; }
+        .btn-danger { background: #c53030; }
+        .btn-warning { background: #dd6b20; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.82em; }
+        th, td { border: 1px solid #cbd5e0; padding: 5px; text-align: center; }
+        th { background: #2d3748; color: white; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        .tabs { display: flex; background: #e2e8f0; padding: 5px 5px 0 5px; border-radius: 6px 6px 0 0; gap: 4px; }
+        .tab { padding: 8px 14px; cursor: pointer; font-weight: bold; border-radius: 4px 4px 0 0; background: #edf2f7; font-size: 0.85em; }
+        .tab.active { background: white; color: #2b6cb0; border: 1px solid #cbd5e0; border-bottom: none; }
+        .tab-content { display: none; background: white; border: 1px solid #cbd5e0; padding: 15px; border-radius: 0 0 6px 6px; }
+        .tab-content.active { display: block; }
+        .editor-box { display: grid; grid-template-columns: 180px 180px 1fr; gap: 15px; background: #fff; padding: 15px; border-radius: 6px; border: 1px solid #cbd5e0; }
+        .editor-pane { display: flex; flex-direction: column; gap: 8px; }
+        .list-select { width: 100%; height: 280px; border: 1px solid #cbd5e0; border-radius: 4px; padding: 5px; font-size: 0.9em; }
+        .form-row { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: center; margin-bottom: 8px; font-size: 0.85em; }
+        .form-row input, .form-row select { padding: 5px; border: 1px solid #cbd5e0; border-radius: 4px; width: 100%; box-sizing: border-box; }
+    </style>
+</head>
 <body>
-    <h1>進行度: <span id="current_game_count">0</span></h1>
-    <button onclick="playNextRound()">試合進行</button>
 
-    <h2>リーグ順位表</h2>
-    <table>
-        <thead><tr><th>順位</th><th>チーム</th><th>勝</th></tr></thead>
-        <tbody id="standings_body"></tbody>
-    </table>
+<div class="container">
+    <h1>本格派・プロ野球6球団ペナンシミュレーター & エディタ</h1>
+    
+    <div class="card" style="text-align:center; margin-bottom:20px; background:#f0fff4; border: 2px solid #c6f6d5;">
+        <h2>👔 GM・監督就任球団選択</h2>
+        <div style="margin-bottom: 10px;">
+            <label style="display:inline-block; font-weight:bold; margin-right:10px;">あなたの担当球団:</label>
+            <select id="user_team_select" style="padding:8px; font-size:1em; font-weight:bold; border-radius:4px;" onchange="selectUserTeam(this.value)">
+                <option value="0">大阪ゴールドバザーズ</option>
+                <option value="1">東京ネオシティズ</option>
+                <option value="2">横浜ベイスターズ風</option>
+                <option value="3">西海マリナーズ</option>
+                <option value="4">京都ハロンズ</option>
+                <option value="5">浪速タイクーンズ</option>
+            </select>
+        </div>
+        <p style="font-size:0.85em; color:#4a5568; margin:0;">※あなたが率いるチームは順位表で <span style="color:#e53e3e; font-weight:bold;">★マーク</span> が表示されます！</p>
+    </div>
 
-    <h2>個人成績</h2>
-    <table id="batting_stats_table">
-        <thead><tr><th>選手名</th><th>打率</th><th>WAR</th></tr></thead>
-        <tbody></tbody>
-    </table>
+    <div class="card" style="text-align:center; margin-bottom:20px; background:#ebf8ff; border: 2px solid #bee3f8;">
+        <h2>リーグ消化状況: <span id="current_game_count">0</span> / 143 試合 (第 <span id="current_week_count">1</span> 週目)</h2>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="playNextRound()">1カード (3試合) 消化</button>
+            <button class="btn btn-success" onclick="playOneWeek()">1週間 (6試合) まとめて進行</button>
+            <button class="btn btn-warning" onclick="playAllSeason()">シーズン終了まで高速スキップ</button>
+            <button class="btn btn-danger" onclick="resetSeason()">ペナントをリセット</button>
+        </div>
+    </div>
 
-    <h3>直近の試合結果</h3>
-<table style="font-size: 0.78em;">
-    <tbody id="quick_match_results">
-        <tr><td>試合を進行してください</td></tr>
-    </tbody>
-</table>
+    <div class="menu-grid">
+        <div class="card">
+            <h2>リーグ順位表</h2>
+            <table>
+                <thead>
+                    <tr><th>順位</th><th>チーム</th><th>勝</th><th>敗</th><th>分</th><th>勝率</th><th>差</th></tr>
+                </thead>
+                <tbody id="standings_body"></tbody>
+            </table>
+            
+            <h3 style="margin-top:20px;">直近の試合結果</h3>
+            <table style="font-size: 0.78em;">
+                <tbody id="quick_match_results">
+                    <tr><td colspan="2">試合を進行してください</td></tr>
+                </tbody>
+            </table>
 
-    <script src="names.js"></script>
-    <script src="data.js"></script>
-    <script src="simulator.js"></script>
-    <script src="draft.js"></script>
+            <h3 style="margin-top:25px;">スタジアム環境設定</h3>
+            <div style="font-size:0.85em; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                <div class="form-row"><label>ゴロ (GB) %</label><input type="number" id="hit_gb" value="45"></div>
+                <div class="form-row"><label>フライ (FB) %</label><input type="number" id="hit_fb" value="35"></div>
+                <div class="form-row"><label>ライナー (LD) %</label><input type="number" id="hit_ld" value="20"></div>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 10px;">
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('tab-stats-bat', this)">個人打撃成績</div>
+                <div class="tab" onclick="switchTab('tab-stats-pit', this)">個人投手成績</div>
+                <div class="tab" onclick="switchTab('tab-draft', this)">👔 オフシーズン補強</div>
+                <div class="tab" onclick="switchTab('tab-editor', this)">🛠️ 選手能力編集</div>
+            </div>
+
+            <div id="tab-draft" class="tab-content">
+                <div style="background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #ffeeba; text-align: center;">
+                    <span id="draft_status_message" style="font-weight: bold; color: #856404;">現在はペナントレース中です。143試合消化するとオフシーズン補強が始まります！</span>
+                </div>
+                
+                <div id="offseason_release_zone" style="display: none; flex-direction: column; gap: 15px;">
+                    <div style="background:#fff5f5; border:1px solid #feb2b2; padding:12px; border-radius:6px; color:#9b2c2c; font-weight:bold; text-align:center;">
+                        🚨 【チーム人員整理】自由契約にする選手を選択してください（最大10名まで）。クビにした人数分だけドラフトで新人を獲得できます！<br>
+                        <span style="font-size:1.1em; color:#e53e3e;">現在の選択数: <span id="ui_release_count">0</span> / 10 名</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                        <div>
+                            <h4>自チーム野手ロスター</h4>
+                            <div style="max-height:350px; overflow-y:scroll; border:1px solid #cbd5e0; background:white; padding:5px; border-radius:4px;">
+                                <table style="font-size:0.85em;"><tbody id="release_batters_body"></tbody></table>
+                            </div>
+                        </div>
+                        <div>
+                            <h4>自チーム投手ロスター</h4>
+                            <div style="max-height:350px; overflow-y:scroll; border:1px solid #cbd5e0; background:white; padding:5px; border-radius:4px;">
+                                <table style="font-size:0.85em;"><tbody id="release_pitchers_body"></tbody></table>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-danger" style="width:100%; padding:12px; font-size:1.1em;" onclick="finalizeUserReleases()">戦力外通告を確定してドラフト会議へ進む ➔</button>
+                </div>
+
+                <div id="draft_interaction_zone" style="display: none; grid-template-columns: 1fr 350px; gap: 20px;">
+                    <div>
+                        <h3 id="ui_draft_round_title">今年のドラフト候補生一覧 (第 1 巡目指名)</h3>
+                        <table id="draft_pool_table">
+                            <thead>
+                                <tr><th>候補No</th><th>名前</th><th>タイプ</th><th>投打/守備</th><th>経歴</th><th>年齢</th><th>注目アマチュアスタッツ</th><th>操作</th></tr>
+                            </thead>
+                            <tbody id="draft_pool_body"></tbody>
+                        </table>
+                    </div>
+                    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <h4 style="margin-top: 0; color: #1a4a75;">自球団の指名獲得結果 (<span id="ui_draft_quota">-</span>枠)</h4>
+                        <div style="max-height:400px; overflow-y:auto;">
+                            <table style="font-size: 0.9em;">
+                                <thead><tr><th>巡</th><th>指名獲得選手</th></tr></thead>
+                                <tbody id="my_draft_results_body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="tab-stats-bat" class="tab-content active">
+                <h3>打撃個人成績ランキング（上位15名）</h3>
+                <table id="batting_stats_table">
+                    <thead>
+                        <tr><th>球団</th><th>選手名</th><th>守備</th><th>打率</th><th>試合</th><th>打数</th><th>安打</th><th>本塁打</th><th>打点</th><th>WAR</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div id="tab-stats-pit" class="tab-content">
+                <h3>投手個人成績ランキング（防御率順）</h3>
+                <table id="pitching_stats_table">
+                    <thead>
+                        <tr><th>球団</th><th>選手名</th><th>役割</th><th>防御率</th><th>登板</th><th>勝</th><th>敗</th><th>セーブ</th><th>投球回</th><th>残りSTA</th><th>WAR</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div id="tab-editor" class="tab-content">
+                <h3 style="color: #1a4a75; border-bottom: 2px solid #2b6cb0; padding-bottom: 5px;">🛠️ フロント采配・選手能力詳細エディタ</h3>
+                <div class="editor-box" style="display: grid; grid-template-columns: 220px 220px 1fr; gap: 20px; margin-top: 15px;">
+                    <div class="editor-pane">
+                        <label style="font-weight:bold; font-size:0.85em; color:#4a5568;">① 球団選択</label>
+                        <select id="edit_team_select" class="list-select" size="6" onchange="onEditorTeamChange()"></select>
+                    </div>
+                    
+                    <div class="editor-pane">
+                        <label style="font-weight:bold; font-size:0.85em; color:#4a5568;">② 登録選手選択</label>
+                        <select id="edit_player_select" class="list-select" size="15" onchange="onEditorPlayerChange()"></select>
+                    </div>
+                    
+                    <div class="editor-pane" style="background:#f8fafc; padding:20px; border-radius:10px; border:1px solid #cbd5e0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                        <h4 style="margin: 0 0 15px 0; color:#2b6cb0; font-size: 1.1em; display:flex; justify-content:space-between; align-items:center;">
+                            <span>③ 選手能力パラメーター</span>
+                            <span id="ui_player_type_badge" style="font-size:0.75em; padding:3px 8px; border-radius:20px; color:white; background:#718096;">-</span>
+                        </h4>
+                        
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; background:white; padding:10px; border-radius:6px; border:1px solid #e2e8f0;">
+                            <div class="form-row"><label>選手名</label><input type="text" id="form_name" style="font-weight:bold;"></div>
+                            <div class="form-row"><label>年齢</label><input type="number" id="form_age" disabled style="background:#edf2f7; text-align:center;"></div>
+                            <div class="form-row"><label>現在役割</label><input type="text" id="form_role" disabled style="background:#edf2f7; text-align:center;"></div>
+                            <div class="form-row">
+                                <label>メイン守備</label>
+                                <select id="form_pos">
+                                    <option value="捕手">捕手</option><option value="一塁手">一塁手</option>
+                                    <option value="二塁手">二塁手</option><option value="三塁手">三塁手</option>
+                                    <option value="遊撃手">遊撃手</option><option value="左翼手">左翼手</option>
+                                    <option value="中堅手">中堅手</option><option value="右翼手">右翼手</option>
+                                    <option value="投手">投手</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="form_bat_stats" style="display:none;">
+                            <h5 style="margin:10px 0 5px 0; color:#dd6b20;">📈 打撃・選球眼能力</h5>
+                            <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
+                                <div class="form-row"><label>選球眼 (BB%)</label><input type="number" id="form_bb" step="0.5"></div>
+                                <div class="form-row"><label>コンタクト(SO%)</label><input type="number" id="form_so" step="0.5"></div>
+                                <div class="form-row"><label>バレル率 (%)</label><input type="number" id="form_barrel" step="0.5"></div>
+                                <div class="form-row"><label>長打力 (IsoP)</label><input type="number" id="form_isop"></div>
+                            </div>
+
+                            <h5 style="margin:15px 0 5px 0; color:#38a169;">🛡️ 守備範囲・守備適性</h5>
+                            <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
+                                <div class="form-row"><label>守備範囲 (UZR)</label><input type="number" id="form_uzr" step="0.5"></div>
+                                <div class="form-row"><label>エラー率 (%)</label><input type="number" id="form_err" step="0.1"></div>
+                                <div class="form-row"><label>サブ適性守備</label><input type="text" id="form_sub_pos" placeholder="例: 二塁手, 遊撃手" style="background:#fff; border:1px solid #cbd5e0; padding:5px; border-radius:4px;"></div>
+                            </div>
+                        </div>
+
+                        <div id="form_pit_stats" style="display:none;">
+                            <h5 style="margin:10px 0 5px 0; color:#2b6cb0;">⚾ 投手能力スタッツ</h5>
+                            <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
+                                <div class="form-row"><label>被安打抑制 (H/9)</label><input type="number" id="form_h9"></div>
+                                <div class="form-row"><label>ドクターK (K/9)</label><input type="number" id="form_k9"></div>
+                                <div class="form-row"><label>制球力 (BB/9)</label><input type="number" id="form_bb9"></div>
+                                <div class="form-row"><label>被弾抑制 (HR/9)</label><input type="number" id="form_hr9"></div>
+                                <div class="form-row"><label>スタミナ最大値</label><input type="number" id="form_sta"></div>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-primary" style="width:100%; margin-top:15px; font-size:1em; padding:12px;" onclick="saveEditorData()">💾 編集内容をロスターへ完全適用</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- ⚙️ 1枚完結・全スクリプトエンジン（完全統合システム）                 -->
+<!-- ================================================================= -->
+<script>
+// グローバル変数領域
+let userTeamId = 0;
+let currentYear = 1;
+let totalGamesPlayed = 0;
+let teams = [];
+
+const MAX_GAMES = 143;
+const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
+const prefectures = ["北海道", "青森", "岩手", "宮城", "秋田", "山形", "福島", "茨城", "栃木", "群馬", "埼玉", "千葉", "東京", "神奈川", "新潟", "富山", "石川", "福井", "山梨", "長野", "岐阜", "静岡", "愛知", "三重", "滋賀", "京都", "大阪", "兵庫", "奈良", "和歌山", "鳥取", "島根", "岡山", "広島", "山口", "徳島", "香川", "愛媛", "高知", "福岡", "佐賀", "長崎", "熊本", "大分", "宮崎", "鹿児島", "沖縄"];
+const BALANCING_CONFIG = {
+    batting: { baseHitChance: 0.34, hrMultiplier: 0.80, pitcherH9Influence: 0.0012, pitcherHr9Influence: 0.25 },
+    plates: { bbBaseScale: 0.75, bbPitcherScale: 0.0003, soBaseScale: 0.7, soPitcherScale: 0.001 }
+};
+
+let draftPool = { batters: [], pitchers: [] };
+let currentDraftRound = 1;
+let userReleaseList = { batters: [], pitchers: [] };
+let maxDraftRounds = 0;
+
+// --- [1] ランダム名前データベース ---
+const firstNames = ["大谷", "坂本", "柳田", "岡本", "村上", "近本", "牧", "佐藤", "鈴木", "山本", "佐々木", "菅野", "戸郷", "高橋", "宮城", "今永", "源田", "森", "甲斐", "山田", "浅村", "中田", "秋山", "菊池", "丸", "長野", "栗原", "周東", "近藤", "万波", "清宮", "野村", "宗", "紅林", "小園", "西川", "大山", "木浪", "塩見", "宮崎"];
+const lastNames = ["翔平", "勇人", "悠岐", "和真", "宗隆", "光司", "秀悟", "輝明", "誠也", "由伸", "朗希", "智之", "翔征", "宏斗", "大弥", "昇太", "壮亮", "友哉", "拓也", "哲人", "茂樹", "翔", "翔吾", "涼介", "佳浩", "久義", "陵矢", "佑京", "健介", "正中", "幸太郎", "佑紀", "佑馬", "弘太郎", "海斗", "龍馬", "悠輔", "聖也", "泰隆", "敏郎"];
+function generateRandomPlayerName() {
+    return firstNames[Math.floor(Math.random() * firstNames.length)] + " " + lastNames[Math.floor(Math.random() * lastNames.length)];
+}
+
+// --- [2] リーグ共有基本データ設定 ---
+function initializeLeagueData() {
+    teams = [];
+    for(let t=0; t<6; t++) {
+        let teamObj = { id: t, name: teamNames[t], wins: 0, losses: 0, draws: 0, rotationIdx: 0, batters: [], pitchers: [] };
+        for(let i=1; i<=40; i++) {
+            let isStamen = i <= 9; let isFirstTeam = i <= 16;
+            let pos = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手","一塁手","捕手","内野手","内野手","外野手","外野手","外野手","内野手","内野手","外野手","捕手","内野手","内野手","外野手","外野手","捕手","内野手","内野手","外野手","外野手","内野手","内野手","内野手","外野手","外野手","捕手","内野手","内野手","外野手","外野手","内野手","内野手"][i-1] || "二塁手";
+            if (pos === "内野手") pos = ["二塁手", "三塁手", "遊撃手"][Math.floor(Math.random() * 3)];
+            if (pos === "外野手") pos = ["左翼手", "中堅手", "右翼手"][Math.floor(Math.random() * 3)];
+            let subPool = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手"].filter(p => p !== pos);
+            let subPositions = [];
+            if (Math.random() < 0.60 && pos !== "捕手") {
+                subPositions.push(subPool[Math.floor(Math.random() * subPool.length)]);
+            }
+            let proYears = Math.floor(Math.random() * 12) + 1;
+            teamObj.batters.push({
+                id: i-1, name: generateRandomPlayerName(), role: isStamen ? i : (isFirstTeam ? 0 : -1),
+                originalPos: pos, currentPos: pos, subPositions: subPositions, condition: "普通",
+                age: (Math.random() < 0.3 ? 18 : 22) + (proYears - 1), hometown: prefectures[Math.floor(Math.random() * prefectures.length)],
+                graduation: Math.random() < 0.5 ? "高卒" : "大卒", proYears: proYears, exp: 0,
+                bb: isStamen ? [11, 9, 12, 15, 10, 8, 7, 7, 5][i-1] : 6.5,
+                so: isStamen ? [14, 16, 15, 20, 18, 22, 23, 25, 30][i-1] : 24.0,
+                barrel: isStamen ? [10, 12, 22, 30, 18, 14, 12, 10, 6][i-1] : 7.5,
+                isop: isStamen ? [15, 18, 30, 45, 24, 22, 18, 14, 8][i-1] : 10,
+                uzr: parseFloat((Math.random() * 20 - 10).toFixed(1)), err: 2.0,
+                stats: { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0, war: 0.0 }
+            });
+        }
+        for(let i=1; i<=30; i++) {
+            let isStarter = i <= 5; let isCloser = i === 12; let isFirstTeam = i <= 12;
+            let isMinorStarter = !isFirstTeam && (i <= 17);
+            let roleText = isFirstTeam ? (isCloser ? "守護神" : (isStarter ? "先発" : "リリーフ")) : (isMinorStarter ? "二軍先発" : "二軍リリーフ");
+            let proYears = Math.floor(Math.random() * 10) + 1;
+            teamObj.pitchers.push({
+                id: i-1, name: generateRandomPlayerName(), role: roleText, currentPos: "投手", originalPos: "投手", condition: "普通",
+                age: (isStarter || isMinorStarter ? 22 : 18) + (proYears - 1), hometown: prefectures[Math.floor(Math.random() * prefectures.length)],
+                graduation: "大卒", proYears: proYears, exp: 0,
+                h9: isCloser ? 85 : (isStarter ? 62 + i : 65), k9: isCloser ? 88 : (isStarter ? 65 : 70), bb9: 70, hr9: 55,
+                staMax: (isStarter || isMinorStarter) ? 90 : 35, staCurrent: (isStarter || isMinorStarter) ? 90 : 35,
+                stats: { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0, war: 0.0 }
+            });
+        }
+        teams.push(teamObj);
+    }
+}
+
+// --- [3] ヘルパー計算関数一覧 ---
+function getDynamicSchedule(roundCount) {
+    let numTeams = 6; let totalRounds = numTeams - 1; let currentRound = roundCount % totalRounds;
+    let pairings = []; let list = [0, 1, 2, 3, 4, 5];
+    for (let i = 0; i < numTeams / 2; i++) {
+        let awayIdx = (currentRound + i) % (numTeams - 1);
+        let homeIdx = (numTeams - 1 - i + currentRound) % (numTeams - 1);
+        if (i === 0) homeIdx = numTeams - 1; pairings.push([list[awayIdx], list[homeIdx]]);
+    }
+    return pairings;
+}
+
+function formatInningsPitched(totalOuts) {
+    let innings = Math.floor(totalOuts / 3); let remainingOuts = totalOuts % 3;
+    return remainingOuts === 0 ? `${innings}` : `${innings}.${remainingOuts}`;
+}
+
+function advanceRunners(bases, hitKind) {
+    let runs = 0;
+    if (hitKind === "BB") {
+        if (bases[0] && bases[1] && bases[2]) runs++;
+        else if (bases[0] && bases[1]) bases[2] = true;
+        else if (bases[0]) bases[1] = true;
+        bases[0] = true;
+    } else if (hitKind === "1B") {
+        if (bases[2]) { runs++; bases[2] = false; }
+        if (bases[1]) { runs++; bases[1] = false; }
+        if (bases[0]) bases[1] = true;
+        bases[0] = true;
+    } else if (hitKind === "HR") {
+        runs += 1 + (bases[0]?1:0) + (bases[1]?1:0) + (bases[2]?1:0);
+        bases.fill(false);
+    }
+    return runs;
+}
+
+function changeAllPlayersCondition() {
+    const conds = ["絶好調", "好調", "普通", "不調", "絶不調"];
+    teams.forEach(t => {
+        t.batters.forEach(b => { b.condition = conds[Math.floor(Math.random() * conds.length)]; });
+        t.pitchers.forEach(p => { p.condition = conds[Math.floor(Math.random() * conds.length)]; });
+    });
+}
+
+function executeFrontOfficeAI() {
+    teams.forEach(t => {
+        let tiredRelief = t.pitchers.find(p => p.role === "リリーフ" && p.staCurrent <= 12);
+        let freshMinorRelief = t.pitchers.find(p => p.role === "二軍リリーフ" && p.staCurrent >= 32);
+        if (tiredRelief && freshMinorRelief) {
+            tiredRelief.role = "二軍リリーフ"; freshMinorRelief.role = "リリーフ";
+        }
+    });
+}
+
+function reassignTeamRoles(t) {
+    const requiredPositions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手"];
+    t.batters.forEach(b => b.role = -1);
+    requiredPositions.forEach((pos, idx) => {
+        let candidate = t.batters.find(b => b.role === -1 && (b.originalPos === pos || (b.subPositions && b.subPositions.includes(pos))));
+        if (candidate) { candidate.role = idx + 1; candidate.currentPos = pos; }
+    });
+    requiredPositions.forEach((pos, idx) => {
+        if (!t.batters.some(b => b.role === (idx + 1))) {
+            let backup = t.batters.find(b => b.role === -1);
+            if (backup) { backup.role = idx + 1; backup.currentPos = pos; }
+        }
+    });
+    let rCount = 0;
+    t.batters.forEach(b => {
+        if (b.role > 0) return;
+        if (rCount < 7) { b.role = 0; rCount++; } else { b.role = -1; }
+        b.currentPos = b.originalPos;
+    });
+    t.pitchers.forEach((p, idx) => {
+        if (p.role === "先発" || p.role === "守護神" || p.role === "二軍先発") { p.staCurrent = p.staMax; return; }
+        if (idx < 12) { if (p.role !== "先発" && p.role !== "守護神") p.role = "リリーフ"; }
+        else { if (p.role !== "二軍先発") p.role = "二軍リリーフ"; }
+    });
+}
+
+// --- [4] 試合進行システムコア ---
+function executeMatchLogic(away, home) {
+    let awayStarters = away.pitchers.filter(p => p.role === "先発");
+    let homeStarters = home.pitchers.filter(p => p.role === "先発");
+    let pAway = awayStarters[away.rotationIdx % awayStarters.length] || away.pitchers[0];
+    let pHome = homeStarters[home.rotationIdx % homeStarters.length] || home.pitchers[0];
+    
+    let curPAway = pAway; let curPHome = pHome;
+    curPAway.stats.appearances++; curPHome.stats.appearances++;
+    let appearedAway = [curPAway]; let appearedHome = [curPHome];
+    let awayScore = 0, homeScore = 0; let awayOrder = 1; let homeOrder = 1;
+    let pitchAway = 0; let pitchHome = 0;
+    
+    let pitcherMatchStats = new Map();
+    const initPS = (p) => { if(!pitcherMatchStats.has(p.name)) pitcherMatchStats.set(p.name, {er:0, outs:0}); };
+    initPS(curPAway); initPS(curPHome);
+
+    const getGameLineup = (team) => {
+        let lineup = [];
+        for(let i=1; i<=9; i++) {
+            let s = team.batters.find(b => b.role === i);
+            if(s && s.condition === "絶不調" && Math.random() < 0.7) {
+                let sub = team.batters.find(b => b.role === 0 && b.condition !== "絶不調");
+                lineup.push(sub || s);
+            } else { lineup.push(s || team.batters[0]); }
+        }
+        return lineup;
+    };
+    let lineupAway = getGameLineup(away); let lineupHome = getGameLineup(home);
+
+    for (let inning = 1; inning <= 9; inning++) {
+        let outs = 0; let bases = [false, false, false];
+        while (outs < 3) {
+            if(pitchHome > curPHome.staMax || (inning >= 7 && homeScore - awayScore <= 2)) {
+                let nextP = home.pitchers.find(p => (p.role === (inning === 9 ? "守護神" : "リリーフ")) && p.staCurrent > 15 && !appearedHome.includes(p));
+                if(nextP) { curPHome = nextP; appearedHome.push(nextP); pitchHome = 0; curPHome.stats.appearances++; initPS(nextP); }
+            }
+            let b = lineupAway[(awayOrder-1)%9]; b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
+            pitchHome += 4; let rand = Math.random();
+            let bbP = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-curPHome.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
+            let soP = ((b.so/100)*BALANCING_CONFIG.plates.soBaseScale) + ((curPHome.k9*BALANCING_CONFIG.plates.soPitcherScale));
+            if(rand < bbP) {
+                b.stats.bb++; curPHome.stats.bb++; let r = advanceRunners(bases, "BB"); awayScore += r; curPHome.stats.er += r; pitcherMatchStats.get(curPHome.name).er += r;
+            } else if(rand < bbP + soP) {
+                outs++; b.stats.so++; curPHome.stats.so++; curPHome.stats.ipOuts++; pitcherMatchStats.get(curPHome.name).outs++;
+            } else {
+                let hitP = Math.max(0.24, 0.35 - ((curPHome.h9-65)*0.0015));
+                if(Math.random() < hitP) {
+                    b.stats.hits++; let isHR = Math.random() < (b.barrel/100 * BALANCING_CONFIG.batting.hrMultiplier);
+                    let r = advanceRunners(bases, isHR ? "HR" : "1B"); awayScore += r; curPHome.stats.er += r; pitcherMatchStats.get(curPHome.name).er += r; if(isHR) b.stats.hr++;
+                } else { outs++; curPHome.stats.ipOuts++; pitcherMatchStats.get(curPHome.name).outs++; }
+            }
+            awayOrder++;
+        }
+        outs = 0; bases = [false, false, false];
+        while (outs < 3) {
+            if(pitchAway > curPAway.staMax || (inning >= 7 && awayScore - homeScore <= 2)) {
+                let nextP = away.pitchers.find(p => (p.role === (inning === 9 ? "守護神" : "リリーフ")) && p.staCurrent > 15 && !appearedAway.includes(p));
+                if(nextP) { curPAway = nextP; appearedAway.push(nextP); pitchAway = 0; curPAway.stats.appearances++; initPS(nextP); }
+            }
+            let b = lineupHome[(homeOrder-1)%9]; b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
+            pitchAway += 4; let rand = Math.random();
+            let bbP = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-curPAway.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
+            let soP = ((b.so/100)*BALANCING_CONFIG.plates.soBaseScale) + ((curPAway.k9*BALANCING_CONFIG.plates.soPitcherScale));
+            if(rand < bbP) {
+                b.stats.bb++; curPAway.stats.bb++; let r = advanceRunners(bases, "BB"); homeScore += r; curPAway.stats.er += r; pitcherMatchStats.get(curPAway.name).er += r;
+            } else if(rand < bbP + soP) {
+                outs++; b.stats.so++; curPAway.stats.so++; curPAway.stats.ipOuts++; pitcherMatchStats.get(curPAway.name).outs++;
+            } else {
+                let hitP = Math.max(0.24, 0.35 - ((curPAway.h9-65)*0.0015));
+                if(Math.random() < hitP) {
+                    b.stats.hits++; let isHR = Math.random() < (b.barrel/100 * BALANCING_CONFIG.batting.hrMultiplier);
+                    let r = advanceRunners(bases, isHR ? "HR" : "1B"); homeScore += r; curPAway.stats.er += r; pitcherMatchStats.get(curPAway.name).er += r; if(isHR) b.stats.hr++;
+                } else { outs++; curPAway.stats.ipOuts++; pitcherMatchStats.get(curPAway.name).outs++; }
+            }
+            homeOrder++;
+        }
+    }
+
+    if(awayScore > homeScore) {
+        away.wins++; home.losses++;
+        let winP = appearedAway[0]; let loseP = appearedHome[0]; winP.stats.wins++; loseP.stats.losses++;
+        if(homeScore >= awayScore - 3 && appearedAway.length > 1) appearedAway[appearedAway.length-1].stats.saves++;
+    } else if(homeScore > awayScore) {
+        home.wins++; away.losses++;
+        let winP = appearedHome[0]; let loseP = appearedAway[0]; winP.stats.wins++; loseP.stats.losses++;
+        if(awayScore >= homeScore - 3 && appearedHome.length > 1) appearedHome[appearedHome.length-1].stats.saves++;
+    } else { away.draws++; home.draws++; }
+
+    appearedAway.forEach(p => { if(p.role!=="先発") p.staCurrent = Math.max(0, p.staCurrent - (15 + pitcherMatchStats.get(p.name).outs*2)); });
+    home.pitchers.forEach(p => { if(p.role!=="先発") p.staCurrent = Math.max(0, p.staCurrent - (15 + pitcherMatchStats.get(p.name).outs*2)); });
+    away.pitchers.forEach(p => { if(p.stats.ipOuts>0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
+    home.pitchers.forEach(p => { if(p.stats.ipOuts>0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
+    away.rotationIdx++; home.rotationIdx++;
+    return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
+}
+
+// ⚙️【完全大手術】重複していた幽霊関数を完全に削除し、ここに1つだけ集約！
+function simulateRound() {
+    if (totalGamesPlayed === -1) return null;
+    if (totalGamesPlayed >= MAX_GAMES) {
+        totalGamesPlayed = -1; processOffseasonEvolution(); executeOffseasonRosterEvents(); return null;
+    }
+    changeAllPlayersCondition(); executeFrontOfficeAI();
+    let pattern = getDynamicSchedule(totalGamesPlayed); let roundResults = [];
+    pattern.forEach(pair => { roundResults.push(executeMatchLogic(teams[pair[0]], teams[pair[1]])); });
+    teams.forEach(t => { t.pitchers.forEach(p => { let rec = p.role.includes("二軍") ? 15 : 1.8; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + rec); }); });
+    totalGamesPlayed++; return roundResults;
+}
+
+function playNextRound() {
+    if (totalGamesPlayed === -1) return;
+    let res = simulateRound(); if (res === null) return;
+    let rEl = document.getElementById("quick_match_results");
+    if(rEl) rEl.innerHTML = res.map(r => `<tr><td><b>${r}</b></td></tr>`).join("");
+    updateUIAll();
+}
+function playOneWeek() {
+    if (totalGamesPlayed === -1) return;
+    let lastRes = null;
+    for(let i=0; i<6; i++) { if (totalGamesPlayed === -1) break; let res = simulateRound(); if(res) lastRes = res; }
+    if (totalGamesPlayed === -1) return;
+    if(lastRes) {
+        let rEl = document.getElementById("quick_match_results");
+        if(rEl) rEl.innerHTML = "<tr><td style='color:green;'><b>一週間分(6カード)を一括消化しました</b></td></tr>" + lastRes.map(r => `<tr><td>${r}</td></tr>`).join("");
+    }
+    updateUIAll();
+}
+function playAllSeason() {
+    if (totalGamesPlayed === -1) return;
+    while(totalGamesPlayed < MAX_GAMES && totalGamesPlayed !== -1) { simulateRound(); }
+    if (totalGamesPlayed === -1) return;
+    updateUIAll();
+}
+function resetSeason() { totalGamesPlayed = 0; currentYear = 1; initializeLeagueData(); updateUIAll(); }
+
+function onEditorTeamChange() {
+    let teamSelect = document.getElementById("edit_team_select"); let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
+    let team = teams[teamIdx]; let playerSelect = document.getElementById("edit_player_select");
+    if(!playerSelect || !team) return; playerSelect.innerHTML = "";
+    team.batters.forEach((p, idx) => {
+        let roleText = p.role >= 1 && p.role <= 9 ? `${p.role}番` : (p.role === 0 ? "一軍控え" : "二軍");
+        playerSelect.innerHTML += `<option value="bat_${idx}">[野手] ${roleText} - ${p.name}</option>`;
+    });
+    team.pitchers.forEach((p, idx) => { playerSelect.innerHTML += `<option value="pit_${idx}">[投手] ${p.role} - ${p.name}</option>`; });
+    playerSelect.selectedIndex = 0; onEditorPlayerChange();
+}
+
+function onEditorPlayerChange() {
+    let teamSelect = document.getElementById("edit_team_select"); let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
+    let playerSelect = document.getElementById("edit_player_select"); if(!playerSelect || !playerSelect.value) return;
+    let type = playerSelect.value.split("_")[0]; let idx = parseInt(playerSelect.value.split("_")[1]);
+    let player = type === "bat" ? teams[teamIdx].batters[idx] : teams[teamIdx].pitchers[idx];
+
+    document.getElementById("form_name").value = player.name;
+    let formPos = document.getElementById("form_pos");
+    if (formPos) {
+        for (let i = 0; i < formPos.options.length; i++) formPos.options[i].disabled = false;
+        if (type === "bat") {
+            for (let i = 0; i < formPos.options.length; i++) {
+                let optVal = formPos.options[i].value;
+                if (player.originalPos !== optVal && !(player.subPositions && player.subPositions.includes(optVal))) formPos.options[i].disabled = true;
+            }
+        } else {
+            for (let i = 0; i < formPos.options.length; i++) if (formPos.options[i].value !== "投手") formPos.options[i].disabled = true;
+        }
+    }
+    document.getElementById("form_pos").value = player.currentPos;
+    document.getElementById("form_age").value = player.age;
+    document.getElementById("form_role").value = player.role >= 1 && player.role <= 9 ? `${player.role}番打者` : (player.role === 0 ? "一軍ベンチ控え" : "二軍調整中");
+
+    let badge = document.getElementById("ui_player_type_badge");
+    if(type === "bat") {
+        if(badge) { badge.innerText = "野手登録"; badge.style.background = "#dd6b20"; }
+        document.getElementById("form_bat_stats").style.display = "block"; document.getElementById("form_pit_stats").style.display = "none";
+        document.getElementById("form_bb").value = player.bb; document.getElementById("form_so").value = player.so;
+        document.getElementById("form_barrel").value = player.barrel; document.getElementById("form_isop").value = player.isop;
+        document.getElementById("form_uzr").value = player.uzr; document.getElementById("form_err").value = player.err;
+        document.getElementById("form_sub_pos").value = player.subPositions ? player.subPositions.join(", ") : "なし";
+    } else {
+        if(badge) { badge.innerText = `投手(${player.role})`; badge.style.background = "#2b6cb0"; }
+        document.getElementById("form_bat_stats").style.display = "none"; document.getElementById("form_pit_stats").style.display = "block";
+        document.getElementById("form_h9").value = player.h9; document.getElementById("form_k9").value = player.k9;
+        document.getElementById("form_bb9").value = player.bb9; document.getElementById("form_hr9").value = player.hr9;
+        document.getElementById("form_sta").value = player.staMax;
+    }
+}
+
+function saveEditorData() {
+    let teamSelect = document.getElementById("edit_team_select"); let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
+    let playerVal = document.getElementById("edit_player_select").value;
+    let type = playerVal.split("_")[0]; let idx = parseInt(playerVal.split("_")[1]);
+    let team = teams[teamIdx];
+    if(type === "bat") {
+        let p = team.batters[idx]; p.name = document.getElementById("form_name").value; p.originalPos = document.getElementById("form_pos").value; p.currentPos = p.originalPos;
+        p.bb = parseFloat(document.getElementById("form_bb").value); p.so = parseFloat(document.getElementById("form_so").value);
+        p.barrel = parseFloat(document.getElementById("form_barrel").value); p.isop = parseFloat(document.getElementById("form_isop").value);
+        p.uzr = parseFloat(document.getElementById("form_uzr").value); p.err = parseFloat(document.getElementById("form_err").value);
+        let subStr = document.getElementById("form_sub_pos").value; p.subPositions = subStr && subStr !== "なし" ? subStr.split(",").map(s => s.trim()) : [];
+    } else {
+        let p = team.pitchers[idx]; p.name = document.getElementById("form_name").value;
+        p.h9 = parseFloat(document.getElementById("form_h9").value); p.k9 = parseFloat(document.getElementById("form_k9").value);
+        p.bb9 = parseFloat(document.getElementById("form_bb9").value); p.hr9 = parseFloat(document.getElementById("form_hr9").value); p.staMax = parseFloat(document.getElementById("form_sta").value);
+    }
+    onEditorTeamChange(); updateUIAll();
+}
+
+function updateUIAll() {
+    let gameCountEl = document.getElementById("current_game_count"); if(!gameCountEl) return;
+    gameCountEl.innerText = totalGamesPlayed === -1 ? 143 : totalGamesPlayed;
+    let weekCountEl = document.getElementById("current_week_count"); if(weekCountEl) weekCountEl.innerText = totalGamesPlayed === -1 ? 24 : Math.floor(totalGamesPlayed / 6) + 1;
+    let h2Title = document.querySelector(".card h2"); if(h2Title && !h2Title.innerText.includes("就任")) {
+        h2Title.innerHTML = `リーグ消化状況: <span id="current_game_count">${totalGamesPlayed === -1 ? 143 : totalGamesPlayed}</span> / 143 試合 (第 <span id="current_week_count">${totalGamesPlayed === -1 ? 24 : Math.floor(totalGamesPlayed / 6) + 1}</span> 週目)`;
+    }
+
+    // WAR計算
+    teams.forEach(t => {
+        t.batters.forEach(b => {
+            if(!b.stats.ab) { b.stats.war = 0.0; return; }
+            let batVal = ((b.stats.hits / b.stats.ab) - 0.255) * 8 + (b.stats.hr * 0.15) + (b.stats.bb * 0.04);
+            b.stats.war = (batVal + (b.uzr || 0) * 0.05) * (b.stats.ab / 450);
+        });
+        t.pitchers.forEach(p => {
+            if(!p.stats.ipOuts) { p.stats.war = 0.0; return; }
+            p.stats.war = (4.20 - (p.stats.era || 4.20)) * (p.stats.ipOuts / 3 / 150) * 2.5 + (p.stats.wins * 0.1) - (p.stats.losses * 0.05) + (p.stats.saves * 0.08);
+        });
+    });
+
+    let sorted = [...teams].sort((a,b) => (b.wins/(b.wins+b.losses||1)) - (a.wins/(a.wins+b.losses||1)));
+    let sBody = document.getElementById("standings_body"); sBody.innerHTML = "";
+    sorted.forEach((t, i) => {
+        let rowStyle = (t.id === userTeamId) ? `style="background-color: #e0f2fe; font-weight:bold;"` : "";
+        sBody.innerHTML += `<tr ${rowStyle}><td>${i+1}</td><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${(t.wins/(t.wins+t.losses||1)).toFixed(3)}</td><td>-</td></tr>`;
+    });
+
+    let batBody = document.querySelector("#batting_stats_table tbody");
+    if(batBody) {
+        let bList = []; teams.forEach(t => t.batters.forEach(b => bList.push({tName: t.name, data: b})));
+        bList.sort((a,b) => b.data.stats.war - a.data.stats.war); batBody.innerHTML = "";
+        document.querySelector("#batting_stats_table thead tr").innerHTML = `<th>球団</th><th>選手名</th><th>守備</th><th>打率</th><th>試合</th><th>打数</th><th>安打</th><th>本塁打</th><th>打点</th><th>WAR</th>`;
+        bList.slice(0, 15).forEach(item => {
+            let b = item.data;
+            batBody.innerHTML += `<tr><td>${item.tName}</td><td><b>${b.name}</b></td><td>${b.currentPos}</td><td>${(b.stats.hits/(b.stats.ab||1)).toFixed(3)}</td><td>${b.stats.games}</td><td>${b.stats.ab}</td><td>${b.stats.hits}</td><td>${b.stats.hr}</td><td>${b.stats.rbi}</td><td>${b.stats.war.toFixed(1)}</td></tr>`;
+        });
+    }
+
+    let pitBody = document.querySelector("#pitching_stats_table tbody");
+    if(pitBody) {
+        let pList = []; teams.forEach(t => pList.push(...t.pitchers));
+        pList.sort((a,b) => b.stats.war - a.stats.war); pitBody.innerHTML = "";
+        document.querySelector("#pitching_stats_table thead tr").innerHTML = `<th>球団</th><th>選手名</th><th>役割</th><th>防御率</th><th>登板</th><th>勝</th><th>敗</th><th>セーブ</th><th>投球回</th><th>残りSTA</th><th>WAR</th>`;
+        pList.slice(0, 15).forEach(p => {
+            let tName = teams.find(t => t.pitchers.includes(p)).name;
+            pitBody.innerHTML += `<tr><td>${tName}</td><td><b>${p.name}</b></td><td>${p.role}</td><td>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td>${p.stats.saves}</td><td>${formatInningsPitched(p.stats.ipOuts)}</td><td>${p.staCurrent.toFixed(0)}</td><td>${p.stats.war.toFixed(1)}</td></tr>`;
+        });
+    }
+}
+
+function switchTab(tabId, el) {
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    let target = document.getElementById(tabId); if(target) target.classList.add('active');
+    if(el) el.classList.add('active');
+}
+
+function executeOffseasonRosterEvents() {
+    alert(`ーーー 👔 ペナントレース終了 (ペナント第 ${currentYear} 年目) ーーー\n\nこれより「人員整理（戦力外通告）」を行います。\n「オフシーズン補強」タブを開いて、自由契約にする選手をあなたの手で選択してください！`);
+    let statusMsgEl = document.getElementById("draft_status_message");
+    if(statusMsgEl) statusMsgEl.innerHTML = "📢 <b>オフシーズン・球団人員整理フェーズ</b>。不要な選手に戦力外通告を行ってください。";
+    startUserReleasePhase();
+    let allTabs = document.querySelectorAll('.tab');
+    let targetTabBtn = Array.from(allTabs).find(tab => tab.innerText.includes("オフシーズン"));
+    if (targetTabBtn) switchTab('tab-draft', targetTabBtn);
+    else switchTab('tab-draft', allTabs[2] || allTabs[0]);
+}
+
+function processOffseasonEvolution() {
+    teams.forEach(t => {
+        t.batters.forEach(b => {
+            b.age += 1; b.proYears += 1;
+            let growthPotential = Math.min(10, Math.floor((b.exp || 0) / 15)); b.exp = 0;
+            if (b.age <= 24) {
+                b.barrel = Math.min(45, b.barrel + Math.floor(Math.random() * 4) + 1 + growthPotential * 0.2); 
+                b.isop = Math.min(65, b.isop + Math.floor(Math.random() * 5) + 2);
+                b.so = Math.max(10, b.so - Math.floor(Math.random() * 2));
+                b.uzr = parseFloat((b.uzr + Math.random() * 2.5).toFixed(1));
+            } else if (b.age <= 29) {
+                if(Math.random() < 0.3) b.barrel = Math.min(45, b.barrel + 1);
+                if(Math.random() < 0.2) b.uzr = parseFloat((b.uzr + Math.random() * 1.0 - 0.3).toFixed(1));
+            } else if (b.age <= 34) {
+                b.barrel = Math.max(5, b.barrel - (Math.floor(Math.random() * 2)));
+                b.isop = Math.max(5, b.isop - (Math.floor(Math.random() * 3)));
+                b.uzr = parseFloat((b.uzr - Math.random() * 1.5).toFixed(1));
+            } else {
+                b.barrel = Math.max(3, b.barrel - (Math.floor(Math.random() * 4) + 1));
+                b.so = Math.min(45, b.so + Math.floor(Math.random() * 3));
+                b.uzr = parseFloat((b.uzr - Math.random() * 3.0 - 1.0).toFixed(1));
+            }
+        });
+        t.pitchers.forEach(p => {
+            p.age += 1; p.proYears += 1;
+            let growthPotential = Math.min(10, Math.floor((p.exp || 0) / 15)); p.exp = 0;
+            if (p.age <= 24) {
+                p.h9 = Math.min(99, p.h9 + Math.floor(Math.random() * 3) + 1);
+                p.k9 = Math.min(99, p.k9 + Math.floor(Math.random() * 3) + 1);
+            } else if (p.age <= 29) {
+                if(Math.random() < 0.3) p.h9 = Math.min(99, p.h9 + 1);
+            } else if (p.age <= 34) {
+                p.h9 = Math.max(30, p.h9 - Math.floor(Math.random() * 3));
+                p.k9 = Math.max(30, p.k9 - Math.floor(Math.random() * 3));
+            } else {
+                p.h9 = Math.max(20, p.h9 - (Math.floor(Math.random() * 5) + 2));
+                p.k9 = Math.max(20, p.k9 - (Math.floor(Math.random() * 5) + 2));
+                p.staMax = Math.max(20, p.staMax - 4);
+            }
+        });
+    });
+}
+
+function startUserReleasePhase() {
+    let relCountEl = document.getElementById("ui_release_count"); if(relCountEl) relCountEl.innerText = "0";
+    let myTeam = teams[userTeamId]; if(!myTeam) return;
+    let bBody = document.getElementById("release_batters_body");
+    if(bBody) bBody.innerHTML = myTeam.batters.map((b, idx) => `<tr><td><input type="checkbox" class="rel-check-bat" value="${idx}" onchange="updateReleaseCount()"></td><td>[${b.role>=1&&b.role<=9?b.role+"番":"二軍"}] <b>${b.name}</b></td><td>.${Math.floor((b.stats.hits/(b.stats.ab||1))*1000)} ${b.stats.hr}本</td><td>WAR:${b.stats.war.toFixed(1)}</td></tr>`).join("");
+    let pBody = document.getElementById("release_pitchers_body");
+    if(pBody) pBody.innerHTML = myTeam.pitchers.map((p, idx) => `<tr><td><input type="checkbox" class="rel-check-pit" value="${idx}" onchange="updateReleaseCount()"></td><td>[${p.role}] <b>${p.name}</b></td><td>防${p.stats.ipOuts>0?p.stats.era.toFixed(2):"-.--"}</td><td>WAR:${p.stats.war.toFixed(1)}</td></tr>`).join("");
+    document.getElementById("offseason_release_zone").style.display = "flex";
+    document.getElementById("draft_interaction_zone").style.display = "none";
+}
+
+function updateReleaseCount() {
+    let total = document.querySelectorAll(".rel-check-bat:checked").length + document.querySelectorAll(".rel-check-pit:checked").length;
+    let relCountEl = document.getElementById("ui_release_count"); if(relCountEl) relCountEl.innerText = total;
+    if(total > 10) alert("戦力外通告は最大10名までです！枠数を調整してください。");
+}
+
+function finalizeUserReleases() {
+    let batChecked = Array.from(document.querySelectorAll(".rel-check-bat:checked")).map(el => parseInt(el.value));
+    let pitChecked = Array.from(document.querySelectorAll(".rel-check-pit:checked")).map(el => parseInt(el.value));
+    let total = batChecked.length + pitChecked.length;
+    if (total === 0 || total > 10) { alert("戦力外通告は1〜10名の範囲で行ってください。"); return; }
+    maxDraftRounds = total;
+    let quotaEl = document.getElementById("ui_draft_quota"); if(quotaEl) quotaEl.innerText = maxDraftRounds;
+    let myTeam = teams[userTeamId];
+    myTeam.batters = myTeam.batters.filter((_, idx) => !batChecked.includes(idx));
+    myTeam.pitchers = myTeam.pitchers.filter((_, idx) => !pitChecked.includes(idx));
+    teams.forEach(t => {
+        if (t.id === userTeamId) return;
+        t.batters.sort((a,b) => a.stats.war - b.stats.war); t.batters.splice(0, 3);
+        t.pitchers.sort((a,b) => a.stats.war - b.stats.war); t.pitchers.splice(0, 3);
+    });
+    generateDraftPool();
+}
+
+function generateDraftPool() {
+    draftPool.batters = []; draftPool.pitchers = []; currentDraftRound = 1;
+    for (let i = 0; i < 35; i++) {
+        let bat = createDraftBatter(); let amAvg = 0.240 + Math.random() * 0.120;
+        bat.amateurStats = `【アマ】打率.${Math.floor(amAvg*1000)} ${Math.floor(Math.random()*8)}本`;
+        bat.amateurTitle = ["なし", "甲子園優勝", "高校日本代表", "社会人ベストナイン"][Math.floor(Math.random()*4)];
+        bat.isDrafted = false; draftPool.batters.push(bat);
+        let pit = createDraftPitcher();
+        pit.amateurStats = `【アマ】防御率 ${(2.0 + Math.random()*2).toFixed(2)} ${Math.floor(Math.random()*6)}勝`;
+        pit.amateurTitle = ["なし", "最優秀投手賞", "甲子園準優勝", "高校ビッグ3"][Math.floor(Math.random()*4)];
+        pit.isDrafted = false; draftPool.pitchers.push(pit);
+    }
+    let resBody = document.getElementById("my_draft_results_body");
+    if(resBody) resBody.innerHTML = Array.from({length: maxDraftRounds}, (_, r) => `<tr><td>${r+1}位</td><td id="my_draft_r${r+1}">-</td></tr>`).join("");
+    document.getElementById("offseason_release_zone").style.display = "none";
+    document.getElementById("draft_interaction_zone").style.display = "grid";
+    let title = document.getElementById("ui_draft_round_title"); if(title) title.innerText = `今年のドラフト候補生一覧 (第 1 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
+    renderDraftPoolUI();
+}
+
+function renderDraftPoolUI() {
+    let tbody = document.getElementById("draft_pool_body"); if (!tbody) return; tbody.innerHTML = "";
+    draftPool.batters.forEach((b, idx) => {
+        if (b.isDrafted) return;
+        let badge = b.amateurTitle !== "なし" ? `<span style="background:#e53e3e; color:white; padding:2px 5px; border-radius:3px; font-size:0.8em; margin-left:5px;">${b.amateurTitle}</span>` : "";
+        tbody.innerHTML += `<tr><td>野-${idx}</td><td><b>${b.name}</b>${badge}</td><td><span style="color:#dd6b20; font-weight:bold;">野手</span></td><td>${b.currentPos}</td><td>${b.graduation}</td><td>${b.age}歳</td><td>${b.amateurStats}</td><td><button class="btn btn-success" onclick="userSelectDraftPlayer('bat', ${idx})">指名</button></td></tr>`;
+    });
+    draftPool.pitchers.forEach((p, idx) => {
+        if (p.isDrafted) return;
+        let badge = p.amateurTitle !== "なし" ? `<span style="background:#2b6cb0; color:white; padding:2px 5px; border-radius:3px; font-size:0.8em; margin-left:5px;">${p.amateurTitle}</span>` : "";
+        tbody.innerHTML += `<tr><td>投-${idx}</td><td><b>${p.name}</b>${badge}</td><td><span style="color:#2b6cb0; font-weight:bold;">投手</span></td><td>投手</td><td>${p.graduation}</td><td>${p.age}歳</td><td>${p.amateurStats}</td><td><button class="btn btn-success" onclick="userSelectDraftPlayer('pit', ${idx})">指名</button></td></tr>`;
+    });
+}
+
+function userSelectDraftPlayer(type, index) {
+    if (currentDraftRound > maxDraftRounds) return;
+    let p = type === 'bat' ? draftPool.batters[index] : draftPool.pitchers[index]; p.isDrafted = true;
+    if (type === 'bat') teams[userTeamId].batters.push(p); else teams[userTeamId].pitchers.push(p);
+    let resEl = document.getElementById(`my_draft_r${currentDraftRound}`); if (resEl) resEl.innerHTML = `<b>${p.name}</b> <small>(${p.currentPos})</small>`;
+    teams.forEach(t => {
+        if (t.id === userTeamId || currentDraftRound > 6) return;
+        let pPool = Math.random() < 0.5 ? draftPool.batters : draftPool.pitchers;
+        let avail = pPool.filter(x => !x.isDrafted);
+        if(avail.length > 0) { avail[0].isDrafted = true; if(avail[0].originalPos==="投手") t.pitchers.push(avail[0]); else t.batters.push(avail[0]); }
+    });
+    currentDraftRound++;
+    if (currentDraftRound > maxDraftRounds) {
+        document.getElementById("draft_status_message").innerHTML = "🎉 <b>オフシーズン補強完了！</b>";
+        currentYear += 1; totalGamesPlayed = 0;
+        teams.forEach(t => {
+            t.wins = 0; t.losses = 0; t.draws = 0;
+            t.batters.forEach(b => b.stats = { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0, war: 0.0 });
+            t.pitchers.forEach(x => { x.staCurrent = x.staMax; x.stats = { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0, war: 0.0 }; });
+            reassignTeamRoles(t);
+        });
+        updateUIAll();
+        setTimeout(() => { alert(`祝・ペナント第 ${currentYear} 年目 開幕！`); switchTab('tab-stats-bat', document.querySelectorAll('.tab')[0]); }, 200);
+    } else {
+        let title = document.getElementById("ui_draft_round_title"); if(title) title.innerText = `今年のドラフト候補生一覧 (第 ${currentDraftRound} 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
+        renderDraftPoolUI();
+    }
+}
+
+// --- 初期ロード自動トリガー ---
+window.addEventListener("DOMContentLoaded", () => {
+    initializeLeagueData();
+    let editTeamSelect = document.getElementById("edit_team_select");
+    if (editTeamSelect) {
+        editTeamSelect.innerHTML = teamNames.map((name, idx) => `<option value="${idx}" ${idx===userTeamId?"selected":""}>${name}</option>`).join("");
+    }
+    onEditorTeamChange();
+    updateUIAll();
+});
+</script>
 </body>
 </html>
+
