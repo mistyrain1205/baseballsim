@@ -297,7 +297,7 @@ function initializeLeagueData() {
     }
 }
 
-// ⚠️【位置変更：超重要バグ修正】下部にあったヘルパー計算関数を、大元のシミュレーターより上に配置します
+// --- [3] ヘルパー計算関数一覧 ---
 function getDynamicSchedule(roundCount) {
     let numTeams = 6; let totalRounds = numTeams - 1; let currentRound = roundCount % totalRounds;
     let pairings = []; let list = [0, 1, 2, 3, 4, 5];
@@ -333,6 +333,7 @@ function advanceRunners(bases, hitKind) {
     return runs;
 }
 
+// --- [4] 試合進行システムコア ---
 function executeMatchLogic(away, home) {
     let awayStarters = away.pitchers.filter(p => p.role === "先発");
     let homeStarters = home.pitchers.filter(p => p.role === "先発");
@@ -570,6 +571,10 @@ function updateUIAll() {
     if(batBody) {
         let bList = []; teams.forEach(t => t.batters.forEach(b => bList.push({tName: t.name, data: b})));
         bList.sort((a,b) => b.data.stats.war - a.data.stats.war); batBody.innerHTML = "";
+        
+        // 🛠️【完全修復】テーブルヘッダーの上書きを確実に動作するよう、タグ名を thead に修正！
+        document.querySelector("#batting_stats_table thead tr").innerHTML = `<th>球団</th><th>選手名</th><th>守備</th><th>打率</th><th>試合</th><th>打数</th><th>安打</th><th>本塁打</th><th>打点</th><th>WAR</th>`;
+        
         bList.slice(0, 15).forEach(item => {
             let b = item.data;
             batBody.innerHTML += `<tr><td>${item.tName}</td><td><b>${b.name}</b></td><td>${b.currentPos}</td><td>${(b.stats.hits/(b.stats.ab||1)).toFixed(3)}</td><td>${b.stats.games}</td><td>${b.stats.ab}</td><td>${b.stats.hits}</td><td>${b.stats.hr}</td><td>${b.stats.rbi}</td><td>${b.stats.war.toFixed(1)}</td></tr>`;
@@ -580,6 +585,10 @@ function updateUIAll() {
     if(pitBody) {
         let pList = []; teams.forEach(t => pList.push(...t.pitchers));
         pList.sort((a,b) => b.stats.war - a.stats.war); pitBody.innerHTML = "";
+        
+        // 🛠️【完全修復】投手側も thead へのテーブルヘッダー上書きに修正！
+        document.querySelector("#pitching_stats_table thead tr").innerHTML = `<th>球団</th><th>選手名</th><th>役割</th><th>防御率</th><th>登板</th><th>勝</th><th>敗</th><th>セーブ</th><th>投球回</th><th>残りSTA</th><th>WAR</th>`;
+        
         pList.slice(0, 15).forEach(p => {
             let tName = teams.find(t => t.pitchers.includes(p)).name;
             pitBody.innerHTML += `<tr><td>${tName}</td><td><b>${p.name}</b></td><td>${p.role}</td><td>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td>${p.stats.saves}</td><td>${formatInningsPitched(p.stats.ipOuts)}</td><td>${p.staCurrent.toFixed(0)}</td><td>${p.stats.war.toFixed(1)}</td></tr>`;
@@ -594,7 +603,7 @@ function switchTab(tabId, el) {
     if(el) el.classList.add('active');
 }
 
-// --- [4] ドラフト会議・戦力外通告システム補強エンジン ---
+// --- [5] ドラフト会議・戦力外通告システム ---
 let draftPool = { batters: [], pitchers: [] };
 let currentDraftRound = 1;
 let userReleaseList = { batters: [], pitchers: [] };
@@ -704,4 +713,21 @@ function userSelectDraftPlayer(type, index) {
         updateUIAll();
         setTimeout(() => { alert(`祝・ペナント第 ${currentYear} 年目 開幕！`); switchTab('tab-stats-bat', document.querySelectorAll('.tab')[0]); }, 200);
     } else {
-        let title = document.getElementById("ui_draft_round_title"); if(title) title.innerText = `今年のドラフト候補生一覧 (第 ${currentDraftRound}
+        let title = document.getElementById("ui_draft_round_title"); if(title) title.innerText = `今年のドラフト候補生一覧 (第 ${currentDraftRound} 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
+        renderDraftPoolUI();
+    }
+}
+
+// --- 初期ロード自動トリガー ---
+window.addEventListener("DOMContentLoaded", () => {
+    initializeLeagueData();
+    let editTeamSelect = document.getElementById("edit_team_select");
+    if (editTeamSelect) {
+        editTeamSelect.innerHTML = teamNames.map((name, idx) => `<option value="${idx}" ${idx===userTeamId?"selected":""}>${name}</option>`).join("");
+    }
+    onEditorTeamChange();
+    updateUIAll();
+});
+</script>
+</body>
+</html>
