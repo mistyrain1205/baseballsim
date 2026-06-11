@@ -32,6 +32,8 @@ function playNextRound() {
     updateUIAll();
 }
 
+// --- (中略：これまでの simulateRound 等の関数はそのまま) ---
+
 function updateUIAll() {
     // 試合数を更新
     document.getElementById("current_game_count").innerText = totalGamesPlayed;
@@ -43,23 +45,24 @@ function updateUIAll() {
         sBody.innerHTML = sorted.map((t, i) => `<tr><td>${i+1}</td><td>${t.name}</td><td>${t.wins}</td></tr>`).join("");
     }
     
-    // 個人成績の更新（全球団の野手データをループで反映）
+    // 個人成績の更新
     let bBody = document.querySelector("#batting_stats_table tbody");
     if(bBody) {
         let rows = "";
         teams.forEach(t => {
-            t.batters.slice(0, 3).forEach(b => { // 各球団の上位3選手を表示
+            t.batters.slice(0, 3).forEach(b => {
                 rows += `<tr><td>${b.name}</td><td>---</td><td>${(b.stats.war || 0).toFixed(1)}</td></tr>`;
             });
         });
         bBody.innerHTML = rows;
     }
-    window.addEventListener("DOMContentLoaded", () => {
+}
+
+// 【重要】ここで関数を閉じて、その外側にイベントリスナーを配置する
+window.addEventListener("DOMContentLoaded", () => {
     initializeLeagueData();
-    // 0.1秒だけ待ってから表示する
+    // 0.1秒待ってから表示する
     setTimeout(() => {
         updateUIAll();
     }, 100);
 });
-    
-}
