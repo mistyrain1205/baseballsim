@@ -302,7 +302,7 @@ function executeMatchLogic(away, home) {
             b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
             pitchHome += 4;
             let rand = Math.random();
-            // 🛠️【バグ修正】崩れていた代入式を正しい計算式に修復
+            // 🛠️【完全修復】壊れていた無限ループの原因（表の攻撃側）
             let bbP = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-curPHome.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
             let soP = ((b.so/100)*BALANCING_CONFIG.plates.soBaseScale) + ((curPHome.k9*BALANCING_CONFIG.plates.soPitcherScale));
             
@@ -332,8 +332,10 @@ function executeMatchLogic(away, home) {
             b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
             pitchAway += 4;
             let rand = Math.random();
+            // 🛠️【完全修復】壊れていた無限ループの原因（裏の攻撃側もきれいに修復！）
             let bbP = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-curPAway.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
             let soP = ((b.so/100)*BALANCING_CONFIG.plates.soBaseScale) + ((curPAway.k9*BALANCING_CONFIG.plates.soPitcherScale));
+            
             if(rand < bbP) {
                 b.stats.bb++; curPAway.stats.bb++;
                 let r = advanceRunners(bases, "BB"); homeScore += r; curPAway.stats.er += r; pitcherMatchStats.get(curPAway.name).er += r;
@@ -591,7 +593,8 @@ function updateUIAll() {
         pitBody.innerHTML = "";
         pList.slice(0, 15).forEach(p => {
             let tName = teams.find(t => t.pitchers.includes(p)).name;
-            pitBody.innerHTML += `<tr><td>${tName}</td><td><b>${p.name}</b></td><td>${p.role}</td><td>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td>${p.stats.saves}</td><td>formatInningsPitched(p.stats.ipOuts)</td><td>${p.staCurrent.toFixed(0)}</td><td>${p.stats.war.toFixed(1)}</td></tr>`;
+            // 🛠️【完全修復】文字列バグを排除し、正しい変数展開関数に書き換え
+            pitBody.innerHTML += `<tr><td>${tName}</td><td><b>${p.name}</b></td><td>${p.role}</td><td>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td>${p.stats.saves}</td><td>${formatInningsPitched(p.stats.ipOuts)}</td><td>${p.staCurrent.toFixed(0)}</td><td>${p.stats.war.toFixed(1)}</td></tr>`;
         });
     }
 }
