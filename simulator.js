@@ -33,18 +33,25 @@ function playNextRound() {
 }
 
 function updateUIAll() {
+    // 試合数を更新
     document.getElementById("current_game_count").innerText = totalGamesPlayed;
     
-    // 順位表の更新（勝数でソート）
+    // 順位表の更新
     let sorted = [...teams].sort((a,b) => b.wins - a.wins);
     let sBody = document.getElementById("standings_body");
-    sBody.innerHTML = sorted.map((t, i) => `<tr><td>${i+1}</td><td>${t.name}</td><td>${t.wins}</td></tr>`).join("");
+    if(sBody) {
+        sBody.innerHTML = sorted.map((t, i) => `<tr><td>${i+1}</td><td>${t.name}</td><td>${t.wins}</td></tr>`).join("");
+    }
     
-    // 個人成績の更新（例として先頭選手のみ）
+    // 個人成績の更新（全球団の野手データをループで反映）
     let bBody = document.querySelector("#batting_stats_table tbody");
     if(bBody) {
-        bBody.innerHTML = teams[0].batters.slice(0, 5).map(b => 
-            `<tr><td>${b.name}</td><td>---</td><td>${b.stats.war.toFixed(1)}</td></tr>`
-        ).join("");
+        let rows = "";
+        teams.forEach(t => {
+            t.batters.slice(0, 3).forEach(b => { // 各球団の上位3選手を表示
+                rows += `<tr><td>${b.name}</td><td>---</td><td>${(b.stats.war || 0).toFixed(1)}</td></tr>`;
+            });
+        });
+        bBody.innerHTML = rows;
     }
 }
