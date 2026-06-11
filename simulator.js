@@ -1,32 +1,50 @@
+// 試合の勝敗を計算して表示するロジックを追加
 function simulateRound() {
+    if (totalGamesPlayed >= MAX_GAMES) return null;
+    
+    let results = [];
+    // 全チームでランダムに試合を組んで勝敗をつける
+    for (let i = 0; i < teams.length; i += 2) {
+        let teamA = teams[i];
+        let teamB = teams[i+1];
+        if (!teamB) break;
+        
+        // 簡易勝敗判定
+        if (Math.random() > 0.5) {
+            teamA.wins++;
+            results.push(`${teamA.name} win vs ${teamB.name}`);
+        } else {
+            teamB.wins++;
+            results.push(`${teamB.name} win vs ${teamA.name}`);
+        }
+    }
+    
     totalGamesPlayed++;
-    // ここに試合の計算ロジック（後で詳細版に戻します）
-    teams.forEach(t => t.wins += Math.random() > 0.5 ? 1 : 0);
-    return "試合終了";
+    return results;
 }
 
 function playNextRound() {
-    simulateRound();
+    let results = simulateRound();
+    if (results) {
+        let rEl = document.getElementById("quick_match_results");
+        if(rEl) rEl.innerHTML = results.map(r => `<tr><td>${r}</td></tr>`).join("");
+    }
     updateUIAll();
 }
 
 function updateUIAll() {
     document.getElementById("current_game_count").innerText = totalGamesPlayed;
     
-    // 順位表の更新
+    // 順位表の更新（勝数でソート）
+    let sorted = [...teams].sort((a,b) => b.wins - a.wins);
     let sBody = document.getElementById("standings_body");
-    sBody.innerHTML = teams.map((t, i) => `<tr><td>${i+1}</td><td>${t.name}</td><td>${t.wins}</td></tr>`).join("");
+    sBody.innerHTML = sorted.map((t, i) => `<tr><td>${i+1}</td><td>${t.name}</td><td>${t.wins}</td></tr>`).join("");
     
-    // 個人成績の更新（とりあえず自チームの最初の選手だけ表示するテスト）
+    // 個人成績の更新（例として先頭選手のみ）
     let bBody = document.querySelector("#batting_stats_table tbody");
-    if(bBody && teams[0]) {
+    if(bBody) {
         bBody.innerHTML = teams[0].batters.slice(0, 5).map(b => 
             `<tr><td>${b.name}</td><td>---</td><td>${b.stats.war.toFixed(1)}</td></tr>`
         ).join("");
     }
 }
-
-window.addEventListener("DOMContentLoaded", () => {
-    initializeLeagueData();
-    updateUIAll();
-});
