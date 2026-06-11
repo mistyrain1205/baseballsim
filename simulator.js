@@ -302,7 +302,8 @@ function executeMatchLogic(away, home) {
             b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
             pitchHome += 4;
             let rand = Math.random();
-            let bbP = (b.bb/100)*BALBAL = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-curPHome.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
+            // 🛠️【バグ修正】崩れていた代入式を正しい計算式に修復
+            let bbP = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-curPHome.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
             let soP = ((b.so/100)*BALANCING_CONFIG.plates.soBaseScale) + ((curPHome.k9*BALANCING_CONFIG.plates.soPitcherScale));
             
             if(rand < bbP) {
@@ -433,7 +434,6 @@ function resetSeason() {
     updateUIAll(); 
 }
 
-// 🆕 消えていたエディター連動関数 (onEditorTeamChange) の大復活
 function onEditorTeamChange() {
     let teamSelect = document.getElementById("edit_team_select");
     let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
@@ -450,7 +450,6 @@ function onEditorTeamChange() {
     playerSelect.selectedIndex = 0; onEditorPlayerChange();
 }
 
-// 🆕 消えていたエディター連動関数 (onEditorPlayerChange) の大復活
 function onEditorPlayerChange() {
     let teamSelect = document.getElementById("edit_team_select");
     let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
@@ -512,7 +511,6 @@ function onEditorPlayerChange() {
     }
 }
 
-// 🆕 消えていたエディター保存関数 (saveEditorData) の大復活
 function saveEditorData() {
     let teamSelect = document.getElementById("edit_team_select");
     let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
@@ -593,12 +591,11 @@ function updateUIAll() {
         pitBody.innerHTML = "";
         pList.slice(0, 15).forEach(p => {
             let tName = teams.find(t => t.pitchers.includes(p)).name;
-            pitBody.innerHTML += `<tr><td>${tName}</td><td><b>${p.name}</b></td><td>${p.role}</td><td>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td>${p.stats.saves}</td><td>${formatInningsPitched(p.stats.ipOuts)}</td><td>${p.staCurrent.toFixed(0)}</td><td>${p.stats.war.toFixed(1)}</td></tr>`;
+            pitBody.innerHTML += `<tr><td>${tName}</td><td><b>${p.name}</b></td><td>${p.role}</td><td>${p.stats.ipOuts > 0 ? p.stats.era.toFixed(2) : '-.--'}</td><td>${p.stats.appearances}</td><td>${p.stats.wins}</td><td>${p.stats.losses}</td><td>${p.stats.saves}</td><td>formatInningsPitched(p.stats.ipOuts)</td><td>${p.staCurrent.toFixed(0)}</td><td>${p.stats.war.toFixed(1)}</td></tr>`;
         });
     }
 }
 
-// 🆕 消えていた汎用タブ切り替え関数 (switchTab) の超完全復活
 function switchTab(tabId, el) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
