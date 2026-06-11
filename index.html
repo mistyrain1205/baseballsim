@@ -237,7 +237,7 @@
 </div>
 
 <script>
-// 🔥【最重要バグ修正】すべての未定義エラーを粉砕するため、グローバル変数をスクリプト最上部に配置！
+// --- [0] グローバル領域：すべての変数を一番最初に定義 ---
 let userTeamId = 0;
 let currentYear = 1;
 let totalGamesPlayed = 0;
@@ -251,7 +251,6 @@ const BALANCING_CONFIG = {
     plates: { bbBaseScale: 0.75, bbPitcherScale: 0.0003, soBaseScale: 0.7, soPitcherScale: 0.001 }
 };
 
-// ドラフト・人員整理用グローバル
 let draftPool = { batters: [], pitchers: [] };
 let currentDraftRound = 1;
 let userReleaseList = { batters: [], pitchers: [] };
@@ -345,6 +344,15 @@ function advanceRunners(bases, hitKind) {
         bases.fill(false);
     }
     return runs;
+}
+
+// 🔥【完全復活】削れ落ちていた調子変動システム本体を完全内蔵！
+function changeAllPlayersCondition() {
+    const conds = ["絶好調", "好調", "普通", "不調", "絶不調"];
+    teams.forEach(t => {
+        t.batters.forEach(b => { b.condition = conds[Math.floor(Math.random() * conds.length)]; });
+        t.pitchers.forEach(p => { p.condition = conds[Math.floor(Math.random() * conds.length)]; });
+    });
 }
 
 // --- [4] 試合進行システムコア ---
