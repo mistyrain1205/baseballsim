@@ -2,14 +2,21 @@
 <html lang="ja">
 <head><meta charset="UTF-8"><title>Baseball Tycoon</title></head>
 <body>
-    <div id="app">
-        <h1>進行度: <span id="current_game_count">0</span></h1>
-        <button onclick="playNextRound()">試合進行</button>
-        <table>
-            <thead><tr><th>順位</th><th>チーム</th><th>勝</th></tr></thead>
-            <tbody id="standings_body"></tbody>
-        </table>
-    </div>
+    <h1>進行度: <span id="current_game_count">0</span></h1>
+    <button onclick="playNextRound()">試合進行</button>
+
+    <h2>リーグ順位表</h2>
+    <table>
+        <thead><tr><th>順位</th><th>チーム</th><th>勝</th></tr></thead>
+        <tbody id="standings_body"></tbody>
+    </table>
+
+    <h2>個人成績</h2>
+    <table id="batting_stats_table">
+        <thead><tr><th>選手名</th><th>打率</th><th>WAR</th></tr></thead>
+        <tbody></tbody>
+    </table>
+
     <script src="names.js"></script>
     <script src="data.js"></script>
     <script src="simulator.js"></script>
