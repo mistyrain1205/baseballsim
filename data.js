@@ -9,24 +9,36 @@ const prefectures = ["北海道", "青森", "岩手", "宮城", "秋田", "山�
 
 function initializeLeagueData() {
     teams = [];
+    const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
+    
     for(let t=0; t<6; t++) {
-        let teamObj = { id: t, name: teamNames[t], wins: 0, losses: 0, draws: 0, rotationIdx: 0, batters: [], pitchers: [] };
-        // 野手生成
-        for(let i=0; i<40; i++) {
+        let teamObj = { 
+            id: t, 
+            name: teamNames[t], 
+            wins: 0, 
+            losses: 0, 
+            batters: [], 
+            pitchers: [] 
+        };
+
+        // 野手生成 (9人)
+        for(let i=0; i<9; i++) {
             teamObj.batters.push({ 
-                name: generateRandomPlayerName(), role: i<9 ? i+1 : -1, 
-                stats: { ab:0, hits:0, hr:0, war:0.0 },
-                age: 25, currentPos: "一塁手", condition: "普通" 
+                name: generateRandomPlayerName(), 
+                role: i+1, 
+                stats: { ab:100, hits:25, war: 0.0 } 
             });
         }
-        // 投手生成
-        for(let i=0; i<30; i++) {
+
+        // 投手生成 (5人) ★ここを追加しました
+        for(let i=0; i<5; i++) {
             teamObj.pitchers.push({ 
-                name: generateRandomPlayerName(), role: i<5 ? "先発" : "リリーフ", 
-                stats: { wins:0, er:0, ipOuts:0, war:0.0 },
-                age: 25, condition: "普通" 
+                name: generateRandomPlayerName(), 
+                role: "先発", 
+                stats: { wins:0, er:0, ipOuts:0, war:0.0 } 
             });
         }
+
         teams.push(teamObj);
     }
 }
