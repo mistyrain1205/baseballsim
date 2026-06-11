@@ -255,7 +255,6 @@ function initializeLeagueData() {
     teams = [];
     for(let t=0; t<6; t++) {
         let teamObj = { id: t, name: teamNames[t], wins: 0, losses: 0, draws: 0, rotationIdx: 0, batters: [], pitchers: [] };
-        // 野手40人自動生成
         for(let i=1; i<=40; i++) {
             let isStamen = i <= 9; let isFirstTeam = i <= 16;
             let pos = ["捕手","一塁手","二塁手","三塁手","遊撃手","左翼手","中堅手","右翼手","一塁手","捕手","内野手","内野手","外野手","外野手","外野手","内野手","内野手","外野手","捕手","内野手","内野手","外野手","外野手","捕手","内野手","内野手","外野手","外野手","内野手","内野手","内野手","外野手","外野手","捕手","内野手","内野手","外野手","外野手","内野手","内野手"][i-1] || "二塁手";
@@ -280,7 +279,6 @@ function initializeLeagueData() {
                 stats: { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0, war: 0.0 }
             });
         }
-        // 投手30人自動生成
         for(let i=1; i<=30; i++) {
             let isStarter = i <= 5; let isCloser = i === 12; let isFirstTeam = i <= 12;
             let isMinorStarter = !isFirstTeam && (i <= 17);
@@ -299,76 +297,16 @@ function initializeLeagueData() {
     }
 }
 
-// --- [3] シミュレーター中枢システムエンジン ---
-const BALANCING_CONFIG = {
-    batting: { baseHitChance: 0.34, hrMultiplier: 0.80, pitcherH9Influence: 0.0012, pitcherHr9Influence: 0.25 },
-    plates: { bbBaseScale: 0.75, bbPitcherScale: 0.0003, soBaseScale: 0.7, soPitcherScale: 0.001 }
-};
-
-let userTeamId = 0;
-let currentYear = 1;
-
-function selectUserTeam(val) {
-    userTeamId = parseInt(val);
-    let editSelect = document.getElementById("edit_team_select");
-    if(editSelect) editSelect.value = userTeamId;
-    onEditorTeamChange();
-    updateUIAll();
-}
-
-function getConditionModifier(condition, type) {
-    const modifiers = {
-        "絶好調": { batBarrel: 1.20, batSo: 0.85, pitPitch: 1.10 },
-        "好調":   { batBarrel: 1.10, batSo: 0.95, pitPitch: 1.05 },
-        "普通":   { batBarrel: 1.00, batSo: 1.00, pitPitch: 1.00 },
-        "不調":   { batBarrel: 0.90, batSo: 1.10, pitPitch: 0.95 },
-        "絶不調": { batBarrel: 0.80, batSo: 1.20, pitPitch: 0.90 }
-    };
-    return modifiers[condition] ? modifiers[condition][type] : 1.0;
-}
-
-function changeAllPlayersCondition() {
-    const conds = ["絶好調", "好調", "普通", "不調", "絶不調"];
-    teams.forEach(t => {
-        t.batters.forEach(b => { b.condition = conds[Math.floor(Math.random() * conds.length)]; });
-        t.pitchers.forEach(p => { p.condition = conds[Math.floor(Math.random() * conds.length)]; });
-    });
-}
-
-function executeFrontOfficeAI() {
-    teams.forEach(t => {
-        let tiredRelief = t.pitchers.find(p => p.role === "リリーフ" && p.staCurrent <= 12);
-        let freshMinorRelief = t.pitchers.find(p => p.role === "二軍リリーフ" && p.staCurrent >= 32);
-        if (tiredRelief && freshMinorRelief) {
-            tiredRelief.role = "二軍リリーフ"; freshMinorRelief.role = "リリーフ";
-        }
-    });
-}
-
-function reassignTeamRoles(t) {
-    const requiredPositions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手"];
-    t.batters.forEach(b => b.role = -1);
-    requiredPositions.forEach((pos, idx) => {
-        let candidate = t.batters.find(b => b.role === -1 && (b.originalPos === pos || (b.subPositions && b.subPositions.includes(pos))));
-        if (candidate) { candidate.role = idx + 1; candidate.currentPos = pos; }
-    });
-    requiredPositions.forEach((pos, idx) => {
-        if (!t.batters.some(b => b.role === (idx + 1))) {
-            let backup = t.batters.find(b => b.role === -1);
-            if (backup) { backup.role = idx + 1; backup.currentPos = pos; }
-        }
-    });
-    let rCount = 0;
-    t.batters.forEach(b => {
-        if (b.role > 0) return;
-        if (rCount < 7) { b.role = 0; rCount++; } else { b.role = -1; }
-        b.currentPos = b.originalPos;
-    });
-    t.pitchers.forEach((p, idx) => {
-        if (p.role === "先発" || p.role === "守護神" || p.role === "二軍先発") { p.staCurrent = p.staMax; return; }
-        if (idx < 12) { if (p.role !== "先発" && p.role !== "守護神") p.role = "リリーフ"; }
-        else { if (p.role !== "二軍先発") p.role = "二軍リリーフ"; }
-    });
+// ⚠️【位置変更：超重要バグ修正】下部にあったヘルパー計算関数を、大元のシミュレーターより上に配置します
+function getDynamicSchedule(roundCount) {
+    let numTeams = 6; let totalRounds = numTeams - 1; let currentRound = roundCount % totalRounds;
+    let pairings = []; let list = [0, 1, 2, 3, 4, 5];
+    for (let i = 0; i < numTeams / 2; i++) {
+        let awayIdx = (currentRound + i) % (numTeams - 1);
+        let homeIdx = (numTeams - 1 - i + currentRound) % (numTeams - 1);
+        if (i === 0) homeIdx = numTeams - 1; pairings.push([list[awayIdx], list[homeIdx]]);
+    }
+    return pairings;
 }
 
 function formatInningsPitched(totalOuts) {
@@ -695,7 +633,6 @@ function finalizeUserReleases() {
     myTeam.batters = myTeam.batters.filter((_, idx) => !batChecked.includes(idx));
     myTeam.pitchers = myTeam.pitchers.filter((_, idx) => !pitChecked.includes(idx));
 
-    // CPUも自動解雇
     teams.forEach(t => {
         if (t.id === userTeamId) return;
         t.batters.sort((a,b) => a.stats.war - b.stats.war); t.batters.splice(0, 3);
@@ -747,7 +684,6 @@ function userSelectDraftPlayer(type, index) {
 
     let resEl = document.getElementById(`my_draft_r${currentDraftRound}`); if (resEl) resEl.innerHTML = `<b>${p.name}</b> <small>(${p.currentPos})</small>`;
     
-    // CPU自動指名
     teams.forEach(t => {
         if (t.id === userTeamId || currentDraftRound > 6) return;
         let pPool = Math.random() < 0.5 ? draftPool.batters : draftPool.pitchers;
@@ -768,21 +704,4 @@ function userSelectDraftPlayer(type, index) {
         updateUIAll();
         setTimeout(() => { alert(`祝・ペナント第 ${currentYear} 年目 開幕！`); switchTab('tab-stats-bat', document.querySelectorAll('.tab')[0]); }, 200);
     } else {
-        let title = document.getElementById("ui_draft_round_title"); if(title) title.innerText = `今年のドラフト候補生一覧 (第 ${currentDraftRound} 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
-        renderDraftPoolUI();
-    }
-}
-
-// --- 初期ロード自動トリガー ---
-window.addEventListener("DOMContentLoaded", () => {
-    initializeLeagueData();
-    let editTeamSelect = document.getElementById("edit_team_select");
-    if (editTeamSelect) {
-        editTeamSelect.innerHTML = teamNames.map((name, idx) => `<option value="${idx}" ${idx===userTeamId?"selected":""}>${name}</option>`).join("");
-    }
-    onEditorTeamChange();
-    updateUIAll();
-});
-</script>
-</body>
-</html>
+        let title = document.getElementById("ui_draft_round_title"); if(title) title.innerText = `今年のドラフト候補生一覧 (第 ${currentDraftRound}
