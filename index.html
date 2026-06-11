@@ -236,6 +236,9 @@
     </div>
 </div>
 
+<!-- ================================================================= -->
+<!-- ⚙️ 1枚完結・全スクリプトエンジン（完全統合システム）                 -->
+<!-- ================================================================= -->
 <script>
 // グローバル変数領域
 let userTeamId = 0;
@@ -354,7 +357,6 @@ function changeAllPlayersCondition() {
     });
 }
 
-// 🛠️【バグ完全破砕】タイポ「Office二軍」を正しい英語名「executeFrontOfficeAI」に100%修正！
 function executeFrontOfficeAI() {
     teams.forEach(t => {
         let tiredRelief = t.pitchers.find(p => p.role === "リリーフ" && p.staCurrent <= 12);
@@ -488,7 +490,7 @@ function executeMatchLogic(away, home) {
     return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
 }
 
-// 🔥【完全復活】呼び出し側の「executeFrontOffice二軍」も、正しい「executeFrontOfficeAI」に連動完了！
+// ⚙️【完全大手術】重複していた幽霊関数を完全に削除し、ここに1つだけ集約！
 function simulateRound() {
     if (totalGamesPlayed === -1) return null;
     if (totalGamesPlayed >= MAX_GAMES) {
@@ -619,7 +621,7 @@ function updateUIAll() {
         });
     });
 
-    let sorted = [...teams].sort((a,b) => (b.wins/(b.wins+b.losses||1)) - (a.wins/(a.wins+a.losses||1)));
+    let sorted = [...teams].sort((a,b) => (b.wins/(b.wins+b.losses||1)) - (a.wins/(a.wins+b.losses||1)));
     let sBody = document.getElementById("standings_body"); sBody.innerHTML = "";
     sorted.forEach((t, i) => {
         let rowStyle = (t.id === userTeamId) ? `style="background-color: #e0f2fe; font-weight:bold;"` : "";
@@ -721,7 +723,6 @@ function startUserReleasePhase() {
     document.getElementById("draft_interaction_zone").style.display = "none";
 }
 
-// 追加修正：ドラフトプールの投手フィルタで不要なプロパティ参照を修正
 function updateReleaseCount() {
     let total = document.querySelectorAll(".rel-check-bat:checked").length + document.querySelectorAll(".rel-check-pit:checked").length;
     let relCountEl = document.getElementById("ui_release_count"); if(relCountEl) relCountEl.innerText = total;
