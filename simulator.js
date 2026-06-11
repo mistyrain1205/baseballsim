@@ -54,4 +54,12 @@ function updateUIAll() {
         });
         bBody.innerHTML = rows;
     }
+    window.addEventListener("DOMContentLoaded", () => {
+    initializeLeagueData();
+    // 0.1秒だけ待ってから表示する
+    setTimeout(() => {
+        updateUIAll();
+    }, 100);
+});
+    
 }
