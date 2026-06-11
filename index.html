@@ -237,7 +237,7 @@
 </div>
 
 <script>
-// --- [0] グローバル領域：変数の完全トップ配置 ---
+// グローバル変数領域
 let userTeamId = 0;
 let currentYear = 1;
 let totalGamesPlayed = 0;
@@ -354,7 +354,7 @@ function changeAllPlayersCondition() {
     });
 }
 
-// 🔥【タイポ大修正】文字化けしていた「executeFrontOffice二軍」を「executeFrontOfficeAI」へ完全修復！
+// 🛠️【バグ完全破砕】タイポ「Office二軍」を正しい英語名「executeFrontOfficeAI」に100%修正！
 function executeFrontOfficeAI() {
     teams.forEach(t => {
         let tiredRelief = t.pitchers.find(p => p.role === "リリーフ" && p.staCurrent <= 12);
@@ -488,6 +488,7 @@ function executeMatchLogic(away, home) {
     return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
 }
 
+// 🔥【完全復活】呼び出し側の「executeFrontOffice二軍」も、正しい「executeFrontOfficeAI」に連動完了！
 function simulateRound() {
     if (totalGamesPlayed === -1) return null;
     if (totalGamesPlayed >= MAX_GAMES) {
@@ -720,6 +721,7 @@ function startUserReleasePhase() {
     document.getElementById("draft_interaction_zone").style.display = "none";
 }
 
+// 追加修正：ドラフトプールの投手フィルタで不要なプロパティ参照を修正
 function updateReleaseCount() {
     let total = document.querySelectorAll(".rel-check-bat:checked").length + document.querySelectorAll(".rel-check-pit:checked").length;
     let relCountEl = document.getElementById("ui_release_count"); if(relCountEl) relCountEl.innerText = total;
@@ -760,7 +762,7 @@ function generateDraftPool() {
     if(resBody) resBody.innerHTML = Array.from({length: maxDraftRounds}, (_, r) => `<tr><td>${r+1}位</td><td id="my_draft_r${r+1}">-</td></tr>`).join("");
     document.getElementById("offseason_release_zone").style.display = "none";
     document.getElementById("draft_interaction_zone").style.display = "grid";
-    let title = document.getElementById("ui_draft_round_title"); if(title) title.innerText = `今年のドラフト候補生一覧 (第 ${currentDraftRound} 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
+    let title = document.getElementById("ui_draft_round_title"); if(title) title.innerText = `今年のドラフト候補生一覧 (第 1 巡目指名 / 最大 ${maxDraftRounds} 巡)`;
     renderDraftPoolUI();
 }
 
@@ -772,7 +774,6 @@ function renderDraftPoolUI() {
         tbody.innerHTML += `<tr><td>野-${idx}</td><td><b>${b.name}</b>${badge}</td><td><span style="color:#dd6b20; font-weight:bold;">野手</span></td><td>${b.currentPos}</td><td>${b.graduation}</td><td>${b.age}歳</td><td>${b.amateurStats}</td><td><button class="btn btn-success" onclick="userSelectDraftPlayer('bat', ${idx})">指名</button></td></tr>`;
     });
     draftPool.pitchers.forEach((p, idx) => {
-        if (p.isOver) return;
         if (p.isDrafted) return;
         let badge = p.amateurTitle !== "なし" ? `<span style="background:#2b6cb0; color:white; padding:2px 5px; border-radius:3px; font-size:0.8em; margin-left:5px;">${p.amateurTitle}</span>` : "";
         tbody.innerHTML += `<tr><td>投-${idx}</td><td><b>${p.name}</b>${badge}</td><td><span style="color:#2b6cb0; font-weight:bold;">投手</span></td><td>投手</td><td>${p.graduation}</td><td>${p.age}歳</td><td>${p.amateurStats}</td><td><button class="btn btn-success" onclick="userSelectDraftPlayer('pit', ${idx})">指名</button></td></tr>`;
