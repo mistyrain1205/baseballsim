@@ -20,6 +20,11 @@ function simulateRound() {
     return results;
 }
 
+function playNextRound() {
+    simulateRound();
+    updateUIAll();
+}
+
 function updateUIAll() {
     // 1. WARと打率の再計算処理
     teams.forEach(t => {
