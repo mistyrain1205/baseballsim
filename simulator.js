@@ -35,23 +35,31 @@ function playNextRound() {
 // --- (中略：これまでの simulateRound 等の関数はそのまま) ---
 
 function updateUIAll() {
-    // 試合数を更新
+    // 1. 各選手のWARを再計算（今の簡易データを使って計算するロジック）
+    teams.forEach(t => {
+        t.batters.forEach(b => {
+            // 例: 安打数と打数から簡易的にWARを算出
+            b.stats.war = (b.stats.hits / (b.stats.ab || 1) - 0.250) * 10;
+        });
+    });
+
+    // 2. 進行度の更新
     document.getElementById("current_game_count").innerText = totalGamesPlayed;
     
-    // 順位表の更新
+    // 3. 順位表の更新
     let sorted = [...teams].sort((a,b) => b.wins - a.wins);
     let sBody = document.getElementById("standings_body");
     if(sBody) {
         sBody.innerHTML = sorted.map((t, i) => `<tr><td>${i+1}</td><td>${t.name}</td><td>${t.wins}</td></tr>`).join("");
     }
     
-    // 個人成績の更新
+    // 4. 個人成績の更新（WARの値が反映されるようになります）
     let bBody = document.querySelector("#batting_stats_table tbody");
     if(bBody) {
         let rows = "";
         teams.forEach(t => {
             t.batters.slice(0, 3).forEach(b => {
-                rows += `<tr><td>${b.name}</td><td>---</td><td>${(b.stats.war || 0).toFixed(1)}</td></tr>`;
+                rows += `<tr><td>${b.name}</td><td>---</td><td>${b.stats.war.toFixed(1)}</td></tr>`;
             });
         });
         bBody.innerHTML = rows;
