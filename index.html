@@ -20,10 +20,27 @@
 <script>
 let totalGamesPlayed = 0;
 let MAX_GAMES = 143;
-let teams = [
-    { name: "大阪", wins: 0, batters: [{name:"田中", stats:{ab:0, hits:0, war:0, avg:0}}] },
-    { name: "東京", wins: 0, batters: [{name:"佐藤", stats:{ab:0, hits:0, war:0, avg:0}}] }
-];
+// simulator.js の teams 定義を差し替え
+let teams = teamNames.map((name, idx) => ({
+    id: idx,
+    name: name,
+    wins: 0,
+    losses: 0,
+    draws: 0,
+    rotationIdx: 0,
+    batters: Array.from({length: 40}, (_, i) => ({
+        name: generateRandomPlayerName(),
+        role: i < 9 ? i + 1 : 0,
+        stats: { ab: 0, hits: 0, hr: 0, bb: 0, so: 0, war: 0 }
+    })),
+    pitchers: Array.from({length: 30}, (_, i) => ({
+        name: generateRandomPlayerName(),
+        role: i < 5 ? "先発" : "リリーフ",
+        staMax: 90,
+        staCurrent: 90,
+        stats: { era: 0, ipOuts: 0, wins: 0, er: 0 }
+    }))
+}));
 
 function simulateRound() {
     if (totalGamesPlayed >= MAX_GAMES) return;
