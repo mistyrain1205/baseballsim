@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - 完結版</title>
+    <title>Baseball Tycoon - 修正版</title>
     <script src="names.js"></script>
 </head>
 <body>
@@ -10,27 +10,27 @@
     <button onclick="playNextRound()">試合進行</button>
 
     <h2>リーグ順位表</h2>
-    <table><thead><tr><th>チーム</th><th>勝</th></tr></thead><tbody id="standings_body"></tbody></table>
+    <table border="1"><thead><tr><th>チーム</th><th>勝</th></tr></thead><tbody id="standings_body"></tbody></table>
 
-    <h2>個人成績 (全選手)</h2>
-    <table id="batting_stats_table">
+    <h2>個人成績 (各球団上位3名)</h2>
+    <table border="1" id="batting_stats_table">
         <thead><tr><th>選手名</th><th>打率</th><th>WAR</th></tr></thead>
         <tbody></tbody>
     </table>
 
 <script>
-// --- データベース系 ---
-const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
-const firstNames = ["田中", "佐藤", "鈴木", "高橋", "伊藤", "渡辺", "山本", "中村", "小林", "加藤"];
-const lastNames = ["翔平", "勇人", "悠岐", "和真", "宗隆", "光司", "秀悟", "輝明", "誠也", "由伸"];
-function generateRandomPlayerName() {
-    // names.js で定義した配列を使って名前を生成
-    return firstNames[Math.floor(Math.random() * firstNames.length)] + " " + lastNames[Math.floor(Math.random() * lastNames.length)];
-}
-
 // --- システム系 ---
 let totalGamesPlayed = 0;
 let MAX_GAMES = 143;
+
+// names.jsで定義されたfirstNamesとlastNamesをここで使う
+function generateRandomPlayerName() {
+    // もしnames.jsが読み込めていない場合の保険（エラー防止）
+    const f = (typeof firstNames !== 'undefined') ? firstNames : ["田中"];
+    const l = (typeof lastNames !== 'undefined') ? lastNames : ["太郎"];
+    return f[Math.floor(Math.random() * f.length)] + " " + l[Math.floor(Math.random() * l.length)];
+}
+
 let teams = teamNames.map((name, idx) => ({
     id: idx,
     name: name,
@@ -56,13 +56,13 @@ function simulateRound() {
 function updateUIAll() {
     document.getElementById("current_game_count").innerText = totalGamesPlayed;
     
-    // 順位表更新（勝数でソート）
+    // 順位表の更新
     let sBody = document.getElementById("standings_body");
     sBody.innerHTML = [...teams].sort((a,b) => b.wins - a.wins).map(t => 
         `<tr><td>${t.name}</td><td>${t.wins}</td></tr>`
     ).join("");
     
-    // 打撃成績更新（全選手を表示すると長すぎるので最初の5名ずつ表示）
+    // 個人成績の更新
     let bBody = document.querySelector("#batting_stats_table tbody");
     bBody.innerHTML = "";
     teams.forEach(t => {
@@ -79,7 +79,6 @@ function playNextRound() {
     updateUIAll();
 }
 
-// 初回描画
 updateUIAll();
 </script>
 </body>
