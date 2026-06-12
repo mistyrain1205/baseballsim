@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Baseball Tycoon - 完結版</title>
+    <script src="names.js"></script>
 </head>
 <body>
     <h1>進行度: <span id="current_game_count">0</span> / 143</h1>
@@ -23,7 +24,8 @@ const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
 const firstNames = ["田中", "佐藤", "鈴木", "高橋", "伊藤", "渡辺", "山本", "中村", "小林", "加藤"];
 const lastNames = ["翔平", "勇人", "悠岐", "和真", "宗隆", "光司", "秀悟", "輝明", "誠也", "由伸"];
 function generateRandomPlayerName() {
-    return firstNames[Math.floor(Math.random()*firstNames.length)] + " " + lastNames[Math.floor(Math.random()*lastNames.length)];
+    // names.js で定義した配列を使って名前を生成
+    return firstNames[Math.floor(Math.random() * firstNames.length)] + " " + lastNames[Math.floor(Math.random() * lastNames.length)];
 }
 
 // --- システム系 ---
