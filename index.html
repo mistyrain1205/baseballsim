@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - 投手陣構築版</title>
+    <title>Baseball Tycoon - 野手・投手完全連動版</title>
+    <script src="names.js"></script>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
         .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
@@ -13,79 +14,73 @@
 </head>
 <body>
 <div class="container">
-    <h1>投手陣成績ボード (進行: <span id="current_game_count">0</span>)</h1>
+    <h1>進行度: <span id="current_game_count">0</span> / 143</h1>
     <button onclick="playNextRound()">試合進行</button>
 
-    <h2>投手陣詳細</h2>
-    <table id="pitcher_stats_table">
-        <thead>
-            <tr>
-                <th>投手名</th><th>役割</th><th>回</th><th>奪三振</th><th>被安打</th><th>防御率</th><th>WAR</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+    <h2>野手成績</h2>
+    <table id="batting_table"><thead><tr><th>名前</th><th>打率</th><th>WAR</th></tr></thead><tbody></tbody></table>
+
+    <h2>投手成績</h2>
+    <table id="pitching_table"><thead><tr><th>名前</th><th>役割</th><th>回</th><th>防御率</th><th>奪三振</th></tr></thead><tbody></tbody></table>
 </div>
 
 <script>
-// --- 初期設定 ---
-let teams = ["大阪", "東京", "横浜", "西海", "京都", "浪速"].map(name => ({
-    name,
-    pitchers: Array.from({length: 8}, (_, i) => ({
-        name: "投手" + (i + 1),
-        role: i === 0 ? "先発" : (i === 7 ? "守護神" : "リリーフ"),
-        k9: 6 + Math.random() * 6, // 奪三振能力
-        h9: 6 + Math.random() * 4, // 被安打抑制
-        stats: { ipOuts: 0, so: 0, hitsAllowed: 0, er: 0, wins: 0 }
+// --- 初期データ ---
+const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
+let totalGamesPlayed = 0;
+
+let teams = teamNames.map(name => ({
+    name, wins: 0,
+    batters: Array.from({length: 9}, (_, i) => ({
+        name: generateRandomPlayerName(), stats: { ab: 0, hits: 0, war: 0 }
+    })),
+    pitchers: Array.from({length: 6}, (_, i) => ({
+        name: generateRandomPlayerName(),
+        role: i === 0 ? "先発" : (i === 5 ? "守護神" : "リリーフ"),
+        stats: { ipOuts: 0, so: 0, er: 0 }
     }))
 }));
 
-let totalGamesPlayed = 0;
-
 // --- 試合ロジック ---
 function executeMatchLogic(away, home) {
-    // 先発投手の登板
-    let p = home.pitchers.find(p => p.role === "先発");
-    
-    // 試合結果計算のシミュレーション
-    p.stats.ipOuts += 9; // 3イニング登板と仮定
-    p.stats.so += Math.floor(p.k9 * 0.3);
-    p.stats.hitsAllowed += Math.floor(p.h9 * 0.5);
-    p.stats.er += Math.floor(Math.random() * 2);
+    // 1. 野手の攻撃シミュレーション
+    away.batters.forEach(b => {
+        b.stats.ab += 1;
+        if(Math.random() > 0.7) b.stats.hits += 1;
+    });
 
-    totalGamesPlayed++;
+    // 2. 投手の継投と成績更新
+    let pitchers = home.pitchers;
+    // 序盤は先発、中盤以降はリリーフへ交代
+    let currentPitcher = (totalGamesPlayed % 9 < 3) ? pitchers[0] : pitchers[1];
+    
+    currentPitcher.stats.ipOuts += 9;
+    if(Math.random() > 0.6) currentPitcher.stats.so += 1;
+    if(Math.random() > 0.7) currentPitcher.stats.er += 1;
+
+    home.wins += (Math.random() > 0.5 ? 1 : 0);
 }
 
 function playNextRound() {
     [[0,1], [2,3], [4,5]].forEach(pair => executeMatchLogic(teams[pair[0]], teams[pair[1]]));
+    totalGamesPlayed++;
     updateUI();
 }
 
 // --- UI更新 ---
 function updateUI() {
     document.getElementById("current_game_count").innerText = totalGamesPlayed;
-    let tbody = document.querySelector("#pitcher_stats_table tbody");
-    tbody.innerHTML = "";
+    
+    let bBody = document.querySelector("#batting_table tbody");
+    bBody.innerHTML = teams.flatMap(t => t.batters).map(b => 
+        `<tr><td>${b.name}</td><td>${(b.stats.hits/(b.stats.ab||1)).toFixed(3)}</td><td>${(b.stats.hits*0.1).toFixed(1)}</td></tr>`
+    ).join("");
 
-    teams.forEach(t => {
-        t.pitchers.forEach(p => {
-            let ip = p.stats.ipOuts / 3;
-            let era = ip > 0 ? (p.stats.er * 9 / ip) : 0;
-            let war = (ip / 15) + (p.stats.so * 0.1) - (p.stats.hitsAllowed * 0.05);
-            
-            tbody.innerHTML += `<tr>
-                <td>${p.name} (${t.name})</td>
-                <td>${p.role}</td>
-                <td>${ip.toFixed(1)}</td>
-                <td>${p.stats.so}</td>
-                <td>${p.stats.hitsAllowed}</td>
-                <td>${era.toFixed(2)}</td>
-                <td>${war.toFixed(1)}</td>
-            </tr>`;
-        });
-    });
+    let pBody = document.querySelector("#pitching_table tbody");
+    pBody.innerHTML = teams.flatMap(t => t.pitchers).map(p => 
+        `<tr><td>${p.name}</td><td>${p.role}</td><td>${(p.stats.ipOuts/3).toFixed(1)}</td><td>${(p.stats.er * 9 / (Math.max(p.stats.ipOuts/3, 1))).toFixed(2)}</td><td>${p.stats.so}</td></tr>`
+    ).join("");
 }
-
 updateUI();
 </script>
 </body>
