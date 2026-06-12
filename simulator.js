@@ -255,9 +255,9 @@ function advanceRunners(bases, hitKind) {
     return runs;
 }
 
-// ==========================================
-// 3. 試合進行・シミュレーション中枢
-// ==========================================
+// =================================================================
+// 3. 試合進行・シミュレーション中枢（完全修正版）
+// =================================================================
 function executeMatchLogic(away, home) {
     let awayStarters = away.pitchers.filter(p => p.role === "先発");
     let homeStarters = home.pitchers.filter(p => p.role === "先発");
@@ -272,6 +272,7 @@ function executeMatchLogic(away, home) {
     let awayOrder = 1; let homeOrder = 1;
     let pitchAway = 0; let pitchHome = 0;
     
+    // 投手の成績を記録するマップ（エラー回避のため初期化）
     let pitcherMatchStats = new Map();
     const initPS = (p) => { if(!pitcherMatchStats.has(p.name)) pitcherMatchStats.set(p.name, {er:0, outs:0}); };
     initPS(curPAway); initPS(curPHome);
@@ -302,7 +303,6 @@ function executeMatchLogic(away, home) {
             b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
             pitchHome += 4;
             let rand = Math.random();
-            // 🛠️【完全修復】壊れていた無限ループの原因（表の攻撃側）
             let bbP = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-curPHome.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
             let soP = ((b.so/100)*BALANCING_CONFIG.plates.soBaseScale) + ((curPHome.k9*BALANCING_CONFIG.plates.soPitcherScale));
             
@@ -332,7 +332,6 @@ function executeMatchLogic(away, home) {
             b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
             pitchAway += 4;
             let rand = Math.random();
-            // 🛠️【完全修復】壊れていた無限ループの原因（裏の攻撃側もきれいに修復！）
             let bbP = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-curPAway.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
             let soP = ((b.so/100)*BALANCING_CONFIG.plates.soBaseScale) + ((curPAway.k9*BALANCING_CONFIG.plates.soPitcherScale));
             
@@ -365,8 +364,13 @@ function executeMatchLogic(away, home) {
         if(awayScore >= homeScore - 3 && appearedHome.length > 1) appearedHome[appearedHome.length-1].stats.saves++;
     } else { away.draws++; home.draws++; }
 
-    appearedAway.forEach(p => { if(p.role!=="先発") p.staCurrent = Math.max(0, p.staCurrent - (15 + pitcherMatchStats.get(p.name).outs*2)); });
-    home.pitchers.forEach(p => { if(p.role!=="先発") p.staCurrent = Math.max(0, p.staCurrent - (15 + pitcherMatchStats.get(p.name).outs*2)); });
+    // --- エラー回避用の修正ロジック ---
+    [...appearedAway, ...appearedHome].forEach(p => {
+        let stats = pitcherMatchStats.get(p.name);
+        if(p.role !== "先発" && stats) {
+            p.staCurrent = Math.max(0, p.staCurrent - (15 + stats.outs * 2)); 
+        }
+    });
 
     away.pitchers.forEach(p => { if(p.stats.ipOuts>0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
     home.pitchers.forEach(p => { if(p.stats.ipOuts>0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
