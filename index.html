@@ -142,30 +142,36 @@ function updateUIAll() {
         `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td></tr>`
     ).join("");
     
-    // 打撃成績更新（statsの中身を計算して表示）
+    // 打撃成績更新
     let bBody = document.querySelector("#batting_stats_table tbody");
     bBody.innerHTML = "";
     
-    // 全チームの全打者をリスト化してソート
+    // 全選手をリスト化してWARを再計算する
     let allBatters = [];
     teams.forEach(t => {
         t.batters.forEach(b => {
-            allBatters.push({ name: b.name, team: t.name, stats: b.stats });
+            // WARの安全な計算
+            let ab = b.stats.ab || 0;
+            let hits = b.stats.hits || 0;
+            let avg = ab > 0 ? (hits / ab) : 0;
+            
+            // 簡単なWAR計算式 (打率0.250を基準としたもの)
+            b.stats.war = ab > 0 ? (avg - 0.250) * (ab / 50) : 0;
+            
+            allBatters.push({ name: b.name, team: t.name, stats: b.stats, avg: avg });
         });
     });
     
-    // WARが高い順に上位15名を表示
+    // WARでソートして表示
     allBatters.sort((a, b) => b.stats.war - a.stats.war);
     allBatters.slice(0, 15).forEach(b => {
-        let avg = b.stats.ab > 0 ? (b.stats.hits / b.stats.ab) : 0;
         bBody.innerHTML += `<tr>
             <td>${b.name} (${b.team})</td>
-            <td>${avg.toFixed(3)}</td>
+            <td>${b.avg.toFixed(3)}</td>
             <td>${b.stats.war.toFixed(1)}</td>
         </tr>`;
     });
 }
-
 function playNextRound() {
     simulateRound();
     updateUIAll();
