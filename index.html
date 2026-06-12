@@ -98,14 +98,35 @@ function simulateRound() {
 
 function updateUIAll() {
     document.getElementById("current_game_count").innerText = totalGamesPlayed;
-    document.getElementById("standings_body").innerHTML = [...teams].sort((a,b) => b.wins - a.wins).map(t => 
-        `<tr><td>${t.name}</td><td>${t.wins}</td></tr>`
+    
+    // 順位表更新
+    let sBody = document.getElementById("standings_body");
+    sBody.innerHTML = [...teams].sort((a,b) => b.wins - a.wins).map(t => 
+        `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td></tr>`
     ).join("");
     
+    // 打撃成績更新（statsの中身を計算して表示）
     let bBody = document.querySelector("#batting_stats_table tbody");
-    bBody.innerHTML = teams.flatMap(t => t.batters.slice(0, 2)).map(b => 
-        `<tr><td>${b.name}</td><td>0.000</td><td>0.0</td></tr>`
-    ).join("");
+    bBody.innerHTML = "";
+    
+    // 全チームの全打者をリスト化してソート
+    let allBatters = [];
+    teams.forEach(t => {
+        t.batters.forEach(b => {
+            allBatters.push({ name: b.name, team: t.name, stats: b.stats });
+        });
+    });
+    
+    // WARが高い順に上位15名を表示
+    allBatters.sort((a, b) => b.stats.war - a.stats.war);
+    allBatters.slice(0, 15).forEach(b => {
+        let avg = b.stats.ab > 0 ? (b.stats.hits / b.stats.ab) : 0;
+        bBody.innerHTML += `<tr>
+            <td>${b.name} (${b.team})</td>
+            <td>${avg.toFixed(3)}</td>
+            <td>${b.stats.war.toFixed(1)}</td>
+        </tr>`;
+    });
 }
 
 function playNextRound() {
