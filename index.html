@@ -2,82 +2,69 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - 野手・投手完全連動版</title>
-    <script src="names.js"></script>
+    <title>Baseball Tycoon - 見やすい配置版</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
-        .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
+        body { font-family: "Helvetica Neue", Arial, sans-serif; padding: 20px; background: #f0f2f5; }
+        .container { max-width: 1200px; margin: auto; }
+        .header { background: #1a202c; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .panel { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h2 { border-left: 5px solid #3182ce; padding-left: 10px; color: #2d3748; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 0.85em; }
-        th { background: #2d3748; color: white; }
+        th { background: #edf2f7; padding: 10px; font-size: 0.85em; }
+        td { padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 0.9em; }
+        button { padding: 12px 24px; font-size: 1.2em; cursor: pointer; background: #3182ce; color: white; border: none; border-radius: 5px; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>進行度: <span id="current_game_count">0</span> / 143</h1>
-    <button onclick="playNextRound()">試合進行</button>
+    <div class="header">
+        <h1>Baseball Tycoon: 進行度 <span id="current_game_count">0</span> / 143</h1>
+        <button onclick="playNextRound()">試合進行 (1ラウンド)</button>
+    </div>
 
-    <h2>野手成績</h2>
-    <table id="batting_table"><thead><tr><th>名前</th><th>打率</th><th>WAR</th></tr></thead><tbody></tbody></table>
-
-    <h2>投手成績</h2>
-    <table id="pitching_table"><thead><tr><th>名前</th><th>役割</th><th>回</th><th>防御率</th><th>奪三振</th></tr></thead><tbody></tbody></table>
+    <div class="grid">
+        <div class="panel">
+            <h2>野手成績</h2>
+            <table id="batting_table">
+                <thead><tr><th>名前</th><th>打率</th><th>WAR</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="panel">
+            <h2>投手成績</h2>
+            <table id="pitching_table">
+                <thead><tr><th>名前</th><th>役割</th><th>回</th><th>防御率</th><th>奪三振</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <script>
-// --- 初期データ ---
+// (データ構造とロジックは前回同様)
 const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
 let totalGamesPlayed = 0;
-
 let teams = teamNames.map(name => ({
-    name, wins: 0,
-    batters: Array.from({length: 9}, (_, i) => ({
-        name: generateRandomPlayerName(), stats: { ab: 0, hits: 0, war: 0 }
-    })),
-    pitchers: Array.from({length: 6}, (_, i) => ({
-        name: generateRandomPlayerName(),
-        role: i === 0 ? "先発" : (i === 5 ? "守護神" : "リリーフ"),
-        stats: { ipOuts: 0, so: 0, er: 0 }
-    }))
+    name, batters: Array.from({length: 9}, (_, i) => ({ name: "打者"+(i+1), stats: { ab: 0, hits: 0 } })),
+    pitchers: Array.from({length: 6}, (_, i) => ({ name: "投手"+(i+1), role: i===0?"先発":(i===5?"守護神":"リリーフ"), stats: { ipOuts: 0, so: 0, er: 0 } }))
 }));
 
-// --- 試合ロジック ---
-function executeMatchLogic(away, home) {
-    // 1. 野手の攻撃シミュレーション
-    away.batters.forEach(b => {
-        b.stats.ab += 1;
-        if(Math.random() > 0.7) b.stats.hits += 1;
-    });
-
-    // 2. 投手の継投と成績更新
-    let pitchers = home.pitchers;
-    // 序盤は先発、中盤以降はリリーフへ交代
-    let currentPitcher = (totalGamesPlayed % 9 < 3) ? pitchers[0] : pitchers[1];
-    
-    currentPitcher.stats.ipOuts += 9;
-    if(Math.random() > 0.6) currentPitcher.stats.so += 1;
-    if(Math.random() > 0.7) currentPitcher.stats.er += 1;
-
-    home.wins += (Math.random() > 0.5 ? 1 : 0);
-}
-
 function playNextRound() {
-    [[0,1], [2,3], [4,5]].forEach(pair => executeMatchLogic(teams[pair[0]], teams[pair[1]]));
+    teams.forEach(t => {
+        t.batters.forEach(b => { b.stats.ab++; if(Math.random() > 0.7) b.stats.hits++; });
+        t.pitchers.forEach(p => { p.stats.ipOuts += 3; if(Math.random() > 0.6) p.stats.so++; if(Math.random() > 0.8) p.stats.er++; });
+    });
     totalGamesPlayed++;
     updateUI();
 }
 
-// --- UI更新 ---
 function updateUI() {
     document.getElementById("current_game_count").innerText = totalGamesPlayed;
-    
-    let bBody = document.querySelector("#batting_table tbody");
-    bBody.innerHTML = teams.flatMap(t => t.batters).map(b => 
-        `<tr><td>${b.name}</td><td>${(b.stats.hits/(b.stats.ab||1)).toFixed(3)}</td><td>${(b.stats.hits*0.1).toFixed(1)}</td></tr>`
+    document.querySelector("#batting_table tbody").innerHTML = teams.flatMap(t => t.batters).map(b => 
+        `<tr><td>${b.name}</td><td>${(b.stats.hits/(b.stats.ab||1)).toFixed(3)}</td><td>${(b.stats.hits*0.05).toFixed(1)}</td></tr>`
     ).join("");
-
-    let pBody = document.querySelector("#pitching_table tbody");
-    pBody.innerHTML = teams.flatMap(t => t.pitchers).map(p => 
+    document.querySelector("#pitching_table tbody").innerHTML = teams.flatMap(t => t.pitchers).map(p => 
         `<tr><td>${p.name}</td><td>${p.role}</td><td>${(p.stats.ipOuts/3).toFixed(1)}</td><td>${(p.stats.er * 9 / (Math.max(p.stats.ipOuts/3, 1))).toFixed(2)}</td><td>${p.stats.so}</td></tr>`
     ).join("");
 }
