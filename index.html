@@ -91,8 +91,29 @@ function executeMatchLogic(away, home) {
 }
 
 function simulateRound() {
-    let pattern = [[0,1], [2,3], [4,5]]; // 簡易的な対戦カード
-    pattern.forEach(p => executeMatchLogic(teams[p[0]], teams[p[1]]));
+    if (totalGamesPlayed >= MAX_GAMES) return;
+    
+    // 全試合の対戦カードを生成して消化
+    let pattern = getDynamicSchedule(totalGamesPlayed);
+    pattern.forEach(pair => {
+        let away = teams[pair[0]];
+        let home = teams[pair[1]];
+
+        // 簡易シミュレーション：両チームの全打者に打席とヒットを割り当て
+        away.batters.forEach(b => {
+            b.stats.ab += 1;
+            if(Math.random() > 0.65) b.stats.hits += 1; // 35%の確率でヒット
+        });
+        home.batters.forEach(b => {
+            b.stats.ab += 1;
+            if(Math.random() > 0.65) b.stats.hits += 1;
+        });
+
+        // 勝敗決定
+        if (Math.random() > 0.5) away.wins++;
+        else home.wins++;
+    });
+    
     totalGamesPlayed++;
 }
 
