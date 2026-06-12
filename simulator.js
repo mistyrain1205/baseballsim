@@ -345,23 +345,40 @@ function executeMatchLogic(away, home) {
 }
 
 
+// 【最終確認用】simulateRound関数をこれに書き換えてください
 function simulateRound() {
     if (totalGamesPlayed === -1) return null;
     if (totalGamesPlayed >= MAX_GAMES) {
         totalGamesPlayed = -1; 
         processOffseasonEvolution(); 
         executeOffseasonRosterEvents(); 
-        return null; 
+        return null;
     }
+    
     changeAllPlayersCondition(); 
     executeFrontOfficeAI();
-    let pattern = getDynamicSchedule(totalGamesPlayed);
+    
+    let pattern = getDynamicSchedule(totalGamesPlayed); 
     let roundResults = [];
+    
     pattern.forEach(pair => {
-        let res = executeMatchLogic(teams[pair[0]], teams[pair[1]]);
-        roundResults.push(res);
+        // executeMatchLogicを呼び出す際、エラーが起きないよう保護
+        try {
+            let res = executeMatchLogic(teams[pair[0]], teams[pair[1]]);
+            roundResults.push(res);
+        } catch(e) {
+            console.error("試合実行エラー:", e);
+        }
     });
-    teams.forEach(t => { t.pitchers.forEach(p => { let rec = p.role.includes("二軍") ? 15 : 1.8; if(p.staCurrent < p.staMax) p.staCurrent = Math.min(p.staMax, p.staCurrent + rec); }); });
+    
+    // スタミナ回復処理（簡易化）
+    teams.forEach(t => { 
+        t.pitchers.forEach(p => { 
+            let rec = p.role.includes("二軍") ? 15 : 2; 
+            p.staCurrent = Math.min(p.staMax, p.staCurrent + rec); 
+        }); 
+    });
+    
     totalGamesPlayed++; 
     return roundResults;
 }
