@@ -19,30 +19,40 @@
     </table>
 
 <script>
-// --- [1] 定義エリア (先に宣言する) ---
+// --- [1] 定義エリア ---
 const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
 
-// --- [2] 選手名生成 (names.jsの配列を安全に使用) ---
+// --- [2] 選手名生成 ---
 function generateRandomPlayerName() {
     const f = (typeof firstNames !== 'undefined') ? firstNames : ["田中"];
     const l = (typeof lastNames !== 'undefined') ? lastNames : ["太郎"];
     return f[Math.floor(Math.random() * f.length)] + " " + l[Math.floor(Math.random() * l.length)];
 }
 
-// --- [3] チームの初期化 (ここで定義することでエラーを防ぐ) ---
+// --- [3] チームの初期化 ---
 let totalGamesPlayed = 0;
 let MAX_GAMES = 143;
 let teams = teamNames.map((name, idx) => ({
     id: idx,
     name: name,
     wins: 0,
+    losses: 0, // lossesを追加しないとUIでエラーになるため
+    draws: 0,
     batters: Array.from({length: 40}, (_, i) => ({
         name: generateRandomPlayerName(),
-        stats: { ab: 0, hits: 0, war: 0 }
+        role: i < 9 ? i + 1 : 0,
+        currentPos: "二塁手",
+        stats: { ab: 0, hits: 0, war: 0, hr: 0, rbi: 0, bb: 0, so: 0, games: 0 }
+    })),
+    pitchers: Array.from({length: 15}, (_, i) => ({
+        name: generateRandomPlayerName(),
+        role: i < 5 ? "先発" : "リリーフ",
+        staCurrent: 90,
+        stats: { era: 0, ipOuts: 0, wins: 0, losses: 0, saves: 0, appearances: 0, er: 0, war: 0 }
     }))
 }));
 
-// --- [4] 試合ロジック ---
+// --- [4] 試合進行ロジック ---
 function simulateRound() {
     if (totalGamesPlayed >= MAX_GAMES) return;
     teams.forEach(t => {
@@ -51,24 +61,24 @@ function simulateRound() {
             if(Math.random() > 0.7) b.stats.hits += 1;
         });
         if (Math.random() > 0.5) t.wins++;
+        else t.losses++;
     });
     totalGamesPlayed++;
 }
 
+// --- [5] UI更新 ---
 function updateUIAll() {
     document.getElementById("current_game_count").innerText = totalGamesPlayed;
     
-    // 順位表更新
     let sBody = document.getElementById("standings_body");
     sBody.innerHTML = [...teams].sort((a,b) => b.wins - a.wins).map(t => 
         `<tr><td>${t.name}</td><td>${t.wins}</td></tr>`
     ).join("");
     
-    // 個人成績更新
     let bBody = document.querySelector("#batting_stats_table tbody");
     bBody.innerHTML = "";
     teams.forEach(t => {
-        t.batters.slice(0, 2).forEach(b => {
+        t.batters.slice(0, 3).forEach(b => {
             let avg = b.stats.ab > 0 ? (b.stats.hits / b.stats.ab) : 0;
             let war = (avg - 0.250) * 20;
             bBody.innerHTML += `<tr><td>${b.name} (${t.name})</td><td>${avg.toFixed(3)}</td><td>${war.toFixed(1)}</td></tr>`;
@@ -81,7 +91,14 @@ function playNextRound() {
     updateUIAll();
 }
 
-// 初期実行
+// 初期化関数がHTMLから呼ばれていたのでダミー作成
+function initializeLeagueData() {}
+function onEditorTeamChange() {}
+function onEditorPlayerChange() {}
+function saveEditorData() {}
+function updateUIAllForced() {}
+
+// 初回描画
 updateUIAll();
 </script>
 </body>
