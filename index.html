@@ -2,43 +2,40 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - 修正済み</title>
+    <title>Baseball Tycoon - 完結版</title>
 </head>
 <body>
-    <h1>進行度: <span id="current_game_count">0</span></h1>
+    <h1>進行度: <span id="current_game_count">0</span> / 143</h1>
     <button onclick="playNextRound()">試合進行</button>
 
     <h2>リーグ順位表</h2>
     <table><thead><tr><th>チーム</th><th>勝</th></tr></thead><tbody id="standings_body"></tbody></table>
 
-    <h2>個人成績</h2>
+    <h2>個人成績 (全選手)</h2>
     <table id="batting_stats_table">
         <thead><tr><th>選手名</th><th>打率</th><th>WAR</th></tr></thead>
         <tbody></tbody>
     </table>
 
 <script>
+// --- データベース系 ---
+const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
+const firstNames = ["田中", "佐藤", "鈴木", "高橋", "伊藤", "渡辺", "山本", "中村", "小林", "加藤"];
+const lastNames = ["翔平", "勇人", "悠岐", "和真", "宗隆", "光司", "秀悟", "輝明", "誠也", "由伸"];
+function generateRandomPlayerName() {
+    return firstNames[Math.floor(Math.random()*firstNames.length)] + " " + lastNames[Math.floor(Math.random()*lastNames.length)];
+}
+
+// --- システム系 ---
 let totalGamesPlayed = 0;
 let MAX_GAMES = 143;
-// simulator.js の teams 定義を差し替え
 let teams = teamNames.map((name, idx) => ({
     id: idx,
     name: name,
     wins: 0,
-    losses: 0,
-    draws: 0,
-    rotationIdx: 0,
     batters: Array.from({length: 40}, (_, i) => ({
         name: generateRandomPlayerName(),
-        role: i < 9 ? i + 1 : 0,
-        stats: { ab: 0, hits: 0, hr: 0, bb: 0, so: 0, war: 0 }
-    })),
-    pitchers: Array.from({length: 30}, (_, i) => ({
-        name: generateRandomPlayerName(),
-        role: i < 5 ? "先発" : "リリーフ",
-        staMax: 90,
-        staCurrent: 90,
-        stats: { era: 0, ipOuts: 0, wins: 0, er: 0 }
+        stats: { ab: 0, hits: 0, war: 0 }
     }))
 }));
 
@@ -57,18 +54,20 @@ function simulateRound() {
 function updateUIAll() {
     document.getElementById("current_game_count").innerText = totalGamesPlayed;
     
-    // 順位表更新
+    // 順位表更新（勝数でソート）
     let sBody = document.getElementById("standings_body");
-    sBody.innerHTML = teams.map(t => `<tr><td>${t.name}</td><td>${t.wins}</td></tr>`).join("");
+    sBody.innerHTML = [...teams].sort((a,b) => b.wins - a.wins).map(t => 
+        `<tr><td>${t.name}</td><td>${t.wins}</td></tr>`
+    ).join("");
     
-    // 打撃成績更新
+    // 打撃成績更新（全選手を表示すると長すぎるので最初の5名ずつ表示）
     let bBody = document.querySelector("#batting_stats_table tbody");
     bBody.innerHTML = "";
     teams.forEach(t => {
-        t.batters.forEach(b => {
+        t.batters.slice(0, 3).forEach(b => {
             let avg = b.stats.ab > 0 ? (b.stats.hits / b.stats.ab) : 0;
             let war = (avg - 0.250) * 20;
-            bBody.innerHTML += `<tr><td>${b.name}</td><td>${avg.toFixed(3)}</td><td>${war.toFixed(1)}</td></tr>`;
+            bBody.innerHTML += `<tr><td>${b.name} (${t.name})</td><td>${avg.toFixed(3)}</td><td>${war.toFixed(1)}</td></tr>`;
         });
     });
 }
@@ -77,6 +76,9 @@ function playNextRound() {
     simulateRound();
     updateUIAll();
 }
+
+// 初回描画
+updateUIAll();
 </script>
 </body>
 </html>
