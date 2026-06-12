@@ -2,88 +2,110 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - 決定版</title>
+    <title>Baseball Tycoon - 統合版</title>
     <script src="names.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    </style>
 </head>
 <body>
+<div class="container">
     <h1>進行度: <span id="current_game_count">0</span> / 143</h1>
-    <button onclick="playNextRound()">試合進行</button>
-
+    <button onclick="playNextRound()">1カード消化</button>
+    
     <h2>リーグ順位表</h2>
-    <table border="1"><thead><tr><th>チーム</th><th>勝</th></tr></thead><tbody id="standings_body"></tbody></table>
+    <table><thead><tr><th>チーム</th><th>勝</th><th>敗</th></tr></thead><tbody id="standings_body"></tbody></table>
 
-    <h2>個人成績</h2>
-    <table border="1" id="batting_stats_table">
+    <h2>個人打撃成績</h2>
+    <table id="batting_stats_table">
         <thead><tr><th>選手名</th><th>打率</th><th>WAR</th></tr></thead>
         <tbody></tbody>
     </table>
+</div>
 
 <script>
-// --- [1] 定義エリア ---
+// --- [1] 初期データ生成 ---
 const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
 
-// --- [2] 選手名生成 ---
 function generateRandomPlayerName() {
     const f = (typeof firstNames !== 'undefined') ? firstNames : ["田中"];
     const l = (typeof lastNames !== 'undefined') ? lastNames : ["太郎"];
     return f[Math.floor(Math.random() * f.length)] + " " + l[Math.floor(Math.random() * l.length)];
 }
 
-// --- [3] チームの初期化 ---
-let totalGamesPlayed = 0;
-let MAX_GAMES = 143;
 let teams = teamNames.map((name, idx) => ({
-    id: idx,
-    name: name,
-    wins: 0,
-    losses: 0, // lossesを追加しないとUIでエラーになるため
-    draws: 0,
+    id: idx, name: name, wins: 0, losses: 0, draws: 0, rotationIdx: 0,
     batters: Array.from({length: 40}, (_, i) => ({
-        name: generateRandomPlayerName(),
-        role: i < 9 ? i + 1 : 0,
-        currentPos: "二塁手",
-        stats: { ab: 0, hits: 0, war: 0, hr: 0, rbi: 0, bb: 0, so: 0, games: 0 }
+        name: generateRandomPlayerName(), role: i < 9 ? i + 1 : 0,
+        stats: { ab: 0, hits: 0, hr: 0, bb: 0, so: 0, war: 0 }
     })),
     pitchers: Array.from({length: 15}, (_, i) => ({
-        name: generateRandomPlayerName(),
-        role: i < 5 ? "先発" : "リリーフ",
-        staCurrent: 90,
+        name: generateRandomPlayerName(), role: i < 5 ? "先発" : "リリーフ",
+        staMax: 90, staCurrent: 90, 
         stats: { era: 0, ipOuts: 0, wins: 0, losses: 0, saves: 0, appearances: 0, er: 0, war: 0 }
     }))
 }));
 
-// --- [4] 試合進行ロジック ---
-function simulateRound() {
-    if (totalGamesPlayed >= MAX_GAMES) return;
-    teams.forEach(t => {
-        t.batters.forEach(b => {
-            b.stats.ab += 1;
-            if(Math.random() > 0.7) b.stats.hits += 1;
-        });
-        if (Math.random() > 0.5) t.wins++;
-        else t.losses++;
+let totalGamesPlayed = 0;
+const MAX_GAMES = 143;
+
+// --- [2] 試合進行ロジック (Map不使用の安全版) ---
+function executeMatchLogic(away, home) {
+    let awayStarters = away.pitchers.filter(p => p.role === "先発");
+    let homeStarters = home.pitchers.filter(p => p.role === "先発");
+    let curPAway = awayStarters[away.rotationIdx % awayStarters.length] || away.pitchers[0];
+    let curPHome = homeStarters[home.rotationIdx % homeStarters.length] || home.pitchers[0];
+    
+    // 試合開始：投手に一時スタッツを付与
+    [curPAway, curPHome].forEach(p => { p.mOuts = 0; p.mEr = 0; });
+    
+    let awayScore = 0, homeScore = 0;
+    
+    for (let inning = 1; inning <= 9; inning++) {
+        // 表
+        let outs = 0;
+        while(outs < 3) {
+            if(Math.random() > 0.7) { awayScore++; curPHome.mEr++; }
+            else { outs++; curPHome.mOuts++; }
+        }
+        // 裏
+        outs = 0;
+        while(outs < 3) {
+            if(Math.random() > 0.7) { homeScore++; curPAway.mEr++; }
+            else { outs++; curPAway.mOuts++; }
+        }
+    }
+
+    // 勝敗とスタミナ減少
+    [curPAway, curPHome].forEach(p => {
+        if(p.role !== "先発") p.staCurrent = Math.max(0, p.staCurrent - (15 + p.mOuts * 2));
     });
+
+    if(awayScore > homeScore) { away.wins++; curPAway.stats.wins++; } 
+    else { home.wins++; curPHome.stats.wins++; }
+    
+    return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
+}
+
+function simulateRound() {
+    let pattern = [[0,1], [2,3], [4,5]]; // 簡易的な対戦カード
+    pattern.forEach(p => executeMatchLogic(teams[p[0]], teams[p[1]]));
     totalGamesPlayed++;
 }
 
-// --- [5] UI更新 ---
 function updateUIAll() {
     document.getElementById("current_game_count").innerText = totalGamesPlayed;
-    
-    let sBody = document.getElementById("standings_body");
-    sBody.innerHTML = [...teams].sort((a,b) => b.wins - a.wins).map(t => 
+    document.getElementById("standings_body").innerHTML = [...teams].sort((a,b) => b.wins - a.wins).map(t => 
         `<tr><td>${t.name}</td><td>${t.wins}</td></tr>`
     ).join("");
     
     let bBody = document.querySelector("#batting_stats_table tbody");
-    bBody.innerHTML = "";
-    teams.forEach(t => {
-        t.batters.slice(0, 3).forEach(b => {
-            let avg = b.stats.ab > 0 ? (b.stats.hits / b.stats.ab) : 0;
-            let war = (avg - 0.250) * 20;
-            bBody.innerHTML += `<tr><td>${b.name} (${t.name})</td><td>${avg.toFixed(3)}</td><td>${war.toFixed(1)}</td></tr>`;
-        });
-    });
+    bBody.innerHTML = teams.flatMap(t => t.batters.slice(0, 2)).map(b => 
+        `<tr><td>${b.name}</td><td>0.000</td><td>0.0</td></tr>`
+    ).join("");
 }
 
 function playNextRound() {
@@ -91,14 +113,6 @@ function playNextRound() {
     updateUIAll();
 }
 
-// 初期化関数がHTMLから呼ばれていたのでダミー作成
-function initializeLeagueData() {}
-function onEditorTeamChange() {}
-function onEditorPlayerChange() {}
-function saveEditorData() {}
-function updateUIAllForced() {}
-
-// 初回描画
 updateUIAll();
 </script>
 </body>
