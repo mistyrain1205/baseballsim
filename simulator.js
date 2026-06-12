@@ -271,96 +271,80 @@ function executeMatchLogic(away, home) {
     let awayOrder = 1, homeOrder = 1;
     let pitchAway = 0, pitchHome = 0;
     
-    // 試合進行用の一時的な投手の状態管理（Mapを使わず直接操作）
-    let awayPitcher = curPAway;
-    let homePitcher = curPHome;
-
-    const getGameLineup = (team) => {
-        let lineup = [];
-        for(let i=1; i<=9; i++) {
-            let s = team.batters.find(b => b.role === i);
-            if(s && s.condition === "絶不調" && Math.random() < 0.7) {
-                let sub = team.batters.find(b => b.role === 0 && b.condition !== "絶不調");
-                lineup.push(sub || s);
-            } else { lineup.push(s || team.batters[0]); }
-        }
-        return lineup;
-    };
-    let lineupAway = getGameLineup(away); 
-    let lineupHome = getGameLineup(home);
+    let lineupAway = [];
+    for(let i=1; i<=9; i++) { lineupAway.push(away.batters.find(b => b.role === i) || away.batters[0]); }
+    let lineupHome = [];
+    for(let i=1; i<=9; i++) { lineupHome.push(home.batters.find(b => b.role === i) || home.batters[0]); }
 
     for (let inning = 1; inning <= 9; inning++) {
-        // 表の攻撃 (awayの攻撃)
+        // 表の攻撃
         let outs = 0; let bases = [false, false, false];
         while (outs < 3) {
-            if(pitchHome > homePitcher.staMax || (inning >= 7 && homeScore - awayScore <= 2)) {
-                let nextP = home.pitchers.find(p => (p.role === (inning === 9 ? "守護神" : "リリーフ")) && p.staCurrent > 15 && p !== homePitcher);
-                if(nextP) { homePitcher = nextP; pitchHome = 0; homePitcher.stats.appearances++; }
+            if(pitchHome > curPHome.staMax || (inning >= 7 && homeScore - awayScore <= 2)) {
+                let nextP = home.pitchers.find(p => (p.role === (inning === 9 ? "守護神" : "リリーフ")) && p.staCurrent > 15 && p !== curPHome);
+                if(nextP) { curPHome = nextP; pitchHome = 0; curPHome.stats.appearances++; }
             }
             let b = lineupAway[(awayOrder-1)%9]; 
             b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
             pitchHome += 4;
             
-            let bbP = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-homePitcher.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
-            let soP = ((b.so/100)*BALANCING_CONFIG.plates.soBaseScale) + ((homePitcher.k9*BALANCING_CONFIG.plates.soPitcherScale));
-            let rand = Math.random();
-
-            if(rand < bbP) {
-                b.stats.bb++; homePitcher.stats.bb++; let r = advanceRunners(bases, "BB"); awayScore += r; homePitcher.stats.er += r;
-            } else if(rand < bbP + soP) {
-                outs++; b.stats.so++; homePitcher.stats.so++; homePitcher.stats.ipOuts++;
+            let bbP = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-curPHome.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
+            let soP = ((b.so/100)*BALANCING_CONFIG.plates.soBaseScale) + ((curPHome.k9*BALANCING_CONFIG.plates.soPitcherScale));
+            
+            if(Math.random() < bbP) {
+                b.stats.bb++; curPHome.stats.bb++; let r = advanceRunners(bases, "BB"); awayScore += r; curPHome.stats.er += r;
+            } else if(Math.random() < bbP + soP) {
+                outs++; b.stats.so++; curPHome.stats.so++; curPHome.stats.ipOuts++;
             } else {
-                let hitP = Math.max(0.24, 0.35 - ((homePitcher.h9-65)*0.0015));
+                let hitP = Math.max(0.24, 0.35 - ((curPHome.h9-65)*0.0015));
                 if(Math.random() < hitP) {
                     b.stats.hits++; let isHR = Math.random() < (b.barrel/100 * BALANCING_CONFIG.batting.hrMultiplier);
-                    let r = advanceRunners(bases, isHR ? "HR" : "1B"); awayScore += r; homePitcher.stats.er += r; if(isHR) b.stats.hr++;
-                } else { outs++; homePitcher.stats.ipOuts++; }
+                    let r = advanceRunners(bases, isHR ? "HR" : "1B"); awayScore += r; curPHome.stats.er += r; if(isHR) b.stats.hr++;
+                } else { outs++; curPHome.stats.ipOuts++; }
             }
             awayOrder++;
         }
-
-        // 裏の攻撃 (homeの攻撃)
+        // 裏の攻撃
         outs = 0; bases = [false, false, false];
         while (outs < 3) {
-            if(pitchAway > awayPitcher.staMax || (inning >= 7 && awayScore - homeScore <= 2)) {
-                let nextP = away.pitchers.find(p => (p.role === (inning === 9 ? "守護神" : "リリーフ")) && p.staCurrent > 15 && p !== awayPitcher);
-                if(nextP) { awayPitcher = nextP; pitchAway = 0; awayPitcher.stats.appearances++; }
+            if(pitchAway > curPAway.staMax || (inning >= 7 && awayScore - homeScore <= 2)) {
+                let nextP = away.pitchers.find(p => (p.role === (inning === 9 ? "守護神" : "リリーフ")) && p.staCurrent > 15 && p !== curPAway);
+                if(nextP) { curPAway = nextP; pitchAway = 0; curPAway.stats.appearances++; }
             }
             let b = lineupHome[(homeOrder-1)%9]; 
             b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
             pitchAway += 4;
             
-            let bbP = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-awayPitcher.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
-            let soP = ((b.so/100)*BALANCING_CONFIG.plates.soBaseScale) + ((awayPitcher.k9*BALANCING_CONFIG.plates.soPitcherScale));
-            let rand = Math.random();
-
-            if(rand < bbP) {
-                b.stats.bb++; awayPitcher.stats.bb++; let r = advanceRunners(bases, "BB"); homeScore += r; awayPitcher.stats.er += r;
-            } else if(rand < bbP + soP) {
-                outs++; b.stats.so++; awayPitcher.stats.so++; awayPitcher.stats.ipOuts++;
+            let bbP = (b.bb/100)*BALANCING_CONFIG.plates.bbBaseScale + ((100-curPAway.bb9)*BALANCING_CONFIG.plates.bbPitcherScale);
+            let soP = ((b.so/100)*BALANCING_CONFIG.plates.soBaseScale) + ((curPAway.k9*BALANCING_CONFIG.plates.soPitcherScale));
+            
+            if(Math.random() < bbP) {
+                b.stats.bb++; curPAway.stats.bb++; let r = advanceRunners(bases, "BB"); homeScore += r; curPAway.stats.er += r;
+            } else if(Math.random() < bbP + soP) {
+                outs++; b.stats.so++; curPAway.stats.so++; curPAway.stats.ipOuts++;
             } else {
-                let hitP = Math.max(0.24, 0.35 - ((awayPitcher.h9-65)*0.0015));
+                let hitP = Math.max(0.24, 0.35 - ((curPAway.h9-65)*0.0015));
                 if(Math.random() < hitP) {
                     b.stats.hits++; let isHR = Math.random() < (b.barrel/100 * BALANCING_CONFIG.batting.hrMultiplier);
-                    let r = advanceRunners(bases, isHR ? "HR" : "1B"); homeScore += r; awayPitcher.stats.er += r; if(isHR) b.stats.hr++;
-                } else { outs++; awayPitcher.stats.ipOuts++; }
+                    let r = advanceRunners(bases, isHR ? "HR" : "1B"); homeScore += r; curPAway.stats.er += r; if(isHR) b.stats.hr++;
+                } else { outs++; curPAway.stats.ipOuts++; }
             }
             homeOrder++;
         }
     }
-
-    // 勝敗と成績の確定
+    
     if(awayScore > homeScore) { away.wins++; home.losses++; curPAway.stats.wins++; curPHome.stats.losses++; }
     else if(homeScore > awayScore) { home.wins++; away.losses++; curPHome.stats.wins++; curPAway.stats.losses++; }
     else { away.draws++; home.draws++; }
-
-    // 防御率の更新
+    
     away.pitchers.forEach(p => { if(p.stats.ipOuts>0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
     home.pitchers.forEach(p => { if(p.stats.ipOuts>0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
     
     away.rotationIdx++; home.rotationIdx++;
     return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
 }
+
+
 function simulateRound() {
     if (totalGamesPlayed === -1) return null;
     if (totalGamesPlayed >= MAX_GAMES) {
