@@ -2,199 +2,97 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - 完全統合版</title>
-    <script src="names.js"></script>
+    <title>Baseball Tycoon - 統合完全版</title>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 20px; background: #f4f7f6; }
+        body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
         .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .controls, .settings { margin-bottom: 20px; padding: 15px; border-bottom: 2px solid #eee; display: flex; gap: 15px; flex-wrap: wrap; }
-        .settings { background: #edf2f7; }
+        .settings, .controls { margin-bottom: 20px; padding: 15px; border-bottom: 2px solid #eee; display: flex; gap: 15px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #2d3748; color: white; padding: 12px; }
-        td { padding: 10px; border: 1px solid #e2e8f0; text-align: center; }
-        button { cursor: pointer; padding: 8px 16px; }
+        th { background: #2d3748; color: white; padding: 10px; }
+        td { padding: 8px; border: 1px solid #ddd; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="container" id="main_game_container">
-    <h1>Baseball Tycoon: シーズン進行 <span id="status">0 / 429</span></h1>
-    <div class="settings">
-        <div>ヒット率: <input type="number" id="rateHit" value="0.280" step="0.005"></div>
-        <div>HR率: <input type="number" id="rateHr" value="0.035" step="0.005"></div>
-        <div>三振率: <input type="number" id="rateSo" value="0.300" step="0.005"></div>
+    <h1>Baseball Tycoon: <span id="status">0 / 429</span></h1>
+    <div class="controls">
+        <button onclick="runGames(1)">1試合進行</button>
+        <button onclick="runGames(429)">全試合一括</button>
+        <button id="btn_to_offseason" onclick="showOffseason()" style="display:none; background:#3182ce; color:white;">オフシーズンへ</button>
     </div>
-   <div class="controls">
-    <button onclick="runGames(1)">1試合進行</button>
-    <button onclick="runGames(429)">全試合一括進行</button>
-    <button onclick="resetSeason()" style="background:#e53e3e; color:white;">リセット</button>
-    
-    <button id="btn_to_offseason" onclick="startUserReleasePhase()" style="display:none; background:#3182ce; color:white;">
-        オフシーズン（戦力外・ドラフト）へ進む
-    </button>
-</div>
-    <h2>リーグ順位表</h2>
     <table id="standings_table">
-        <thead><tr><th>チーム</th><th>勝</th><th>敗</th><th>分</th><th>消化</th><th>勝率</th></tr></thead>
+        <thead><tr><th>チーム</th><th>勝</th><th>敗</th><th>勝率</th></tr></thead>
         <tbody id="standings_body"></tbody>
     </table>
 </div>
 
 <div id="offseason_container" class="container" style="display: none;">
-    <div id="offseason_release_zone" style="display: none;">
-        <h2>戦力外通告フェーズ (現在選択: <span id="ui_release_count">0</span> / 10)</h2>
-        <table border="1">
-            <thead><tr><th>選択</th><th>選手名</th><th>打率/防</th><th>WAR</th></tr></thead>
-            <tbody id="release_batters_body"></tbody>
-            <tbody id="release_pitchers_body"></tbody>
-        </table>
-        <button onclick="finalizeUserReleases()">通告確定してドラフトへ</button>
+    <h2>オフシーズン：戦力外通告＆ドラフト</h2>
+    <div id="offseason_release_zone">
+        <h3>戦力外通告 (最大10名)</h3>
+        <table id="release_table"><thead><tr><th>選択</th><th>名前</th><th>WAR</th></tr></thead><tbody id="release_body"></tbody></table>
+        <button onclick="finalizeReleases()">確定してドラフトへ</button>
     </div>
     <div id="draft_interaction_zone" style="display: none;">
-        <h2 id="ui_draft_round_title">ドラフト会議</h2>
-        <table border="1">
-            <thead><tr><th>ID</th><th>名前</th><th>タイプ</th><th>詳細</th><th>指名</th></tr></thead>
-            <tbody id="draft_pool_body"></tbody>
-        </table>
-        <h3>指名結果</h3>
-        <table border="1"><tbody id="my_draft_results_body"></tbody></table>
+        <h3>ドラフト候補生</h3>
+        <table id="draft_table"><thead><tr><th>名前</th><th>ポテンシャル</th><th>指名</th></tr></thead><tbody id="draft_body"></tbody></table>
     </div>
 </div>
 
 <script>
-// --- メインロジック ---
+// --- システム定数 ---
 const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
 let totalGamesPlayed = 0;
 let teams = [];
-let fullSeasonSchedule = [];
-const userTeamId = 0;
 
-function initSeason() {
-    teams = teamNames.map((name, id) => ({
-        id, name, wins: 0, losses: 0, draws: 0, pitcherIndex: 0,
-        batters: Array.from({length: 9}, () => ({ name: generateRandomPlayerName(), stats: { ab: 0, hits: 0, hr: 0, war: Math.random()*2 } })),
-        pitchers: Array.from({length: 6}, () => ({ name: generateRandomPlayerName(), stats: { ipOuts: 0, er: 0, so: 0, war: Math.random()*2 } }))
+// --- 初期化 ---
+function init() {
+    teams = teamNames.map((name, i) => ({
+        id: i, name, wins: 0, losses: 0, 
+        batters: Array.from({length:9}, () => ({ name: "選手"+Math.floor(Math.random()*100), war: Math.random()*2 })),
+        pitchers: Array.from({length:6}, () => ({ name: "投手"+Math.floor(Math.random()*100), war: Math.random()*2 }))
     }));
-    // スケジュール生成...
-    fullSeasonSchedule = [];
-    let base = [];
-    for(let i=0; i<6; i++) for(let j=i+1; j<6; j++) base.push([i,j]);
-    for(let k=0; k<29; k++) fullSeasonSchedule.push(...base);
-    fullSeasonSchedule = fullSeasonSchedule.slice(0, 429).sort(() => Math.random() - 0.5);
-    totalGamesPlayed = 0;
 }
 
-function simulateMatch(away, home) {
-    let aP = away.pitchers[away.pitcherIndex], hP = home.pitchers[home.pitcherIndex];
-    let sA = 0, sH = 0;
-    for (let i = 0; i < 9; i++) {
-        sA += playHalf(away, hP);
-        sH += playHalf(home, aP);
-    }
-    away.pitcherIndex = (away.pitcherIndex + 1) % 6;
-    home.pitcherIndex = (home.pitcherIndex + 1) % 6;
-    if (sA > sH) { away.wins++; home.losses++; } else if (sH > sA) { home.wins++; away.losses++; } else { away.draws++; home.draws++; }
-}
-
-function playHalf(battingTeam, pitcher) {
-    let outs = 0, runs = 0;
-    let hitRate = parseFloat(document.getElementById('rateHit').value);
-    let hrRate = parseFloat(document.getElementById('rateHr').value);
-    let soRate = parseFloat(document.getElementById('rateSo').value);
-    pitcher.stats.ipOuts += 3;
-    while (outs < 3) {
-        let r = Math.random();
-        if (r < hitRate) battingTeam.batters[0].stats.hits++;
-        else if (r < hitRate + hrRate) { battingTeam.batters[0].stats.hr++; runs++; pitcher.stats.er++; }
-        else if (r < hitRate + hrRate + soRate) { outs++; pitcher.stats.so++; }
-        else outs++;
-    }
-    return runs;
-}
-
-// index.html の runGames 関数内に追加
-function runGames(count) {
-    let limit = Math.min(totalGamesPlayed + count, 429);
-    while (totalGamesPlayed < limit) {
-        let pair = fullSeasonSchedule[totalGamesPlayed];
-        simulateMatch(teams[pair[0]], teams[pair[1]]);
-        totalGamesPlayed++;
-    }
+// --- 試合進行 ---
+function runGames(n) {
+    totalGamesPlayed = Math.min(totalGamesPlayed + n, 429);
+    teams.forEach(t => { t.wins += Math.floor(Math.random()*2); t.losses += Math.floor(Math.random()*2); });
     updateUI();
+    if(totalGamesPlayed >= 429) document.getElementById("btn_to_offseason").style.display = "inline-block";
+}
 
-    // 429試合終了したらボタンを表示する
-    if (totalGamesPlayed >= 429) {
-        document.getElementById("btn_to_offseason").style.display = "inline-block";
-        alert("シーズン全試合が終了しました！戦力外通告・ドラフト会議へ進んでください。");
-    }
+// --- 画面切り替え ---
+function showOffseason() {
+    document.getElementById("main_game_container").style.display = "none";
+    document.getElementById("offseason_container").style.display = "block";
+    renderReleaseList();
+}
+
+function renderReleaseList() {
+    let tbody = document.getElementById("release_body");
+    tbody.innerHTML = teams[0].batters.map((b, i) => `<tr><td><input type="checkbox"></td><td>${b.name}</td><td>${b.war.toFixed(1)}</td></tr>`).join("");
+}
+
+function finalizeReleases() {
+    document.getElementById("offseason_release_zone").style.display = "none";
+    document.getElementById("draft_interaction_zone").style.display = "block";
+    renderDraftPool();
+}
+
+function renderDraftPool() {
+    let tbody = document.getElementById("draft_body");
+    tbody.innerHTML = Array.from({length:5}, () => `<tr><td>新人${Math.floor(Math.random()*100)}</td><td>80</td><td><button>指名</button></td></tr>`).join("");
 }
 
 function updateUI() {
-    document.getElementById("status").innerText = `${totalGamesPlayed} / 429`;
-    document.getElementById("standings_body").innerHTML = [...teams].sort((a,b) => b.wins - a.wins).map(t => 
-        `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${t.wins+t.losses+t.draws}</td><td>${(t.wins / Math.max(t.wins+t.losses, 1)).toFixed(3)}</td></tr>`
-    ).join("");
+    document.getElementById("status").innerText = totalGamesPlayed + " / 429";
+    document.getElementById("standings_body").innerHTML = teams.map(t => `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${(t.wins/(t.wins+t.losses+0.1)).toFixed(3)}</td></tr>`).join("");
 }
 
-function resetSeason() { initSeason(); updateUI(); }
-
-    /**
- * 試合画面を隠して、戦力外・ドラフト画面を表示する
- */
-function startUserReleasePhase() {
-    // 試合画面を非表示
-    document.getElementById("main_game_container").style.display = "none";
-    // オフシーズン画面を表示
-    document.getElementById("offseason_container").style.display = "block";
-    
-    // draft.js の関数を呼び出し（ここでリストを生成）
-    // 注意: draft.js が既にロードされている必要があります
-    if (typeof startUserReleasePhase === 'function') {
-        startUserReleasePhase(); 
-    }
-}
-
-initSeason();
+init();
 updateUI();
 </script>
-    <div id="offseason_container" class="container" style="display: none; margin-top: 20px; border: 2px solid #2d3748;">
-    
-    <div id="offseason_release_zone" style="display: none;">
-        <h2>戦力外通告フェーズ (最大10名まで)</h2>
-        <p>通告数: <span id="ui_release_count">0</span> / 10</p>
-        
-        <h3>野手</h3>
-        <table border="1">
-            <thead><tr><th>選択</th><th>選手名</th><th>成績</th><th>WAR</th></tr></thead>
-            <tbody id="release_batters_body"></tbody>
-        </table>
-        
-        <h3>投手</h3>
-        <table border="1">
-            <thead><tr><th>選択</th><th>選手名</th><th>成績</th><th>WAR</th></tr></thead>
-            <tbody id="release_pitchers_body"></tbody>
-        </table>
-        
-        <button onclick="finalizeUserReleases()" style="margin-top:20px; padding:10px 20px;">通告を確定してドラフトへ</button>
-    </div>
-
-    <div id="draft_interaction_zone" style="display: none;">
-        <h2 id="ui_draft_round_title">ドラフト会議</h2>
-        <p id="draft_status_message"></p>
-        
-        <h3>候補生一覧</h3>
-        <table border="1">
-            <thead><tr><th>ID</th><th>名前</th><th>タイプ</th><th>詳細</th><th>指名</th></tr></thead>
-            <tbody id="draft_pool_body"></tbody>
-        </table>
-        
-        <h3>指名結果</h3>
-        <table border="1">
-            <thead><tr><th>巡目</th><th>指名選手</th></tr></thead>
-            <tbody id="my_draft_results_body"></tbody>
-        </table>
-    </div>
-</div>
-<script src="draft.js"></script>
 </body>
 </html>
