@@ -337,18 +337,17 @@ function executeMatchLogic(away, home) {
     if(awayScore > homeScore) { away.wins++; home.losses++; } else if(homeScore > awayScore) { home.wins++; away.losses++; } else { away.draws++; home.draws++; }
 
     // スタミナ消費
-    [...away.pitchers, ...home.pitchers].forEach(p => {
-        // 先発投手はスタミナ消費の計算対象外にする（既存の仕様なら）
-        // matchOuts が undefined でもエラーにならないよう (p.matchOuts || 0) を使用
-        if (p.role !== "先発") {
-            let outs = p.matchOuts || 0; 
-            p.staCurrent = Math.max(0, p.staCurrent - (15 + outs * 2));
+[...away.pitchers, ...home.pitchers].forEach(p => {
+        // matchOuts が未定義でもエラーにならないよう保護
+        if (p.role !== "先発" && typeof p.matchOuts !== 'undefined') {
+            p.staCurrent = Math.max(0, p.staCurrent - (15 + p.matchOuts * 2));
         }
     });
-    
-    away.rotationIdx++; home.rotationIdx++;
+
+    away.rotationIdx++; 
+    home.rotationIdx++;
     return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
-}
+} // ← ここが executeMatchLogic の閉じ括弧です
 
 
 function playNextRound() {
