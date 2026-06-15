@@ -2,127 +2,83 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - 統合完全版</title>
+    <title>Baseball Tycoon - 完走検証版</title>
     <script src="names.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
-        .container { max-width: 1100px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .controls { margin-bottom: 20px; padding: 15px; border-bottom: 2px solid #eee; display: flex; gap: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #2d3748; color: white; padding: 10px; font-size: 0.85em; }
-        td { padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 0.9em; }
+        body { font-family: sans-serif; padding: 20px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1>Baseball Tycoon: シーズン <span id="status">0 / 143</span></h1>
-    <div class="controls">
-        <button onclick="runGames(1)">1試合進行</button>
-        <button onclick="runGames(6)">1週間(6試合)進行</button>
-        <button onclick="runGames(143)">シーズン全進行</button>
-        <button onclick="resetSeason()" style="background:#e53e3e; color:white;">リセット</button>
-    </div>
+    <h1>進行度: <span id="status">0 / 143</span></h1>
+    <button onclick="runGames(143)">シーズン全進行</button>
+    <button onclick="resetSeason()">リセット</button>
 
-    <h2>リーグ順位</h2>
     <table id="standings_table">
-        <thead><tr><th>順位</th><th>チーム</th><th>勝</th><th>敗</th><th>分</th><th>勝率</th></tr></thead>
+        <thead><tr><th>チーム</th><th>勝</th><th>敗</th><th>分</th></tr></thead>
         <tbody id="standings_body"></tbody>
     </table>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <div><h2>野手リーダー</h2><table id="bat_table"><thead><tr><th>名前</th><th>打率</th><th>安打</th><th>HR</th></tr></thead><tbody></tbody></table></div>
-        <div><h2>投手リーダー</h2><table id="pit_table"><thead><tr><th>名前</th><th>防御率</th><th>回</th><th>奪三振</th></tr></thead><tbody></tbody></table></div>
-    </div>
-</div>
+    <script>
+        const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
+        let totalGamesPlayed = 0;
+        let teams = [];
+        let schedule = [];
 
-<script>
-const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
-let totalGamesPlayed = 0;
-let teams = [];
-let matchSchedule = [];
+        function initSeason() {
+            // 1. チーム初期化
+            teams = teamNames.map(name => ({
+                name, wins: 0, losses: 0, draws: 0,
+                batters: Array.from({length: 9}, () => ({ name: generateRandomPlayerName(), stats: { ab: 0, hits: 0 } })),
+                pitchers: Array.from({length: 6}, () => ({ name: generateRandomPlayerName(), stats: { ipOuts: 0, er: 0 } }))
+            }));
 
-// 1. 初期化とスケジュール生成
-function initSeason() {
-    teams = teamNames.map(name => ({
-        name, wins: 0, losses: 0, draws: 0,
-        batters: Array.from({length: 9}, () => ({ name: generateRandomPlayerName(), stats: { ab: 0, hits: 0, hr: 0 } })),
-        pitchers: Array.from({length: 6}, () => ({ name: generateRandomPlayerName(), stats: { ipOuts: 0, er: 0, so: 0 } }))
-    }));
-    
-    // 143試合分のカードを生成
-    matchSchedule = [];
-    for (let i = 0; i < 143; i++) {
-        let teamA = i % 6;
-        let teamB = (Math.floor(i / 2) + 1) % 6;
-        if(teamA === teamB) teamB = (teamB + 1) % 6;
-        matchSchedule.push([teamA, teamB]);
-    }
-}
-
-// 2. 試合ロジック
-function simulateMatch(away, home) {
-    let scoreAway = 0, scoreHome = 0;
-    // 9イニング＋延長判定
-    for (let i = 0; i < 24; i++) { // 12回まで
-        let team = (i % 2 === 0) ? away : home;
-        let p = (i % 2 === 0) ? home.pitchers[0] : away.pitchers[0];
-        let outs = 0;
-        while (outs < 3) {
-            let b = team.batters[Math.floor(Math.random()*9)];
-            b.stats.ab++;
-            let roll = Math.random();
-            if (roll < 0.28) { b.stats.hits++; }
-            else if (roll < 0.32) { b.stats.hr++; if(i%2===0) scoreAway++; else scoreHome++; }
-            else { outs++; p.stats.so++; }
-            p.stats.ipOuts++;
+            // 2. 143試合分のスケジュールを確定生成
+            schedule = [];
+            for(let i = 0; i < 143; i++) {
+                let t1 = i % 6;
+                let t2 = (i + 1 + Math.floor(i/6)) % 6;
+                schedule.push([t1, t2]);
+            }
+            totalGamesPlayed = 0;
         }
-        if (i >= 17 && scoreAway !== scoreHome) break; // 9回以降の決着
-    }
-    if (scoreAway > scoreHome) { away.wins++; home.losses++; }
-    else if (scoreHome > scoreAway) { home.wins++; away.losses++; }
-    else { away.draws++; home.draws++; }
-}
 
-// 3. 実行管理
-function runGames(count) {
-    let target = Math.min(totalGamesPlayed + count, 143);
-    while (totalGamesPlayed < target) {
-        let pair = matchSchedule[totalGamesPlayed];
-        simulateMatch(teams[pair[0]], teams[pair[1]]);
-        totalGamesPlayed++;
-    }
-    updateUI();
-}
+        function resetSeason() {
+            initSeason();
+            updateUI();
+        }
 
-function resetSeason() {
-    totalGamesPlayed = 0;
-    initSeason();
-    updateUI();
-}
+        function runGames(count) {
+            // 現在の試合数からターゲットまで回す
+            let end = Math.min(totalGamesPlayed + count, 143);
+            while (totalGamesPlayed < end) {
+                let pair = schedule[totalGamesPlayed];
+                let away = teams[pair[0]];
+                let home = teams[pair[1]];
 
-// 4. UI表示
-function updateUI() {
-    document.getElementById("status").innerText = `${totalGamesPlayed} / 143`;
-    
-    // 順位
-    let sorted = [...teams].sort((a,b) => b.wins - a.wins);
-    document.getElementById("standings_body").innerHTML = sorted.map((t, i) => 
-        `<tr><td>${i+1}</td><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${(t.wins/(t.wins+t.losses||1)).toFixed(3)}</td></tr>`).join("");
+                // 簡易シミュレーション
+                let scoreA = Math.floor(Math.random() * 5);
+                let scoreH = Math.floor(Math.random() * 5);
+                if (scoreA > scoreH) { away.wins++; home.losses++; }
+                else if (scoreH > scoreA) { home.wins++; away.losses++; }
+                else { away.draws++; home.draws++; }
+                
+                totalGamesPlayed++;
+            }
+            updateUI();
+        }
 
-    // 野手
-    let bList = teams.flatMap(t => t.batters).sort((a,b) => (b.stats.hits/Math.max(b.stats.ab,1)) - (a.stats.hits/Math.max(a.stats.ab,1)));
-    document.querySelector("#bat_table tbody").innerHTML = bList.slice(0, 5).map(b => 
-        `<tr><td>${b.name}</td><td>${(b.stats.hits/Math.max(b.stats.ab,1)).toFixed(3)}</td><td>${b.stats.hits}</td><td>${b.stats.hr}</td></tr>`).join("");
+        function updateUI() {
+            document.getElementById("status").innerText = totalGamesPlayed + " / 143";
+            document.getElementById("standings_body").innerHTML = teams.map(t => 
+                `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td></tr>`
+            ).join("");
+        }
 
-    // 投手
-    let pList = teams.flatMap(t => t.pitchers).filter(p => p.stats.ipOuts > 0).sort((a,b) => (a.stats.er*9/(a.stats.ipOuts/3||1)) - (b.stats.er*9/(b.stats.ipOuts/3||1)));
-    document.querySelector("#pit_table tbody").innerHTML = pList.slice(0, 5).map(p => 
-        `<tr><td>${p.name}</td><td>${(p.stats.er*9/(Math.max(p.stats.ipOuts/3,1))).toFixed(2)}</td><td>${(p.stats.ipOuts/3).toFixed(1)}</td><td>${p.stats.so}</td></tr>`).join("");
-}
-
-// 初期化
-initSeason();
-updateUI();
-</script>
+        // 初期実行
+        initSeason();
+        updateUI();
+    </script>
 </body>
 </html>
