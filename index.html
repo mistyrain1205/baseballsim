@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - 最終完全版</title>
+    <title>Baseball Tycoon - ローテーション対応版</title>
     <script src="names.js"></script>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
@@ -43,7 +43,9 @@ let fullSeasonSchedule = [];
 
 function initSeason() {
     teams = teamNames.map(name => ({
-        name, wins: 0, losses: 0, draws: 0,
+        name, 
+        wins: 0, losses: 0, draws: 0,
+        pitcherIndex: 0, // ローテーション用のインデックス
         batters: Array.from({length: 9}, () => ({ 
             name: typeof generateRandomPlayerName === 'function' ? generateRandomPlayerName() : "不明", 
             stats: { ab: 0, hits: 0, hr: 0 } 
@@ -66,10 +68,20 @@ function initSeason() {
 
 function simulateMatch(away, home) {
     let scoreAway = 0, scoreHome = 0;
+    
+    // 現在のローテーションの投手を取得
+    let awayPitcher = away.pitchers[away.pitcherIndex];
+    let homePitcher = home.pitchers[home.pitcherIndex];
+
     for (let inning = 1; inning <= 9; inning++) {
-        scoreAway += playHalf(away, home.pitchers[0]);
-        scoreHome += playHalf(home, away.pitchers[0]);
+        scoreAway += playHalf(away, homePitcher);
+        scoreHome += playHalf(home, awayPitcher);
     }
+    
+    // 試合後にインデックスを回す（6人ローテーション）
+    away.pitcherIndex = (away.pitcherIndex + 1) % 6;
+    home.pitcherIndex = (home.pitcherIndex + 1) % 6;
+
     if (scoreAway > scoreHome) { away.wins++; home.losses++; }
     else if (scoreHome > scoreAway) { home.wins++; away.losses++; }
     else { away.draws++; home.draws++; }
@@ -107,6 +119,7 @@ function resetSeason() {
 
 function updateUI() {
     document.getElementById("status").innerText = `${totalGamesPlayed} / 429`;
+    
     let sorted = [...teams].sort((a,b) => b.wins - a.wins);
     document.getElementById("standings_body").innerHTML = sorted.map((t, i) => {
         let played = t.wins + t.losses + t.draws;
