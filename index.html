@@ -99,7 +99,7 @@ function playHalf(battingTeam, pitcher) {
         if (roll < 0.25) { 
             // 安打
             b.stats.hits++; 
-        } else if (roll < 0.28) { 
+        } else if (roll < 0.30) { 
             // 本塁打（確率を3%に下げました）
             b.stats.hr++; runs++; pitcher.stats.er++; 
         } else if (roll < 0.50) { 
