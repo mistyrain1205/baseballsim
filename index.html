@@ -68,14 +68,22 @@ function simulateMatch(away, home) {
 }
 
 function runGames(count) {
-    for(let i = 0; i < count; i++) {
-        if(totalGamesPlayed >= 143) break;
-        simulateMatch(teams[totalGamesPlayed % 6], teams[(totalGamesPlayed + 1) % 6]);
+    // 現在の試合数から、指定された回数だけループを回す
+    let target = totalGamesPlayed + count;
+    
+    while (totalGamesPlayed < target && totalGamesPlayed < 143) {
+        // 対戦カードの決定（より複雑なリーグ戦形式に）
+        let awayIdx = totalGamesPlayed % 6;
+        let homeIdx = (Math.floor(totalGamesPlayed / 6) + awayIdx + 1) % 6;
+        
+        simulateMatch(teams[awayIdx], teams[homeIdx]);
+        
         totalGamesPlayed++;
     }
+    
+    // 全て計算し終わってから一度だけ更新
     updateUI();
 }
-
 function updateUI() {
     document.getElementById("status").innerText = `${totalGamesPlayed} / 143`;
     // 勝率計算: 勝つ/(勝+敗+分) だと極端に低いので、通常通り 勝率 = 勝 / (勝+敗) で計算
