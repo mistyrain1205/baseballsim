@@ -14,9 +14,7 @@ const userTeamId = 0; // ユーザーのチームID
  * 全チームの成績を評価し、WARが低い選手を解雇候補として提示します。
  */
 function startUserReleasePhase() {
-    console.log("=== オフシーズン開始：戦力外通告フェーズ ===");
-    
-    // UIの切り替え
+    // 試合画面を隠し、オフシーズン画面を表示
     document.getElementById("main_game_container").style.display = "none";
     document.getElementById("offseason_container").style.display = "block";
 
