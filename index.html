@@ -93,10 +93,24 @@ function runGames(count) {
     
 function updateUI() {
     document.getElementById("status").innerText = `${totalGamesPlayed} / 143`;
-    // 勝率計算: 勝つ/(勝+敗+分) だと極端に低いので、通常通り 勝率 = 勝 / (勝+敗) で計算
+    
+    // 1. 順位表
     let sortedTeams = [...teams].sort((a,b) => b.wins - a.wins);
     document.querySelector("#standings_table tbody").innerHTML = sortedTeams.map((t, i) => 
         `<tr><td>${i+1}</td><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${(t.wins/(t.wins+t.losses || 1)).toFixed(3)}</td></tr>`
+    ).join("");
+
+    // 2. 野手リーダー (全チームからフラットに抽出)
+    let allBatters = teams.flatMap(t => t.batters).sort((a,b) => (b.stats.hits/Math.max(b.stats.ab,1)) - (a.stats.hits/Math.max(a.stats.ab,1)));
+    document.querySelector("#bat_table tbody").innerHTML = allBatters.slice(0, 10).map(b => 
+        `<tr><td>${b.name}</td><td>${(b.stats.hits/Math.max(b.stats.ab,1)).toFixed(3)}</td><td>${b.stats.hits}</td><td>${b.stats.hr}</td></tr>`
+    ).join("");
+
+    // 3. 投手リーダー (全チームからフラットに抽出)
+    let allPitchers = teams.flatMap(t => t.pitchers).filter(p => p.stats.ipOuts > 0)
+        .sort((a,b) => (a.stats.er*9/(a.stats.ipOuts/3||1)) - (b.stats.er*9/(b.stats.ipOuts/3||1)));
+    document.querySelector("#pit_table tbody").innerHTML = allPitchers.slice(0, 10).map(p => 
+        `<tr><td>${p.name}</td><td>${(p.stats.er*9/(Math.max(p.stats.ipOuts/3,1))).toFixed(2)}</td><td>${p.stats.so}</td></tr>`
     ).join("");
 }
 </script>
