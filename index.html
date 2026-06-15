@@ -1,35 +1,64 @@
-// 1. スケジュールを429試合分生成する
-function initSeason() {
-    teams = teamNames.map(name => ({
-        name, wins: 0, losses: 0, draws: 0,
-        batters: Array.from({length: 9}, () => ({ name: generateRandomPlayerName(), stats: { ab: 0, hits: 0, hr: 0 } })),
-        pitchers: Array.from({length: 6}, () => ({ name: generateRandomPlayerName(), stats: { ipOuts: 0, er: 0, so: 0 } }))
-    }));
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Baseball Tycoon</title>
+</head>
+<body>
+    <h1>進行度: <span id="status">0 / 429</span></h1>
+    <button onclick="runGames(1)">1試合進行</button>
+    <button onclick="resetSeason()">リセット</button>
 
-    fullSeasonSchedule = [];
-    let basePairs = [];
-    for(let i = 0; i < 6; i++) {
-        for(let j = i + 1; j < 6; j++) basePairs.push([i, j]);
-    }
+    <table border="1">
+        <thead>
+            <tr><th>チーム</th><th>勝</th><th>敗</th><th>分</th><th>試</th></tr>
+        </thead>
+        <tbody id="standings_body"></tbody>
+    </table>
 
-    // 1チーム143試合にするには、各ペアとの対戦を約28-29回ずつ行う必要がある
-    // 6チームで総当たりなら、1チームあたり5チームと戦う。143試合 ÷ 5チーム = 28.6試合
-    for(let k = 0; k < 29; k++) {
-        fullSeasonSchedule.push(...basePairs);
-    }
-    // 435試合分できたので、必要な429試合にトリミング
-    fullSeasonSchedule = fullSeasonSchedule.slice(0, 429);
-    
-    totalGamesPlayed = 0;
-}
+    <script src="names.js"></script>
+    <script>
+        const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
+        let totalGamesPlayed = 0;
+        let teams = [];
+        let fullSeasonSchedule = [];
 
-// 2. 進行ボタンの制限を143*6/2 = 429に変更
-function runGames(count) {
-    let limit = Math.min(totalGamesPlayed + count, 429);
-    while (totalGamesPlayed < limit) {
-        let pair = fullSeasonSchedule[totalGamesPlayed];
-        simulateMatch(teams[pair[0]], teams[pair[1]]);
-        totalGamesPlayed++;
-    }
-    updateUI();
-}
+        function initSeason() {
+            teams = teamNames.map(name => ({
+                name, wins: 0, losses: 0, draws: 0
+            }));
+            fullSeasonSchedule = [];
+            let base = [];
+            for(let i=0; i<6; i++) for(let j=i+1; j<6; j++) base.push([i,j]);
+            for(let k=0; k<29; k++) fullSeasonSchedule.push(...base);
+            fullSeasonSchedule = fullSeasonSchedule.slice(0, 429).sort(() => Math.random() - 0.5);
+            totalGamesPlayed = 0;
+        }
+
+        function runGames(count) {
+            let limit = Math.min(totalGamesPlayed + count, 429);
+            while (totalGamesPlayed < limit) {
+                let pair = fullSeasonSchedule[totalGamesPlayed];
+                let away = teams[pair[0]];
+                let home = teams[pair[1]];
+                if (Math.random() > 0.5) { away.wins++; home.losses++; }
+                else { home.wins++; away.losses++; }
+                totalGamesPlayed++;
+            }
+            updateUI();
+        }
+
+        function resetSeason() { initSeason(); updateUI(); }
+
+        function updateUI() {
+            document.getElementById("status").innerText = totalGamesPlayed + " / 429";
+            document.getElementById("standings_body").innerHTML = teams.map(t => 
+                `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${t.wins + t.losses + t.draws}</td></tr>`
+            ).join("");
+        }
+
+        initSeason();
+        updateUI();
+    </script>
+</body>
+</html>
