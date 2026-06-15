@@ -259,37 +259,31 @@ function advanceRunners(bases, hitKind) {
 // 3. 試合進行・シミュレーション中枢（完全修正版）
 // =================================================================
 function executeMatchLogic(away, home) {
-    // 1. 試合開始：投手に一時スタッツを付与する関数
-    const preparePitcher = (p) => { p.matchOuts = 0; p.matchEr = 0; };
+    // 試合開始時に全投手に試合用の一時スタッツを付与
+    away.pitchers.forEach(p => { p.matchOuts = 0; p.matchEr = 0; });
+    home.pitchers.forEach(p => { p.matchOuts = 0; p.matchEr = 0; });
     
-    // 2. 先発投手の決定
     let awayStarters = away.pitchers.filter(p => p.role === "先発");
     let homeStarters = home.pitchers.filter(p => p.role === "先発");
     let curPAway = awayStarters[away.rotationIdx % awayStarters.length] || away.pitchers[0];
     let curPHome = homeStarters[home.rotationIdx % homeStarters.length] || home.pitchers[0];
     
-    // 3. 試合用の一時スタッツを初期化
-    preparePitcher(curPAway); 
-    preparePitcher(curPHome);
-    curPAway.stats.appearances++; 
-    curPHome.stats.appearances++;
+    curPAway.stats.appearances++; curPHome.stats.appearances++;
 
     let awayScore = 0, homeScore = 0;
-    let awayOrder = 1; 
-    let homeOrder = 1;
-    let pitchAway = 0; 
-    let pitchHome = 0;
+    let awayOrder = 1; let homeOrder = 1;
+    let pitchAway = 0; let pitchHome = 0;
 
     let lineupAway = []; for(let i=1; i<=9; i++) lineupAway.push(away.batters.find(b => b.role === i) || away.batters[0]);
     let lineupHome = []; for(let i=1; i<=9; i++) lineupHome.push(home.batters.find(b => b.role === i) || home.batters[0]);
 
     for (let inning = 1; inning <= 9; inning++) {
-        // 表の攻撃（ホーム投手が投げる）
+        // 表
         let outs = 0; let bases = [false, false, false];
         while (outs < 3) {
             if(pitchHome > curPHome.staMax || (inning >= 7 && homeScore - awayScore <= 2)) {
                 let nextP = home.pitchers.find(p => (p.role === (inning === 9 ? "守護神" : "リリーフ")) && p.staCurrent > 15 && p !== curPHome);
-                if(nextP) { curPHome = nextP; preparePitcher(curPHome); pitchHome = 0; curPHome.stats.appearances++; }
+                if(nextP) { curPHome = nextP; curPHome.stats.appearances++; pitchHome = 0; }
             }
             let b = lineupAway[(awayOrder-1)%9];
             b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
@@ -311,12 +305,12 @@ function executeMatchLogic(away, home) {
             }
             awayOrder++;
         }
-        // 裏の攻撃（アウェイ投手が投げる）
+        // 裏
         outs = 0; bases = [false, false, false];
         while (outs < 3) {
             if(pitchAway > curPAway.staMax || (inning >= 7 && awayScore - homeScore <= 2)) {
                 let nextP = away.pitchers.find(p => (p.role === (inning === 9 ? "守護神" : "リリーフ")) && p.staCurrent > 15 && p !== curPAway);
-                if(nextP) { curPAway = nextP; preparePitcher(curPAway); pitchAway = 0; curPAway.stats.appearances++; }
+                if(nextP) { curPAway = nextP; curPAway.stats.appearances++; pitchAway = 0; }
             }
             let b = lineupHome[(homeOrder-1)%9];
             b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
@@ -326,28 +320,25 @@ function executeMatchLogic(away, home) {
             let soP = ((b.so/100)*BALANCING_CONFIG.plates.soBaseScale) + ((curPAway.k9*BALANCING_CONFIG.plates.soPitcherScale));
             
             if(rand < bbP) {
-                b.stats.bb++; curPAway.stats.bb++; let r = advanceRunners(bases, "BB"); homeScore += r; curPAway.stats.er += r; curPAway.matchEr += r;
+                b.stats.bb++; curPAway.stats.bb++; let r = advanceRunners(bases, "BB"); homeScore += r; curPAway.matchEr += r; curPAway.stats.er += r;
             } else if(rand < bbP + soP) {
                 outs++; b.stats.so++; curPAway.stats.so++; curPAway.stats.ipOuts++; curPAway.matchOuts++;
             } else {
                 let hitP = Math.max(0.24, 0.35 - ((curPAway.h9-65)*0.0015));
                 if(Math.random() < hitP) {
                     b.stats.hits++; let isHR = Math.random() < (b.barrel/100 * BALANCING_CONFIG.batting.hrMultiplier);
-                    let r = advanceRunners(bases, isHR ? "HR" : "1B"); homeScore += r; curPAway.stats.er += r; curPAway.matchEr += r; if(isHR) b.stats.hr++;
+                    let r = advanceRunners(bases, isHR ? "HR" : "1B"); homeScore += r; curPAway.matchEr += r; curPAway.stats.er += r; if(isHR) b.stats.hr++;
                 } else { outs++; curPAway.stats.ipOuts++; curPAway.matchOuts++; }
             }
             homeOrder++;
         }
     }
 
-    // --- 勝敗判定とスタミナ減少処理 ---
-    if(awayScore > homeScore) { away.wins++; home.losses++; } 
-    else if(homeScore > awayScore) { home.wins++; away.losses++; } 
-    else { away.draws++; home.draws++; }
+    if(awayScore > homeScore) { away.wins++; home.losses++; } else if(homeScore > awayScore) { home.wins++; away.losses++; } else { away.draws++; home.draws++; }
 
     // スタミナ消費
     [...away.pitchers, ...home.pitchers].forEach(p => {
-        if(p.role !== "先発" && p.matchOuts > 0) {
+        if(p.role !== "先発" && p.matchOuts !== undefined) {
             p.staCurrent = Math.max(0, p.staCurrent - (15 + p.matchOuts * 2));
         }
     });
