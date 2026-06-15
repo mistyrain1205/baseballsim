@@ -141,6 +141,44 @@ function resetSeason() { initSeason(); updateUI(); }
 initSeason();
 updateUI();
 </script>
+    <div id="offseason_container" class="container" style="display: none; margin-top: 20px; border: 2px solid #2d3748;">
+    
+    <div id="offseason_release_zone" style="display: none;">
+        <h2>戦力外通告フェーズ (最大10名まで)</h2>
+        <p>通告数: <span id="ui_release_count">0</span> / 10</p>
+        
+        <h3>野手</h3>
+        <table border="1">
+            <thead><tr><th>選択</th><th>選手名</th><th>成績</th><th>WAR</th></tr></thead>
+            <tbody id="release_batters_body"></tbody>
+        </table>
+        
+        <h3>投手</h3>
+        <table border="1">
+            <thead><tr><th>選択</th><th>選手名</th><th>成績</th><th>WAR</th></tr></thead>
+            <tbody id="release_pitchers_body"></tbody>
+        </table>
+        
+        <button onclick="finalizeUserReleases()" style="margin-top:20px; padding:10px 20px;">通告を確定してドラフトへ</button>
+    </div>
+
+    <div id="draft_interaction_zone" style="display: none;">
+        <h2 id="ui_draft_round_title">ドラフト会議</h2>
+        <p id="draft_status_message"></p>
+        
+        <h3>候補生一覧</h3>
+        <table border="1">
+            <thead><tr><th>ID</th><th>名前</th><th>タイプ</th><th>詳細</th><th>指名</th></tr></thead>
+            <tbody id="draft_pool_body"></tbody>
+        </table>
+        
+        <h3>指名結果</h3>
+        <table border="1">
+            <thead><tr><th>巡目</th><th>指名選手</th></tr></thead>
+            <tbody id="my_draft_results_body"></tbody>
+        </table>
+    </div>
+</div>
 <script src="draft.js"></script>
 </body>
 </html>
