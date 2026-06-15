@@ -484,8 +484,18 @@ function executeMatchLogic(away, home) {
         if(awayScore >= homeScore - 3 && appearedHome.length > 1) appearedHome[appearedHome.length-1].stats.saves++;
     } else { away.draws++; home.draws++; }
 
-    appearedAway.forEach(p => { if(p.role!=="先発") p.staCurrent = Math.max(0, p.staCurrent - (15 + pitcherMatchStats.get(p.name).outs*2)); });
-    home.pitchers.forEach(p => { if(p.role!=="先発") p.staCurrent = Math.max(0, p.staCurrent - (15 + pitcherMatchStats.get(p.name).outs*2)); });
+   // --- ここから書き換え ---
+    appearedAway.forEach(p => { 
+        let pStats = pitcherMatchStats.get(p.name);
+        if(p.role!=="先発" && pStats) p.staCurrent = Math.max(0, p.staCurrent - (15 + pStats.outs*2)); 
+    });
+    
+    // home.pitchers ではなく appearedHome（試合に出た投手のみ）に修正！
+    appearedHome.forEach(p => { 
+        let pStats = pitcherMatchStats.get(p.name);
+        if(p.role!=="先発" && pStats) p.staCurrent = Math.max(0, p.staCurrent - (15 + pStats.outs*2)); 
+    });
+    // --- ここまで書き換え ---
     away.pitchers.forEach(p => { if(p.stats.ipOuts>0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
     home.pitchers.forEach(p => { if(p.stats.ipOuts>0) p.stats.era = (p.stats.er * 27) / p.stats.ipOuts; });
     away.rotationIdx++; home.rotationIdx++;
