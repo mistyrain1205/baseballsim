@@ -24,11 +24,15 @@
         <div>HR率: <input type="number" id="rateHr" value="0.035" step="0.005"></div>
         <div>三振率: <input type="number" id="rateSo" value="0.300" step="0.005"></div>
     </div>
-    <div class="controls">
-        <button onclick="runGames(1)">1試合進行</button>
-        <button onclick="runGames(429)">全試合一括進行</button>
-        <button onclick="resetSeason()" style="background:#e53e3e; color:white;">リセット</button>
-    </div>
+   <div class="controls">
+    <button onclick="runGames(1)">1試合進行</button>
+    <button onclick="runGames(429)">全試合一括進行</button>
+    <button onclick="resetSeason()" style="background:#e53e3e; color:white;">リセット</button>
+    
+    <button id="btn_to_offseason" onclick="startUserReleasePhase()" style="display:none; background:#3182ce; color:white;">
+        オフシーズン（戦力外・ドラフト）へ進む
+    </button>
+</div>
     <h2>リーグ順位表</h2>
     <table id="standings_table">
         <thead><tr><th>チーム</th><th>勝</th><th>敗</th><th>分</th><th>消化</th><th>勝率</th></tr></thead>
@@ -117,10 +121,11 @@ function runGames(count) {
         totalGamesPlayed++;
     }
     updateUI();
-    
-    // 【重要】429試合終了したらオフシーズンへ移行
+
+    // 429試合終了したらボタンを表示する
     if (totalGamesPlayed >= 429) {
-        startUserReleasePhase(); 
+        document.getElementById("btn_to_offseason").style.display = "inline-block";
+        alert("シーズン全試合が終了しました！戦力外通告・ドラフト会議へ進んでください。");
     }
 }
 
