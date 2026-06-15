@@ -2,39 +2,73 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - 完走・リセット完全修正版</title>
-    </head>
+    <title>Baseball Tycoon</title>
+    <script src="names.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    </style>
+</head>
 <body>
+    <h1>Baseball Tycoon: <span id="status">0 / 143</span></h1>
+    <button onclick="runGames(1)">1試合進行</button>
+    <button onclick="resetSeason()">リセット</button>
+
+    <h2>順位表</h2>
+    <table id="standings_table">
+        <thead><tr><th>チーム</th><th>勝</th><th>敗</th><th>分</th></tr></thead>
+        <tbody id="standings_body"></tbody>
+    </table>
+
 <script>
-// --- 完全リセット関数 ---
-function resetSeason() {
-    totalGamesPlayed = 0;
+// 1. グローバル変数の定義
+const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
+let totalGamesPlayed = 0;
+let teams = [];
+
+// 2. 初期化関数 (これを呼ばないと teams が空のまま)
+function initTeams() {
     teams = teamNames.map(name => ({
         name, wins: 0, losses: 0, draws: 0,
-        batters: Array.from({length: 9}, () => ({ name: generateRandomPlayerName(), stats: { ab: 0, hits: 0, hr: 0 } })),
-        pitchers: Array.from({length: 6}, () => ({ name: generateRandomPlayerName(), stats: { ipOuts: 0, er: 0, so: 0 } }))
+        batters: Array.from({length: 9}, () => ({ name: generateRandomPlayerName(), stats: { ab: 0, hits: 0 } })),
+        pitchers: Array.from({length: 6}, () => ({ name: generateRandomPlayerName(), stats: { ipOuts: 0, er: 0 } }))
     }));
+}
+
+function resetSeason() {
+    totalGamesPlayed = 0;
+    initTeams();
     updateUI();
 }
 
-// --- リーグ戦を確実に完走させるロジック ---
+function simulateMatch(away, home) {
+    // 簡易的な勝敗判定
+    if (Math.random() > 0.5) { away.wins++; home.losses++; }
+    else { home.wins++; away.losses++; }
+}
+
 function runGames(count) {
     let gamesToRun = Math.min(count, 143 - totalGamesPlayed);
-    
     for(let i = 0; i < gamesToRun; i++) {
-        // リーグ戦スケジュール: 全6チームの総当たり
-        // 1試合ごとに合計対戦数がインクリメントされる
         let awayIdx = Math.floor(totalGamesPlayed / 6) % 6; 
         let homeIdx = (totalGamesPlayed % 6);
         if (awayIdx === homeIdx) homeIdx = (homeIdx + 1) % 6;
-        
         simulateMatch(teams[awayIdx], teams[homeIdx]);
         totalGamesPlayed++;
     }
     updateUI();
 }
 
-// ※ その他の関数 (simulateMatch, updateUI等) は前回のものをそのままお使いください
+function updateUI() {
+    document.getElementById("status").innerText = totalGamesPlayed + " / 143";
+    let html = teams.map(t => `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td></tr>`).join("");
+    document.getElementById("standings_body").innerHTML = html;
+}
+
+// ページを開いた時の初期処理
+initTeams();
+updateUI();
 </script>
 </body>
 </html>
