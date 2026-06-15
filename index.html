@@ -138,6 +138,22 @@ function updateUI() {
 
 function resetSeason() { initSeason(); updateUI(); }
 
+    /**
+ * 試合画面を隠して、戦力外・ドラフト画面を表示する
+ */
+function startUserReleasePhase() {
+    // 試合画面を非表示
+    document.getElementById("main_game_container").style.display = "none";
+    // オフシーズン画面を表示
+    document.getElementById("offseason_container").style.display = "block";
+    
+    // draft.js の関数を呼び出し（ここでリストを生成）
+    // 注意: draft.js が既にロードされている必要があります
+    if (typeof startUserReleasePhase === 'function') {
+        startUserReleasePhase(); 
+    }
+}
+
 initSeason();
 updateUI();
 </script>
