@@ -259,9 +259,14 @@ function advanceRunners(bases, hitKind) {
 // 3. 試合進行・シミュレーション中枢（完全修正版）
 // =================================================================
 function executeMatchLogic(away, home) {
-    // 試合開始時に全投手に試合用の一時スタッツを付与
-    away.pitchers.forEach(p => { p.matchOuts = 0; p.matchEr = 0; });
-    home.pitchers.forEach(p => { p.matchOuts = 0; p.matchEr = 0; });
+    // 【重要】試合開始時だけでなく、交代時にも必ず呼ぶ初期化関数
+    const initPitcherStats = (p) => {
+        p.matchOuts = p.matchOuts || 0;
+        p.matchEr = p.matchEr || 0;
+    };
+
+    // 全投手にセット
+    [...away.pitchers, ...home.pitchers].forEach(p => initPitcherStats(p));
     
     let awayStarters = away.pitchers.filter(p => p.role === "先発");
     let homeStarters = home.pitchers.filter(p => p.role === "先発");
@@ -283,7 +288,7 @@ function executeMatchLogic(away, home) {
         while (outs < 3) {
             if(pitchHome > curPHome.staMax || (inning >= 7 && homeScore - awayScore <= 2)) {
                 let nextP = home.pitchers.find(p => (p.role === (inning === 9 ? "守護神" : "リリーフ")) && p.staCurrent > 15 && p !== curPHome);
-                if(nextP) { curPHome = nextP; curPHome.stats.appearances++; pitchHome = 0; }
+                if(nextP) { curPHome = nextP; initPitcherStats(curPHome); curPHome.stats.appearances++; pitchHome = 0; }
             }
             let b = lineupAway[(awayOrder-1)%9];
             b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
@@ -310,7 +315,7 @@ function executeMatchLogic(away, home) {
         while (outs < 3) {
             if(pitchAway > curPAway.staMax || (inning >= 7 && awayScore - homeScore <= 2)) {
                 let nextP = away.pitchers.find(p => (p.role === (inning === 9 ? "守護神" : "リリーフ")) && p.staCurrent > 15 && p !== curPAway);
-                if(nextP) { curPAway = nextP; curPAway.stats.appearances++; pitchAway = 0; }
+                if(nextP) { curPAway = nextP; initPitcherStats(curPAway); curPAway.stats.appearances++; pitchAway = 0; }
             }
             let b = lineupHome[(homeOrder-1)%9];
             b.stats.ab++; b.stats.games = (b.stats.games || 0) + 1;
@@ -336,18 +341,18 @@ function executeMatchLogic(away, home) {
 
     if(awayScore > homeScore) { away.wins++; home.losses++; } else if(homeScore > awayScore) { home.wins++; away.losses++; } else { away.draws++; home.draws++; }
 
-    // スタミナ消費
-[...away.pitchers, ...home.pitchers].forEach(p => {
-        // matchOuts が未定義でもエラーにならないよう保護
-        if (p.role !== "先発" && typeof p.matchOuts !== 'undefined') {
-            p.staCurrent = Math.max(0, p.staCurrent - (15 + p.matchOuts * 2));
+    // スタミナ消費（matchOutsが未定義なら0扱い）
+    [...away.pitchers, ...home.pitchers].forEach(p => {
+        if(p.role !== "先発") {
+            let outs = p.matchOuts || 0;
+            p.staCurrent = Math.max(0, p.staCurrent - (15 + outs * 2));
         }
     });
 
     away.rotationIdx++; 
     home.rotationIdx++;
     return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
-} // ← ここが executeMatchLogic の閉じ括弧です
+}
 
 
 function playNextRound() {
