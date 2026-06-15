@@ -60,16 +60,48 @@ function initSeason() {
 }
 
 // 2. 試合ロジック（投手のスタッツを適正化）
+// 試合シミュレート関数（修正版）
 function simulateMatch(away, home) {
     let scoreAway = 0, scoreHome = 0;
-    
+
     // 9イニング分の処理
     for (let inning = 1; inning <= 9; inning++) {
-        // 表（Awayの攻撃、Home投手の投球）
-        playHalf(away, home.pitchers[0]);
-        // 裏（Homeの攻撃、Away投手の投球）
-        playHalf(home, away.pitchers[0]);
+        // 表：awayの攻撃、home投手の投球
+        scoreAway += playHalf(away, home.pitchers[0]);
+        // 裏：homeの攻撃、away投手の投球
+        scoreHome += playHalf(home, away.pitchers[0]);
     }
+
+    // 勝敗記録
+    if (scoreAway > scoreHome) { away.wins++; home.losses++; }
+    else if (scoreHome > scoreAway) { home.wins++; away.losses++; }
+    else { away.draws++; home.draws++; }
+}
+
+// 1イニングの攻撃処理
+function playHalf(battingTeam, pitcher) {
+    let outs = 0;
+    let runs = 0;
+    pitcher.stats.ipOuts += 3; // イニング終了で3アウト分加算
+
+    while (outs < 3) {
+        let b = battingTeam.batters[Math.floor(Math.random() * 9)];
+        b.stats.ab++;
+        let roll = Math.random();
+
+        if (roll < 0.25) { 
+            b.stats.hits++; 
+        } else if (roll < 0.30) { 
+            b.stats.hr++; 
+            runs++;
+            pitcher.stats.er++; // 失点を加算
+        } else { 
+            outs++; 
+            pitcher.stats.so++; 
+        }
+    }
+    return runs;
+}
 
     function playHalf(battingTeam, pitcher) {
         let outs = 0;
