@@ -96,17 +96,19 @@ function playHalf(battingTeam, pitcher) {
         b.stats.ab++;
         let roll = Math.random();
 
-        if (roll < 0.25) { 
-            // 安打
+        if (roll < 0.280) { 
+            // 打率.280相当
             b.stats.hits++; 
-        } else if (roll < 0.30) { 
-            // 本塁打（確率を3%に下げました）
+        } else if (roll < 0.280 + 0.035) { 
+            // 本塁打（打率28% + 本塁打率3.5% = 31.5%まで）
+            // 年間143試合でHR40本ペース
             b.stats.hr++; runs++; pitcher.stats.er++; 
-        } else if (roll < 0.50) { 
-            // ゴロやフライによるアウト（三振ではないアウトを追加）
+        } else if (roll < 0.700) { 
+            // 三振以外の凡打 (約38.5%)
             outs++; 
         } else { 
-            // 三振（確率を50%に抑制）
+            // 三振 (残り30%)
+            // 1試合平均6〜7奪三振 × 28登板 = 約180〜200奪三振
             outs++; 
             pitcher.stats.so++; 
         }
