@@ -10,7 +10,104 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { background: #2d3748; color: white; padding: 10px; }
         td { padding: 8px; border: 1px solid #ddd; text-align: center; }
+    </style><!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Baseball Tycoon - 最終統合版</title>
+    <script src="names.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .controls { margin-bottom: 20px; padding: 15px; border-bottom: 2px solid #eee; display: flex; gap: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #2d3748; color: white; padding: 10px; }
+        td { padding: 8px; border: 1px solid #ddd; text-align: center; }
     </style>
+</head>
+<body>
+
+<div class="container" id="main_game_container">
+    <h1>Baseball Tycoon: <span id="status">0 / 429</span></h1>
+    <div class="controls">
+        <button onclick="runGames(1)">1試合進行</button>
+        <button onclick="runGames(429)">全試合一括</button>
+        <button id="btn_to_offseason" onclick="showOffseason()" style="display:none; background:#3182ce; color:white;">オフシーズンへ</button>
+    </div>
+    <table id="standings_table">
+        <thead><tr><th>チーム</th><th>勝</th><th>敗</th><th>勝率</th></tr></thead>
+        <tbody id="standings_body"></tbody>
+    </table>
+</div>
+
+<div id="offseason_container" class="container" style="display: none;">
+    <h2>オフシーズン：戦力外通告＆ドラフト</h2>
+    <div id="offseason_release_zone">
+        <h3>戦力外通告</h3>
+        <table id="release_table"><thead><tr><th>選択</th><th>名前</th><th>WAR</th></tr></thead><tbody id="release_body"></tbody></table>
+        <button onclick="finalizeReleases()">確定してドラフトへ</button>
+    </div>
+    <div id="draft_interaction_zone" style="display: none;">
+        <h3>ドラフト候補生（指名ボタンを押してください）</h3>
+        <table id="draft_table"><thead><tr><th>名前</th><th>ポテンシャル</th><th>指名</th></tr></thead><tbody id="draft_body"></tbody></table>
+    </div>
+</div>
+
+<script>
+const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
+let totalGamesPlayed = 0;
+let teams = [];
+
+function init() {
+    teams = teamNames.map((name, i) => ({
+        id: i, name, wins: 0, losses: 0, 
+        batters: Array.from({length:9}, () => ({ name: generateRandomPlayerName(), war: Math.random()*2 })),
+        pitchers: Array.from({length:6}, () => ({ name: generateRandomPlayerName(), war: Math.random()*2 }))
+    }));
+}
+
+function runGames(n) {
+    totalGamesPlayed = Math.min(totalGamesPlayed + n, 429);
+    teams.forEach(t => { t.wins += Math.floor(Math.random()*2); t.losses += Math.floor(Math.random()*2); });
+    updateUI();
+    if(totalGamesPlayed >= 429) document.getElementById("btn_to_offseason").style.display = "inline-block";
+}
+
+function showOffseason() {
+    document.getElementById("main_game_container").style.display = "none";
+    document.getElementById("offseason_container").style.display = "block";
+    let tbody = document.getElementById("release_body");
+    tbody.innerHTML = teams[0].batters.map((b, i) => `<tr><td><input type="checkbox"></td><td>${b.name}</td><td>${b.war.toFixed(1)}</td></tr>`).join("");
+}
+
+function finalizeReleases() {
+    document.getElementById("offseason_release_zone").style.display = "none";
+    document.getElementById("draft_interaction_zone").style.display = "block";
+    renderDraftPool();
+}
+
+function renderDraftPool() {
+    let tbody = document.getElementById("draft_body");
+    // names.js の関数を使用して候補生を生成
+    let candidates = Array.from({length:5}, () => ({ name: generateRandomPlayerName(), pot: Math.floor(Math.random()*50)+50 }));
+    
+    tbody.innerHTML = candidates.map(c => `<tr>
+        <td>${c.name}</td>
+        <td>${c.pot}</td>
+        <td><button onclick="alert('${c.name}を指名しました！')">指名</button></td>
+    </tr>`).join("");
+}
+
+function updateUI() {
+    document.getElementById("status").innerText = totalGamesPlayed + " / 429";
+    document.getElementById("standings_body").innerHTML = teams.map(t => `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${(t.wins/(t.wins+t.losses+0.1)).toFixed(3)}</td></tr>`).join("");
+}
+
+init();
+updateUI();
+</script>
+</body>
+</html>
 </head>
 <body>
 
