@@ -2,20 +2,23 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - 最終完全統合版</title>
+    <title>Baseball Tycoon - 完全統合版</title>
     <script src="names.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 20px; background: #f4f7f6; }
         .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .controls, .settings { margin-bottom: 20px; padding: 15px; border-bottom: 2px solid #eee; display: flex; gap: 15px; }
+        .controls, .settings { margin-bottom: 20px; padding: 15px; border-bottom: 2px solid #eee; display: flex; gap: 15px; flex-wrap: wrap; }
+        .settings { background: #edf2f7; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { background: #2d3748; color: white; padding: 12px; }
-        td { padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 0.9em; }
+        td { padding: 10px; border: 1px solid #e2e8f0; text-align: center; }
+        button { cursor: pointer; padding: 8px 16px; }
     </style>
 </head>
 <body>
+
 <div class="container" id="main_game_container">
-    <h1>Baseball Tycoon: シーズン <span id="status">0 / 429</span></h1>
+    <h1>Baseball Tycoon: シーズン進行 <span id="status">0 / 429</span></h1>
     <div class="settings">
         <div>ヒット率: <input type="number" id="rateHit" value="0.280" step="0.005"></div>
         <div>HR率: <input type="number" id="rateHr" value="0.035" step="0.005"></div>
@@ -26,56 +29,67 @@
         <button onclick="runGames(429)">全試合一括進行</button>
         <button onclick="resetSeason()" style="background:#e53e3e; color:white;">リセット</button>
     </div>
-    <h2>リーグ順位</h2>
+    <h2>リーグ順位表</h2>
     <table id="standings_table">
-        <thead><tr><th>チーム</th><th>勝</th><th>敗</th><th>分</th><th>試</th><th>勝率</th></tr></thead>
+        <thead><tr><th>チーム</th><th>勝</th><th>敗</th><th>分</th><th>消化</th><th>勝率</th></tr></thead>
         <tbody id="standings_body"></tbody>
     </table>
 </div>
 
-<div id="offseason_container" style="display: none;" class="container"></div>
+<div id="offseason_container" class="container" style="display: none;">
+    <div id="offseason_release_zone" style="display: none;">
+        <h2>戦力外通告フェーズ (現在選択: <span id="ui_release_count">0</span> / 10)</h2>
+        <table border="1">
+            <thead><tr><th>選択</th><th>選手名</th><th>打率/防</th><th>WAR</th></tr></thead>
+            <tbody id="release_batters_body"></tbody>
+            <tbody id="release_pitchers_body"></tbody>
+        </table>
+        <button onclick="finalizeUserReleases()">通告確定してドラフトへ</button>
+    </div>
+    <div id="draft_interaction_zone" style="display: none;">
+        <h2 id="ui_draft_round_title">ドラフト会議</h2>
+        <table border="1">
+            <thead><tr><th>ID</th><th>名前</th><th>タイプ</th><th>詳細</th><th>指名</th></tr></thead>
+            <tbody id="draft_pool_body"></tbody>
+        </table>
+        <h3>指名結果</h3>
+        <table border="1"><tbody id="my_draft_results_body"></tbody></table>
+    </div>
+</div>
 
 <script>
+// --- メインロジック ---
 const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
 let totalGamesPlayed = 0;
 let teams = [];
 let fullSeasonSchedule = [];
+const userTeamId = 0;
 
 function initSeason() {
     teams = teamNames.map((name, id) => ({
         id, name, wins: 0, losses: 0, draws: 0, pitcherIndex: 0,
-        batters: Array.from({length: 9}, () => ({ 
-            name: generateRandomPlayerName(), age: 25, stats: { ab: 0, hits: 0, hr: 0, war: 0 } 
-        })),
-        pitchers: Array.from({length: 6}, () => ({ 
-            name: generateRandomPlayerName(), age: 25, stats: { ipOuts: 0, er: 0, so: 0, war: 0 } 
-        }))
+        batters: Array.from({length: 9}, () => ({ name: generateRandomPlayerName(), stats: { ab: 0, hits: 0, hr: 0, war: Math.random()*2 } })),
+        pitchers: Array.from({length: 6}, () => ({ name: generateRandomPlayerName(), stats: { ipOuts: 0, er: 0, so: 0, war: Math.random()*2 } }))
     }));
-
+    // スケジュール生成...
     fullSeasonSchedule = [];
-    let basePairs = [];
-    for(let i = 0; i < 6; i++) for(let j = i + 1; j < 6; j++) basePairs.push([i, j]);
-    for(let k = 0; k < 29; k++) fullSeasonSchedule.push(...basePairs);
+    let base = [];
+    for(let i=0; i<6; i++) for(let j=i+1; j<6; j++) base.push([i,j]);
+    for(let k=0; k<29; k++) fullSeasonSchedule.push(...base);
     fullSeasonSchedule = fullSeasonSchedule.slice(0, 429).sort(() => Math.random() - 0.5);
     totalGamesPlayed = 0;
 }
 
 function simulateMatch(away, home) {
-    let awayPitcher = away.pitchers[away.pitcherIndex];
-    let homePitcher = home.pitchers[home.pitcherIndex];
-    let scoreAway = 0, scoreHome = 0;
-
+    let aP = away.pitchers[away.pitcherIndex], hP = home.pitchers[home.pitcherIndex];
+    let sA = 0, sH = 0;
     for (let i = 0; i < 9; i++) {
-        scoreAway += playHalf(away, homePitcher);
-        scoreHome += playHalf(home, awayPitcher);
+        sA += playHalf(away, hP);
+        sH += playHalf(home, aP);
     }
-    
     away.pitcherIndex = (away.pitcherIndex + 1) % 6;
     home.pitcherIndex = (home.pitcherIndex + 1) % 6;
-
-    if (scoreAway > scoreHome) { away.wins++; home.losses++; }
-    else if (scoreHome > scoreAway) { home.wins++; away.losses++; }
-    else { away.draws++; home.draws++; }
+    if (sA > sH) { away.wins++; home.losses++; } else if (sH > sA) { home.wins++; away.losses++; } else { away.draws++; home.draws++; }
 }
 
 function playHalf(battingTeam, pitcher) {
@@ -83,14 +97,13 @@ function playHalf(battingTeam, pitcher) {
     let hitRate = parseFloat(document.getElementById('rateHit').value);
     let hrRate = parseFloat(document.getElementById('rateHr').value);
     let soRate = parseFloat(document.getElementById('rateSo').value);
-    
     pitcher.stats.ipOuts += 3;
     while (outs < 3) {
-        let roll = Math.random();
-        if (roll < hitRate) { battingTeam.batters[0].stats.hits++; }
-        else if (roll < hitRate + hrRate) { battingTeam.batters[0].stats.hr++; runs++; pitcher.stats.er++; }
-        else if (roll < hitRate + hrRate + soRate) { outs++; pitcher.stats.so++; }
-        else { outs++; }
+        let r = Math.random();
+        if (r < hitRate) battingTeam.batters[0].stats.hits++;
+        else if (r < hitRate + hrRate) { battingTeam.batters[0].stats.hr++; runs++; pitcher.stats.er++; }
+        else if (r < hitRate + hrRate + soRate) { outs++; pitcher.stats.so++; }
+        else outs++;
     }
     return runs;
 }
@@ -108,8 +121,7 @@ function runGames(count) {
 
 function updateUI() {
     document.getElementById("status").innerText = `${totalGamesPlayed} / 429`;
-    let sorted = [...teams].sort((a,b) => b.wins - a.wins);
-    document.getElementById("standings_body").innerHTML = sorted.map(t => 
+    document.getElementById("standings_body").innerHTML = [...teams].sort((a,b) => b.wins - a.wins).map(t => 
         `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${t.wins+t.losses+t.draws}</td><td>${(t.wins / Math.max(t.wins+t.losses, 1)).toFixed(3)}</td></tr>`
     ).join("");
 }
