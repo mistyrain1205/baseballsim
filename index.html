@@ -108,6 +108,7 @@ function playHalf(battingTeam, pitcher) {
     return runs;
 }
 
+// index.html の runGames 関数内に追加
 function runGames(count) {
     let limit = Math.min(totalGamesPlayed + count, 429);
     while (totalGamesPlayed < limit) {
@@ -116,7 +117,11 @@ function runGames(count) {
         totalGamesPlayed++;
     }
     updateUI();
-    if (totalGamesPlayed >= 429) startUserReleasePhase();
+    
+    // 【重要】429試合終了したらオフシーズンへ移行
+    if (totalGamesPlayed >= 429) {
+        startUserReleasePhase(); 
+    }
 }
 
 function updateUI() {
