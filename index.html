@@ -2,34 +2,31 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - リーグ完全版 (引き分け対応)</title>
+    <title>Baseball Tycoon - 個人成績復活版</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
-        .container { max-width: 1200px; margin: auto; background: white; padding: 20px; }
-        .controls { margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { background: #2d3748; color: white; padding: 8px; font-size: 0.8em; }
         td { padding: 6px; border: 1px solid #ddd; text-align: center; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>Baseball Tycoon: リーグ進行度 <span id="status">0 / 143</span></h1>
-    <div class="controls">
-        <button onclick="runGames(1)">1試合進行</button>
-        <button onclick="runGames(6)">一週間(6試合)進行</button>
-        <button onclick="runGames(143)">シーズン全進行</button>
-    </div>
+    <h1>Baseball Tycoon: 進行度 <span id="status">0 / 143</span></h1>
+    <button onclick="runGames(1)">1試合</button>
+    <button onclick="runGames(6)">一週間(6試合)</button>
+    <button onclick="runGames(143)">シーズン全進行</button>
 
-    <h2>リーグ順位</h2>
-    <table id="standings_table">
-        <thead><tr><th>順位</th><th>チーム</th><th>勝</th><th>敗</th><th>分</th><th>勝率</th></tr></thead>
-        <tbody></tbody>
-    </table>
-    </div>
+    <h2>野手リーダー</h2>
+    <table id="bat_table"><thead><tr><th>名前</th><th>打率</th><th>安打</th><th>HR</th></tr></thead><tbody></tbody></table>
+    
+    <h2>投手リーダー</h2>
+    <table id="pit_table"><thead><tr><th>名前</th><th>防御率</th><th>回</th><th>奪三振</th></tr></thead><tbody></tbody></table>
+</div>
 
 <script>
-// --- データ構造 ---
+// --- 1. データの定義 ---
 const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
 let totalGamesPlayed = 0;
 let teams = teamNames.map(name => ({
@@ -38,80 +35,56 @@ let teams = teamNames.map(name => ({
     pitchers: Array.from({length: 6}, (_, i) => ({ name: "投手"+(i+1), stats: { ipOuts: 0, er: 0, so: 0 } }))
 }));
 
-// --- 試合ロジック ---
+// --- 2. 試合ロジック ---
 function simulateMatch(away, home) {
     let scoreAway = 0, scoreHome = 0;
-    
-    // 12回まで延長戦ありのロジックに変更
-    for (let inning = 1; inning <= 12; inning++) {
-        [ {t: away, p: home.pitchers[0]}, {t: home, p: away.pitchers[0]} ].forEach((half, idx) => {
-            let outs = 0;
-            while (outs < 3) {
-                let b = half.t.batters[Math.floor(Math.random()*9)];
-                b.stats.ab++;
-                let roll = Math.random();
-                if (roll < 0.25) b.stats.hits++;
-                else if (roll < 0.30) { 
-                    b.stats.hr++; 
-                    if(idx === 0) scoreAway++; else scoreHome++; 
-                } else outs++;
-                half.p.stats.ipOuts++;
-            }
-        });
-        // 9回終了時点で決着がついていれば終了
-        if (inning >= 9 && scoreAway !== scoreHome) break;
+    for (let i = 0; i < 18; i++) {
+        let team = (i % 2 === 0) ? away : home;
+        let p = (i % 2 === 0) ? home.pitchers[0] : away.pitchers[0];
+        let outs = 0;
+        while (outs < 3) {
+            let b = team.batters[Math.floor(Math.random()*9)];
+            b.stats.ab++;
+            let roll = Math.random();
+            if (roll < 0.25) { b.stats.hits++; }
+            else if (roll < 0.30) { b.stats.hr++; if(i%2===0) scoreAway++; else scoreHome++; }
+            else { outs++; p.stats.so++; }
+            p.stats.ipOuts++;
+        }
     }
-
     if (scoreAway > scoreHome) { away.wins++; home.losses++; }
     else if (scoreHome > scoreAway) { home.wins++; away.losses++; }
-    else { away.draws++; home.draws++; } // 引き分け加算
+    else { away.draws++; home.draws++; }
 }
 
+// --- 3. 実行関数 ---
 function runGames(count) {
-    // 143試合終わっていたら終了
-    if (totalGamesPlayed >= 143) return;
-
-    let target = Math.min(totalGamesPlayed + count, 143);
-    
-    while (totalGamesPlayed < target) {
-        // 全6チーム総当たり（リーグ戦）のスケジュール計算
-        // チームA(0)を固定し、他のチームと回していく総当たりロジック
-        let round = Math.floor(totalGamesPlayed / 3); // 3試合で全チーム1周
-        let pairIdx = totalGamesPlayed % 3;
-        
-        let teamsArr = [0, 1, 2, 3, 4, 5];
-        let away = teamsArr[0]; // 固定
-        let home = teamsArr[pairIdx + 1];
-        
-        // 実際に対戦を実行
-        simulateMatch(teams[away], teams[home]);
-        
+    for(let i = 0; i < count; i++) {
+        if(totalGamesPlayed >= 143) break;
+        simulateMatch(teams[totalGamesPlayed % 6], teams[(totalGamesPlayed + 1) % 6]);
         totalGamesPlayed++;
     }
     updateUI();
 }
-    
+
+// --- 4. UI更新 ---
 function updateUI() {
     document.getElementById("status").innerText = `${totalGamesPlayed} / 143`;
     
-    // 1. 順位表
-    let sortedTeams = [...teams].sort((a,b) => b.wins - a.wins);
-    document.querySelector("#standings_table tbody").innerHTML = sortedTeams.map((t, i) => 
-        `<tr><td>${i+1}</td><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${(t.wins/(t.wins+t.losses || 1)).toFixed(3)}</td></tr>`
-    ).join("");
+    // 野手リーダーボード更新
+    let allBatters = teams.flatMap(t => t.batters);
+    document.querySelector("#bat_table tbody").innerHTML = allBatters
+        .sort((a,b) => (b.stats.hits/Math.max(b.stats.ab,1)) - (a.stats.hits/Math.max(a.stats.ab,1)))
+        .slice(0, 5)
+        .map(b => `<tr><td>${b.name}</td><td>${(b.stats.hits/Math.max(b.stats.ab,1)).toFixed(3)}</td><td>${b.stats.hits}</td><td>${b.stats.hr}</td></tr>`).join("");
 
-    // 2. 野手リーダー (全チームからフラットに抽出)
-    let allBatters = teams.flatMap(t => t.batters).sort((a,b) => (b.stats.hits/Math.max(b.stats.ab,1)) - (a.stats.hits/Math.max(a.stats.ab,1)));
-    document.querySelector("#bat_table tbody").innerHTML = allBatters.slice(0, 10).map(b => 
-        `<tr><td>${b.name}</td><td>${(b.stats.hits/Math.max(b.stats.ab,1)).toFixed(3)}</td><td>${b.stats.hits}</td><td>${b.stats.hr}</td></tr>`
-    ).join("");
-
-    // 3. 投手リーダー (全チームからフラットに抽出)
-    let allPitchers = teams.flatMap(t => t.pitchers).filter(p => p.stats.ipOuts > 0)
-        .sort((a,b) => (a.stats.er*9/(a.stats.ipOuts/3||1)) - (b.stats.er*9/(b.stats.ipOuts/3||1)));
-    document.querySelector("#pit_table tbody").innerHTML = allPitchers.slice(0, 10).map(p => 
-        `<tr><td>${p.name}</td><td>${(p.stats.er*9/(Math.max(p.stats.ipOuts/3,1))).toFixed(2)}</td><td>${p.stats.so}</td></tr>`
-    ).join("");
+    // 投手リーダーボード更新
+    let allPitchers = teams.flatMap(t => t.pitchers);
+    document.querySelector("#pit_table tbody").innerHTML = allPitchers
+        .filter(p => p.stats.ipOuts > 0)
+        .sort((a,b) => (a.stats.er*9/(a.stats.ipOuts/3||1)) - (b.stats.er*9/(b.stats.ipOuts/3||1)))
+        .slice(0, 5)
+        .map(p => `<tr><td>${p.name}</td><td>${(p.stats.er*9/(Math.max(p.stats.ipOuts/3,1))).toFixed(2)}</td><td>${(p.stats.ipOuts/3).toFixed(1)}</td><td>${p.stats.so}</td></tr>`).join("");
 }
 </script>
 </body>
