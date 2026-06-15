@@ -95,9 +95,21 @@ function playHalf(battingTeam, pitcher) {
         let b = battingTeam.batters[Math.floor(Math.random() * 9)];
         b.stats.ab++;
         let roll = Math.random();
-        if (roll < 0.25) { b.stats.hits++; } 
-        else if (roll < 0.30) { b.stats.hr++; runs++; pitcher.stats.er++; } 
-        else { outs++; pitcher.stats.so++; }
+
+        if (roll < 0.25) { 
+            // 安打
+            b.stats.hits++; 
+        } else if (roll < 0.28) { 
+            // 本塁打（確率を3%に下げました）
+            b.stats.hr++; runs++; pitcher.stats.er++; 
+        } else if (roll < 0.50) { 
+            // ゴロやフライによるアウト（三振ではないアウトを追加）
+            outs++; 
+        } else { 
+            // 三振（確率を50%に抑制）
+            outs++; 
+            pitcher.stats.so++; 
+        }
     }
     return runs;
 }
