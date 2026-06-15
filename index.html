@@ -104,22 +104,35 @@ function resetSeason() {
 function updateUI() {
     document.getElementById("status").innerText = `${totalGamesPlayed} / 429`;
     
-    // 順位表
+    // 1. 順位表（勝率順）
     let sorted = [...teams].sort((a,b) => b.wins - a.wins);
     document.getElementById("standings_body").innerHTML = sorted.map((t, i) => {
         let played = t.wins + t.losses + t.draws;
         return `<tr><td>${i+1}</td><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td><td>${played}</td><td>${(t.wins / Math.max(played, 1)).toFixed(3)}</td></tr>`;
     }).join("");
 
-    // 野手
+    // 2. 野手リーダー
     let bList = teams.flatMap(t => t.batters).sort((a,b) => (b.stats.hits/Math.max(b.stats.ab,1)) - (a.stats.hits/Math.max(a.stats.ab,1)));
     document.querySelector("#bat_table tbody").innerHTML = bList.slice(0, 5).map(b => 
         `<tr><td>${b.name}</td><td>${(b.stats.hits/Math.max(b.stats.ab,1)).toFixed(3)}</td><td>${b.stats.hr}</td></tr>`).join("");
 
-    // 投手
-    let pList = teams.flatMap(t => t.pitchers).filter(p => p.stats.ipOuts > 0).sort((a,b) => (a.stats.er*9/(a.stats.ipOuts/3||1)) - (b.stats.er*9/(b.stats.ipOuts/3||1)));
+    // 3. 【修正箇所】投手リーダー（防御率の計算式を適正化）
+    let pList = teams.flatMap(t => t.pitchers)
+        .filter(p => p.stats.ipOuts > 0)
+        .sort((a,b) => {
+            // 防御率 = (失点 × 27) / 投球回(アウト数)
+            let eraA = (a.stats.er * 27) / a.stats.ipOuts;
+            let eraB = (b.stats.er * 27) / b.stats.ipOuts;
+            return eraA - eraB;
+        });
+
     document.querySelector("#pit_table tbody").innerHTML = pList.slice(0, 5).map(p => 
-        `<tr><td>${p.name}</td><td>${(p.stats.er*9/(Math.max(p.stats.ipOuts/3,1))).toFixed(2)}</td><td>${(p.stats.ipOuts/3).toFixed(1)}</td><td>${p.stats.so}</td></tr>`).join("");
+        `<tr>
+            <td>${p.name}</td>
+            <td>${((p.stats.er * 27) / p.stats.ipOuts).toFixed(2)}</td>
+            <td>${(p.stats.ipOuts / 3).toFixed(1)}</td>
+            <td>${p.stats.so}</td>
+        </tr>`).join("").replace(/NaN/g, "0.00"); // データ初期化直後のNaN対策
 }
 
 initSeason();
