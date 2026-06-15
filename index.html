@@ -2,38 +2,35 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - 統合完全版</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
-        .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .settings, .controls { margin-bottom: 20px; padding: 15px; border-bottom: 2px solid #eee; display: flex; gap: 15px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #2d3748; color: white; padding: 10px; }
-        td { padding: 8px; border: 1px solid #ddd; text-align: center; }
-    </style><!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <title>Baseball Tycoon - 最終統合版</title>
+    <title>Baseball Tycoon - 完全統合版</title>
     <script src="names.js"></script>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
         .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .controls { margin-bottom: 20px; padding: 15px; border-bottom: 2px solid #eee; display: flex; gap: 10px; }
+        .controls, .settings { margin-bottom: 20px; padding: 15px; border-bottom: 2px solid #eee; display: flex; gap: 15px; flex-wrap: wrap; }
+        .settings { background: #edf2f7; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #2d3748; color: white; padding: 10px; }
-        td { padding: 8px; border: 1px solid #ddd; text-align: center; }
+        th { background: #2d3748; color: white; padding: 12px; }
+        td { padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 0.9em; }
+        button { cursor: pointer; padding: 8px 16px; }
     </style>
 </head>
 <body>
 
 <div class="container" id="main_game_container">
-    <h1>Baseball Tycoon: <span id="status">0 / 429</span></h1>
+    <h1>Baseball Tycoon: シーズン進行 <span id="status">0 / 429</span></h1>
+    <div class="settings">
+        <div>ヒット率: <input type="number" id="rateHit" value="0.280" step="0.005"></div>
+        <div>HR率: <input type="number" id="rateHr" value="0.035" step="0.005"></div>
+        <div>三振率: <input type="number" id="rateSo" value="0.300" step="0.005"></div>
+    </div>
     <div class="controls">
         <button onclick="runGames(1)">1試合進行</button>
         <button onclick="runGames(429)">全試合一括</button>
+        <button onclick="resetSeason()" style="background:#e53e3e; color:white;">リセット</button>
         <button id="btn_to_offseason" onclick="showOffseason()" style="display:none; background:#3182ce; color:white;">オフシーズンへ</button>
     </div>
+    <h2>リーグ順位</h2>
     <table id="standings_table">
         <thead><tr><th>チーム</th><th>勝</th><th>敗</th><th>勝率</th></tr></thead>
         <tbody id="standings_body"></tbody>
@@ -41,118 +38,33 @@
 </div>
 
 <div id="offseason_container" class="container" style="display: none;">
-    <h2>オフシーズン：戦力外通告＆ドラフト</h2>
     <div id="offseason_release_zone">
-        <h3>戦力外通告</h3>
-        <table id="release_table"><thead><tr><th>選択</th><th>名前</th><th>WAR</th></tr></thead><tbody id="release_body"></tbody></table>
-        <button onclick="finalizeReleases()">確定してドラフトへ</button>
-    </div>
-    <div id="draft_interaction_zone" style="display: none;">
-        <h3>ドラフト候補生（指名ボタンを押してください）</h3>
-        <table id="draft_table"><thead><tr><th>名前</th><th>ポテンシャル</th><th>指名</th></tr></thead><tbody id="draft_body"></tbody></table>
-    </div>
-</div>
-
-<script>
-const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
-let totalGamesPlayed = 0;
-let teams = [];
-
-function init() {
-    teams = teamNames.map((name, i) => ({
-        id: i, name, wins: 0, losses: 0, 
-        batters: Array.from({length:9}, () => ({ name: generateRandomPlayerName(), war: Math.random()*2 })),
-        pitchers: Array.from({length:6}, () => ({ name: generateRandomPlayerName(), war: Math.random()*2 }))
-    }));
-}
-
-function runGames(n) {
-    totalGamesPlayed = Math.min(totalGamesPlayed + n, 429);
-    teams.forEach(t => { t.wins += Math.floor(Math.random()*2); t.losses += Math.floor(Math.random()*2); });
-    updateUI();
-    if(totalGamesPlayed >= 429) document.getElementById("btn_to_offseason").style.display = "inline-block";
-}
-
-function showOffseason() {
-    document.getElementById("main_game_container").style.display = "none";
-    document.getElementById("offseason_container").style.display = "block";
-    let tbody = document.getElementById("release_body");
-    tbody.innerHTML = teams[0].batters.map((b, i) => `<tr><td><input type="checkbox"></td><td>${b.name}</td><td>${b.war.toFixed(1)}</td></tr>`).join("");
-}
-
-function finalizeReleases() {
-    document.getElementById("offseason_release_zone").style.display = "none";
-    document.getElementById("draft_interaction_zone").style.display = "block";
-    renderDraftPool();
-}
-
-function renderDraftPool() {
-    let tbody = document.getElementById("draft_body");
-    // names.js の関数を使用して候補生を生成
-    let candidates = Array.from({length:5}, () => ({ name: generateRandomPlayerName(), pot: Math.floor(Math.random()*50)+50 }));
-    
-    tbody.innerHTML = candidates.map(c => `<tr>
-        <td>${c.name}</td>
-        <td>${c.pot}</td>
-        <td><button onclick="alert('${c.name}を指名しました！')">指名</button></td>
-    </tr>`).join("");
-}
-
-function updateUI() {
-    document.getElementById("status").innerText = totalGamesPlayed + " / 429";
-    document.getElementById("standings_body").innerHTML = teams.map(t => `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${(t.wins/(t.wins+t.losses+0.1)).toFixed(3)}</td></tr>`).join("");
-}
-
-init();
-updateUI();
-</script>
-</body>
-</html>
-</head>
-<body>
-
-<div class="container" id="main_game_container">
-    <h1>Baseball Tycoon: <span id="status">0 / 429</span></h1>
-    <div class="controls">
-        <button onclick="runGames(1)">1試合進行</button>
-        <button onclick="runGames(429)">全試合一括</button>
-        <button id="btn_to_offseason" onclick="showOffseason()" style="display:none; background:#3182ce; color:white;">オフシーズンへ</button>
-    </div>
-    <table id="standings_table">
-        <thead><tr><th>チーム</th><th>勝</th><th>敗</th><th>勝率</th></tr></thead>
-        <tbody id="standings_body"></tbody>
-    </table>
-</div>
-
-<div id="offseason_container" class="container" style="display: none;">
-    <h2>オフシーズン：戦力外通告＆ドラフト</h2>
-    <div id="offseason_release_zone">
-        <h3>戦力外通告 (最大10名)</h3>
-        <table id="release_table"><thead><tr><th>選択</th><th>名前</th><th>WAR</th></tr></thead><tbody id="release_body"></tbody></table>
-        <button onclick="finalizeReleases()">確定してドラフトへ</button>
+        <h3>戦力外通告 (WARの低い選手をチェック)</h3>
+        <table border="1"><thead><tr><th>選択</th><th>名前</th><th>WAR</th></tr></thead><tbody id="release_body"></tbody></table>
+        <button onclick="finalizeReleases()">通告してドラフトへ</button>
     </div>
     <div id="draft_interaction_zone" style="display: none;">
         <h3>ドラフト候補生</h3>
-        <table id="draft_table"><thead><tr><th>名前</th><th>ポテンシャル</th><th>指名</th></tr></thead><tbody id="draft_body"></tbody></table>
+        <table border="1"><thead><tr><th>名前</th><th>ポテンシャル</th><th>指名</th></tr></thead><tbody id="draft_body"></tbody></table>
     </div>
 </div>
 
 <script>
-// --- システム定数 ---
 const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
 let totalGamesPlayed = 0;
 let teams = [];
 
-// --- 初期化 ---
-function init() {
+// 初期化
+function initSeason() {
     teams = teamNames.map((name, i) => ({
-        id: i, name, wins: 0, losses: 0, 
-        batters: Array.from({length:9}, () => ({ name: "選手"+Math.floor(Math.random()*100), war: Math.random()*2 })),
-        pitchers: Array.from({length:6}, () => ({ name: "投手"+Math.floor(Math.random()*100), war: Math.random()*2 }))
+        id: i, name, wins: 0, losses: 0, pitcherIndex: 0,
+        batters: Array.from({length:9}, () => ({ name: generateRandomPlayerName(), war: Math.random()*2 })),
+        pitchers: Array.from({length:6}, () => ({ name: generateRandomPlayerName(), war: Math.random()*2 }))
     }));
+    totalGamesPlayed = 0;
 }
 
-// --- 試合進行 ---
+// 試合進行
 function runGames(n) {
     totalGamesPlayed = Math.min(totalGamesPlayed + n, 429);
     teams.forEach(t => { t.wins += Math.floor(Math.random()*2); t.losses += Math.floor(Math.random()*2); });
@@ -160,7 +72,7 @@ function runGames(n) {
     if(totalGamesPlayed >= 429) document.getElementById("btn_to_offseason").style.display = "inline-block";
 }
 
-// --- 画面切り替え ---
+// 画面切り替え
 function showOffseason() {
     document.getElementById("main_game_container").style.display = "none";
     document.getElementById("offseason_container").style.display = "block";
@@ -168,11 +80,16 @@ function showOffseason() {
 }
 
 function renderReleaseList() {
-    let tbody = document.getElementById("release_body");
-    tbody.innerHTML = teams[0].batters.map((b, i) => `<tr><td><input type="checkbox"></td><td>${b.name}</td><td>${b.war.toFixed(1)}</td></tr>`).join("");
+    document.getElementById("release_body").innerHTML = teams[0].batters.map((b, i) => 
+        `<tr><td><input type="checkbox" class="rel-check" value="${i}"></td><td>${b.name}</td><td>${b.war.toFixed(1)}</td></tr>`
+    ).join("");
 }
 
 function finalizeReleases() {
+    // チェックされた選手を削除
+    let checked = Array.from(document.querySelectorAll('.rel-check:checked')).map(el => parseInt(el.value));
+    teams[0].batters = teams[0].batters.filter((_, i) => !checked.includes(i));
+    
     document.getElementById("offseason_release_zone").style.display = "none";
     document.getElementById("draft_interaction_zone").style.display = "block";
     renderDraftPool();
@@ -180,15 +97,35 @@ function finalizeReleases() {
 
 function renderDraftPool() {
     let tbody = document.getElementById("draft_body");
-    tbody.innerHTML = Array.from({length:5}, () => `<tr><td>新人${Math.floor(Math.random()*100)}</td><td>80</td><td><button>指名</button></td></tr>`).join("");
+    let candidates = Array.from({length:5}, () => ({ name: generateRandomPlayerName(), pot: Math.floor(Math.random()*50)+50 }));
+    tbody.innerHTML = candidates.map(c => `<tr>
+        <td>${c.name}</td><td>${c.pot}</td>
+        <td><button onclick="selectDraftPlayer('${c.name}')">獲得</button></td>
+    </tr>`).join("");
+}
+
+function selectDraftPlayer(name) {
+    teams[0].batters.push({ name: name, war: 1.0 });
+    alert(name + "を獲得！新シーズンを開幕します。");
+    // 全データリセットして再開
+    teams.forEach(t => { t.wins = 0; t.losses = 0; });
+    totalGamesPlayed = 0;
+    document.getElementById("offseason_container").style.display = "none";
+    document.getElementById("main_game_container").style.display = "block";
+    document.getElementById("btn_to_offseason").style.display = "none";
+    updateUI();
 }
 
 function updateUI() {
     document.getElementById("status").innerText = totalGamesPlayed + " / 429";
-    document.getElementById("standings_body").innerHTML = teams.map(t => `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${(t.wins/(t.wins+t.losses+0.1)).toFixed(3)}</td></tr>`).join("");
+    document.getElementById("standings_body").innerHTML = teams.map(t => 
+        `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${(t.wins/(t.wins+t.losses+0.1)).toFixed(3)}</td></tr>`
+    ).join("");
 }
 
-init();
+function resetSeason() { initSeason(); updateUI(); }
+
+initSeason();
 updateUI();
 </script>
 </body>
