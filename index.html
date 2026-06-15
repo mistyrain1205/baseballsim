@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - 最終完全版</title>
+    <title>Baseball Tycoon - 最終確定版</title>
     <script src="names.js"></script>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
@@ -19,9 +19,10 @@
     <h1>Baseball Tycoon: <span id="status">0 / 429</span></h1>
     <div class="controls">
         <button onclick="runGames(1)">1試合進行</button>
-        <button onclick="runGames(429)">全試合一括</button>
+        <button onclick="runGames(100)">100試合進行</button>
         <button id="btn_to_offseason" onclick="showOffseason()" style="display:none; background:#3182ce; color:white;">オフシーズンへ</button>
     </div>
+    <h2>順位表</h2>
     <table id="standings_table">
         <thead><tr><th>チーム</th><th>勝</th><th>敗</th><th>勝率</th></tr></thead>
         <tbody id="standings_body"></tbody>
@@ -29,12 +30,12 @@
 </div>
 
 <div id="offseason_container" class="container" style="display: none;">
-    <h2>ドラフト会議 (最大10名指名可能)</h2>
+    <h2>ドラフト会議 (残り指名: <span id="draft_rem">10</span>)</h2>
     <table border="1">
-        <thead><tr><th>名前</th><th>能力(Pot)</th><th>獲得</th></tr></thead>
+        <thead><tr><th>名前</th><th>能力</th><th>獲得</th></tr></thead>
         <tbody id="draft_body"></tbody>
     </table>
-    <button onclick="finalizeDraft()" style="margin-top:20px; padding:15px; background:#48bb78; color:white;">ドラフト会議を終了して新シーズンへ</button>
+    <button onclick="finalizeDraft()" style="margin-top:20px; padding:15px; background:#48bb78; color:white;">新シーズン開幕</button>
 </div>
 
 <script>
@@ -54,10 +55,21 @@ function init() {
 }
 
 function runGames(n) {
+    if (totalGamesPlayed >= 429) return;
     totalGamesPlayed = Math.min(totalGamesPlayed + n, 429);
-    teams.forEach(t => { t.wins += Math.floor(Math.random()*2); t.losses += Math.floor(Math.random()*2); });
+    teams.forEach(t => { t.wins += Math.floor(n * 0.5); t.losses += Math.floor(n * 0.5); });
     updateUI();
-    if(totalGamesPlayed >= 429) document.getElementById("btn_to_offseason").style.display = "inline-block";
+    if(totalGamesPlayed >= 429) {
+        document.getElementById("btn_to_offseason").style.display = "inline-block";
+        alert("シーズン全試合終了！");
+    }
+}
+
+function updateUI() {
+    document.getElementById("status").innerText = totalGamesPlayed + " / 429";
+    document.getElementById("standings_body").innerHTML = teams.map(t => 
+        `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${(t.wins/(t.wins+t.losses+0.1)).toFixed(3)}</td></tr>`
+    ).join("");
 }
 
 function showOffseason() {
@@ -68,23 +80,21 @@ function showOffseason() {
 
 function renderDraftPool() {
     let tbody = document.getElementById("draft_body");
-    let candidates = Array.from({length:15}, () => ({ name: generateRandomPlayerName(), pot: Math.floor(Math.random()*50)+50 }));
-    tbody.innerHTML = candidates.map(c => `<tr>
-        <td>${c.name}</td><td>${c.pot}</td>
-        <td><button onclick="selectDraftPlayer(this, '${c.name}', ${c.pot})">獲得</button></td>
-    </tr>`).join("");
+    tbody.innerHTML = Array.from({length:15}, () => ({ name: generateRandomPlayerName(), pot: Math.floor(Math.random()*50)+50 }))
+        .map(c => `<tr><td>${c.name}</td><td>${c.pot}</td>
+        <td><button onclick="selectDraftPlayer(this, '${c.name}', ${c.pot})">獲得</button></td></tr>`).join("");
 }
 
 function selectDraftPlayer(btn, name, pot) {
-    if (draftCount >= 10) { alert("上限に達しました！"); return; }
+    if (draftCount >= 10) return;
     teams[userTeamId].batters.push({ name: name, war: pot / 50 });
     btn.innerText = "指名済み";
     btn.disabled = true;
     draftCount++;
+    document.getElementById("draft_rem").innerText = 10 - draftCount;
 }
 
 function finalizeDraft() {
-    alert("ドラフト終了。新シーズン開幕！");
     teams.forEach(t => { t.wins = 0; t.losses = 0; });
     totalGamesPlayed = 0;
     draftCount = 0;
@@ -92,13 +102,6 @@ function finalizeDraft() {
     document.getElementById("main_game_container").style.display = "block";
     document.getElementById("btn_to_offseason").style.display = "none";
     updateUI();
-}
-
-function updateUI() {
-    document.getElementById("status").innerText = totalGamesPlayed + " / 429";
-    document.getElementById("standings_body").innerHTML = teams.map(t => 
-        `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${(t.wins/(t.wins+t.losses+0.1)).toFixed(3)}</td></tr>`
-    ).join("");
 }
 
 init();
