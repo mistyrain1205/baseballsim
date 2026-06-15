@@ -2,24 +2,32 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - ローテーション対応版</title>
+    <title>Baseball Tycoon - 統合完全版</title>
     <script src="names.js"></script>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
         .container { max-width: 1100px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .controls { margin-bottom: 20px; padding: 15px; border-bottom: 2px solid #eee; display: flex; gap: 10px; }
+        .controls, .settings { margin-bottom: 20px; padding: 15px; border-bottom: 2px solid #eee; display: flex; gap: 10px; flex-wrap: wrap; }
+        .settings { background: #edf2f7; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { background: #2d3748; color: white; padding: 10px; font-size: 0.85em; }
         td { padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 0.9em; }
+        input { width: 60px; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>Baseball Tycoon: シーズン <span id="status">0 / 429</span></h1>
+    <h1>Baseball Tycoon: <span id="status">0 / 429</span></h1>
+    
+    <div class="settings">
+        <div>ヒット率: <input type="number" id="rateHit" value="0.280" step="0.005"></div>
+        <div>HR率: <input type="number" id="rateHr" value="0.035" step="0.005"></div>
+        <div>三振率: <input type="number" id="rateSo" value="0.300" step="0.005"></div>
+    </div>
+
     <div class="controls">
         <button onclick="runGames(1)">1試合進行</button>
-        <button onclick="runGames(6)">6試合進行</button>
-        <button onclick="runGames(429)">シーズン全進行</button>
+        <button onclick="runGames(429)">全進行</button>
         <button onclick="resetSeason()" style="background:#e53e3e; color:white;">リセット</button>
     </div>
 
@@ -41,11 +49,18 @@ let totalGamesPlayed = 0;
 let teams = [];
 let fullSeasonSchedule = [];
 
+function getRates() {
+    return {
+        hit: parseFloat(document.getElementById('rateHit').value),
+        hr: parseFloat(document.getElementById('rateHr').value),
+        so: parseFloat(document.getElementById('rateSo').value)
+    };
+}
+
 function initSeason() {
     teams = teamNames.map(name => ({
-        name, 
-        wins: 0, losses: 0, draws: 0,
-        pitcherIndex: 0, // ローテーション用のインデックス
+        name, wins: 0, losses: 0, draws: 0,
+        pitcherIndex: 0,
         batters: Array.from({length: 9}, () => ({ 
             name: typeof generateRandomPlayerName === 'function' ? generateRandomPlayerName() : "不明", 
             stats: { ab: 0, hits: 0, hr: 0 } 
@@ -68,8 +83,6 @@ function initSeason() {
 
 function simulateMatch(away, home) {
     let scoreAway = 0, scoreHome = 0;
-    
-    // 現在のローテーションの投手を取得
     let awayPitcher = away.pitchers[away.pitcherIndex];
     let homePitcher = home.pitchers[home.pitcherIndex];
 
@@ -78,7 +91,6 @@ function simulateMatch(away, home) {
         scoreHome += playHalf(home, awayPitcher);
     }
     
-    // 試合後にインデックスを回す（6人ローテーション）
     away.pitcherIndex = (away.pitcherIndex + 1) % 6;
     home.pitcherIndex = (home.pitcherIndex + 1) % 6;
 
@@ -88,30 +100,17 @@ function simulateMatch(away, home) {
 }
 
 function playHalf(battingTeam, pitcher) {
-    let outs = 0;
-    let runs = 0;
+    let outs = 0, runs = 0;
+    let r = getRates();
     pitcher.stats.ipOuts += 3;
     while (outs < 3) {
         let b = battingTeam.batters[Math.floor(Math.random() * 9)];
         b.stats.ab++;
         let roll = Math.random();
-
-        if (roll < 0.280) { 
-            // 打率.280相当
-            b.stats.hits++; 
-        } else if (roll < 0.280 + 0.035) { 
-            // 本塁打（打率28% + 本塁打率3.5% = 31.5%まで）
-            // 年間143試合でHR40本ペース
-            b.stats.hr++; runs++; pitcher.stats.er++; 
-        } else if (roll < 0.700) { 
-            // 三振以外の凡打 (約38.5%)
-            outs++; 
-        } else { 
-            // 三振 (残り30%)
-            // 1試合平均6〜7奪三振 × 28登板 = 約180〜200奪三振
-            outs++; 
-            pitcher.stats.so++; 
-        }
+        if (roll < r.hit) { b.stats.hits++; } 
+        else if (roll < r.hit + r.hr) { b.stats.hr++; runs++; pitcher.stats.er++; } 
+        else if (roll < r.hit + r.hr + r.so) { outs++; pitcher.stats.so++; }
+        else { outs++; }
     }
     return runs;
 }
