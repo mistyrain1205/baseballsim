@@ -2,34 +2,52 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>143試合完走確認用</title>
+    <title>Baseball Tycoon - デバッグ版</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #333; padding: 10px; text-align: center; }
+    </style>
 </head>
 <body>
-    <h1>進行度: <span id="status">0 / 143</span></h1>
-    <button id="runBtn">シーズン全進行 (強制実行)</button>
+    <h1>進行状況: <span id="status">0 / 143</span></h1>
+    <button onclick="executeFullSeason()">シーズン全143試合を進行する</button>
+
+    <table id="standings_table">
+        <thead><tr><th>チーム名</th><th>勝</th><th>敗</th><th>分</th></tr></thead>
+        <tbody id="standings_body"></tbody>
+    </table>
 
     <script>
-        document.getElementById('runBtn').onclick = function() {
-            let wins = [0,0,0,0,0,0];
-            let losses = [0,0,0,0,0,0];
-            let draws = [0,0,0,0,0,0];
-            
-            // 強制的に143回回す
-            for(let i = 0; i < 143; i++) {
+        const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
+        let teams = teamNames.map(name => ({ name, wins: 0, losses: 0, draws: 0 }));
+
+        function executeFullSeason() {
+            // 確実に143回ループする
+            for (let i = 0; i < 143; i++) {
+                // 簡易対戦カード（0〜5のチームで総当たり）
                 let tA = i % 6;
-                let tB = (i + 1 + Math.floor(i/6)) % 6;
+                let tB = (Math.floor(i / 6) + tA + 1) % 6;
                 
-                // 簡易勝敗
+                // 勝敗判定
                 let r = Math.random();
-                if(r < 0.45) { wins[tA]++; losses[tB]++; }
-                else if(r < 0.9) { wins[tB]++; losses[tA]++; }
-                else { draws[tA]++; draws[tB]++; }
+                if (r < 0.45) { teams[tA].wins++; teams[tB].losses++; }
+                else if (r < 0.9) { teams[tB].wins++; teams[tA].losses++; }
+                else { teams[tA].draws++; teams[tB].draws++; }
             }
             
-            document.getElementById('status').innerText = "143 / 143";
-            console.log("全試合完了:", wins, losses, draws);
-            alert("143試合完了しました。コンソールを確認してください。");
-        };
+            // 描画処理を明示的に呼び出す
+            updateUI(143);
+            console.log("シーズン完了。最終勝敗:", teams);
+        }
+
+        function updateUI(games) {
+            document.getElementById("status").innerText = games + " / 143";
+            let html = teams.map(t => 
+                `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${t.draws}</td></tr>`
+            ).join("");
+            document.getElementById("standings_body").innerHTML = html;
+        }
     </script>
 </body>
 </html>
