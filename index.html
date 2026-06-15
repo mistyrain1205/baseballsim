@@ -2,10 +2,13 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Baseball Tycoon - 中5日ローテ・成績修正版</title>
+    <title>Baseball Tycoon - チーム選択・ダッシュボード版</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
-        .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
+        .container { max-width: 1000px; margin: auto; }
+        .dashboard { display: grid; grid-template-columns: 250px 1fr; gap: 20px; }
+        .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        select, button { width: 100%; padding: 10px; margin-bottom: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { background: #2d3748; color: white; padding: 8px; font-size: 0.8em; }
         td { padding: 6px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 0.9em; }
@@ -13,17 +16,29 @@
 </head>
 <body>
 <div class="container">
-    <h1>進行度: <span id="current_game_count">0</span> / 143</h1>
-    <button onclick="playMatch()">1試合進行</button>
-
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <div>
-            <h2>野手成績</h2>
-            <table id="batting_table"><thead><tr><th>名前</th><th>打率</th><th>安打</th></tr></thead><tbody></tbody></table>
+    <h1>Baseball Tycoon: シーズン進行 <span id="current_game_count">0</span>/143</h1>
+    
+    <div class="dashboard">
+        <div class="panel">
+            <h3>チーム設定</h3>
+            <select id="team_select" onchange="updateUI()">
+                <option value="大阪">大阪</option>
+                <option value="東京">東京</option>
+                <option value="横浜">横浜</option>
+                <option value="西海">西海</option>
+                <option value="京都">京都</option>
+                <option value="浪速">浪速</option>
+            </select>
+            <button onclick="playMatch()">1試合進行</button>
+            <button onclick="playSeason()" style="background:#e53e3e; color:white;">シーズン終了</button>
         </div>
-        <div>
-            <h2>投手成績 (中5日ローテ)</h2>
-            <table id="pitching_table"><thead><tr><th>名前</th><th>役割</th><th>イニング</th><th>防御率</th><th>状態</th></tr></thead><tbody></tbody></table>
+
+        <div class="panel">
+            <h2 id="my_team_name">チーム情報</h2>
+            <h3>野手成績</h3>
+            <table id="batting_table"><thead><tr><th>名前</th><th>打率</th><th>安打</th></tr></thead><tbody></tbody></table>
+            <h3>投手成績</h3>
+            <table id="pitching_table"><thead><tr><th>名前</th><th>役割</th><th>回</th><th>防御率</th></tr></thead><tbody></tbody></table>
         </div>
     </div>
 </div>
@@ -31,55 +46,43 @@
 <script>
 const teamNames = ["大阪", "東京", "横浜", "西海", "京都", "浪速"];
 let totalGamesPlayed = 0;
-
 let teams = teamNames.map(name => ({
     name,
     batters: Array.from({length: 9}, (_, i) => ({ name: "打者"+(i+1), stats: { ab: 0, hits: 0 } })),
     pitchers: Array.from({length: 8}, (_, i) => ({ 
         name: "投手"+(i+1), role: i < 5 ? "先発" : "リリーフ", 
-        lastPitched: -10, // 初期値
-        stats: { ipOuts: 0, er: 0 } 
+        lastPitched: -10, stats: { ipOuts: 0, er: 0 } 
     }))
 }));
 
 function playMatch() {
     if (totalGamesPlayed >= 143) return;
-
     teams.forEach(t => {
-        // 野手成績更新
-        t.batters.forEach(b => { 
-            b.stats.ab++; if(Math.random() > 0.7) b.stats.hits++; 
-        });
-
-        // 投手ローテ (中5日 = 前回登板から5試合空ける)
-        let starters = t.pitchers.filter(p => p.role === "先発");
-        let starter = starters.find(p => (totalGamesPlayed - p.lastPitched) > 5) || t.pitchers.find(p => p.role === "リリーフ");
-        
-        // 登板と成績反映
+        t.batters.forEach(b => { b.stats.ab++; if(Math.random() > 0.7) b.stats.hits++; });
+        let starter = t.pitchers.filter(p => p.role === "先発").find(p => (totalGamesPlayed - p.lastPitched) > 5) || t.pitchers[5];
         starter.lastPitched = totalGamesPlayed;
-        starter.stats.ipOuts += 18; // 先発は6回(18アウト)
-        starter.stats.er += Math.floor(Math.random() * 4); // 防御率が動くよう失点を発生
+        starter.stats.ipOuts += 18;
+        starter.stats.er += Math.floor(Math.random() * 4);
     });
     totalGamesPlayed++;
     updateUI();
 }
 
+function playSeason() { while(totalGamesPlayed < 143) playMatch(); }
+
 function updateUI() {
+    let selectedName = document.getElementById("team_select").value;
+    let myTeam = teams.find(t => t.name === selectedName);
+    document.getElementById("my_team_name").innerText = myTeam.name + " の成績";
     document.getElementById("current_game_count").innerText = totalGamesPlayed;
     
-    // 野手表示
-    document.querySelector("#batting_table tbody").innerHTML = teams.flatMap(t => t.batters).map(b => 
+    document.querySelector("#batting_table tbody").innerHTML = myTeam.batters.map(b => 
         `<tr><td>${b.name}</td><td>${(b.stats.hits/(b.stats.ab||1)).toFixed(3)}</td><td>${b.stats.hits}</td></tr>`
     ).join("");
 
-    // 投手表示
-    document.querySelector("#pitching_table tbody").innerHTML = teams.flatMap(t => t.pitchers).map(p => {
-        let ip = p.stats.ipOuts / 3;
-        let era = ip > 0 ? (p.stats.er * 9 / ip) : 0.00;
-        let rest = totalGamesPlayed - p.lastPitched;
-        let status = (p.role === "先発" && rest <= 5) ? `休養(${5-rest}日)` : "登板可";
-        return `<tr><td>${p.name}</td><td>${p.role}</td><td>${ip.toFixed(1)}</td><td>${era.toFixed(2)}</td><td>${status}</td></tr>`;
-    }).join("");
+    document.querySelector("#pitching_table tbody").innerHTML = myTeam.pitchers.map(p => 
+        `<tr><td>${p.name}</td><td>${p.role}</td><td>${(p.stats.ipOuts/3).toFixed(1)}</td><td>${(p.stats.er*9/(Math.max(p.stats.ipOuts/3,1))).toFixed(2)}</td></tr>`
+    ).join("");
 }
 updateUI();
 </script>
