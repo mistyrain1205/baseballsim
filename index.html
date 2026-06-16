@@ -91,10 +91,10 @@
 
         <div class="card" style="padding: 10px;">
             <div class="tabs">
-                <div class="tab active" onclick="switchTab('tab-stats-bat', this)">個人打撃成績</div>
-                <div class="tab" onclick="switchTab('tab-stats-pit', this)">個人投手成績</div>
-                <div class="tab" onclick="switchTab('tab-draft', this)">👔 オフシーズン補強</div>
-                <div class="tab" onclick="switchTab('tab-editor', this)">🛠️ 選手能力編集</div>
+                <div id="btn-tab-stats-bat" class="tab active" onclick="switchTab('tab-stats-bat', this)">個人打撃成績</div>
+                <div id="btn-tab-stats-pit" class="tab" onclick="switchTab('tab-stats-pit', this)">個人投手成績</div>
+                <div id="btn-tab-draft" class="tab" onclick="switchTab('tab-draft', this)">👔 オフシーズン補強</div>
+                <div id="btn-tab-editor" class="tab" onclick="switchTab('tab-editor', this)">🛠️ 選手能力編集</div>
             </div>
 
             <div id="tab-draft" class="tab-content">
@@ -526,7 +526,7 @@ function playNextRound() {
     let rEl = document.getElementById("quick_match_results");
     if(rEl) rEl.innerHTML = res.map(r => `<tr><td><b>${r}</b></td></tr>`).join("");
     updateUIAll();
-    if (totalGamesPlayed >= MAX_GAMES) { simulateRound(); } // 最終戦直後の即座移行用
+    if (totalGamesPlayed >= MAX_GAMES && !isOffseasonPhase) { simulateRound(); } 
 }
 function playOneWeek() {
     if (isOffseasonPhase) return;
@@ -537,13 +537,13 @@ function playOneWeek() {
         if(rEl) rEl.innerHTML = "<tr><td style='color:green;'><b>一週間分(6カード)を一括消化しました</b></td></tr>" + lastRes.map(r => `<tr><td>${r}</td></tr>`).join("");
     }
     updateUIAll();
-    if (totalGamesPlayed >= MAX_GAMES) { simulateRound(); }
+    if (totalGamesPlayed >= MAX_GAMES && !isOffseasonPhase) { simulateRound(); }
 }
 function playAllSeason() {
     if (isOffseasonPhase) return;
     while(totalGamesPlayed < MAX_GAMES) { simulateRound(); }
     updateUIAll();
-    simulateRound();
+    if (!isOffseasonPhase) { simulateRound(); }
 }
 function resetSeason() { totalGamesPlayed = 0; currentYear = 1; initializeLeagueData(); updateUIAll(); }
 
@@ -679,9 +679,15 @@ function switchTab(tabId, el) {
 
 // --- オフシーズン補強・ドラフト会議モジュール一式（完全連携対応） ---
 function executeOffseasonRosterEvents() {
-    alert(`ーーー 👔 ペナントレース終了 (ペナント第 ${currentYear} 年目) ーーー\n\nこれより「人員整理（戦力外通告）」を行います。\n「オフシーズン補強」タブを開いて、自由契約にする選手をあなたの手で選択してください！`);
+    alert(`ーーー 👔 ペナントレース終了 (ペナント第 ${currentYear} 年目) ーーー\n\nこれより「人員整理（戦力外通告）」を行います。\n画面右側の「👔 オフシーズン補強」タブを開いて、自由契約にする選手をあなたの手で選択してください！`);
     let statusMsgEl = document.getElementById("draft_status_message");
-    if(statusMsgEl) statusMsgEl.innerHTML = "📢 <b>オフシーズン・球盤人員整理フェーズ</b>。不要な選手に戦力外通告を行ってください。";
+    if(statusMsgEl) statusMsgEl.innerHTML = "📢 <b>オフシーズン・球団人員整理フェーズ</b>。不要な選手に戦力外通告を行ってください。";
+    
+    // タブ自体をアクティブ化させて視覚的に強制移行する処理
+    let tabBtn = document.getElementById("btn_tab-draft");
+    if(tabBtn) {
+        switchTab('tab-draft', tabBtn);
+    }
     startUserReleasePhase();
 }
 
@@ -695,10 +701,6 @@ function startUserReleasePhase() {
     
     document.getElementById("offseason_release_zone").style.display = "flex";
     document.getElementById("draft_interaction_zone").style.display = "none";
-    
-    let allTabs = document.querySelectorAll('.tab');
-    let targetTabBtn = Array.from(allTabs).find(tab => tab.innerText.includes("オフシーズン"));
-    if (targetTabBtn) switchTab('tab-draft', targetTabBtn);
 }
 
 function updateReleaseCount() {
@@ -835,7 +837,9 @@ function finalizeOffseason() {
         alert(`祝・ペナント第 ${currentYear} 年目 開幕！`); 
         document.getElementById("draft_interaction_zone").style.display = "none";
         document.getElementById("draft_status_message").innerHTML = "現在はペナントレース中です。143試合消化するとオフシーズン補強が始まります！";
-        switchTab('tab-stats-bat', document.querySelectorAll('.tab')[0]); 
+        
+        let firstTab = document.getElementById("btn_tab-stats-bat");
+        switchTab('tab-stats-bat', firstTab); 
     }, 200);
 }
 
