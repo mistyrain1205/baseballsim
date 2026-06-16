@@ -28,7 +28,7 @@
         .tab-content.active { display: block; }
         .editor-box { display: grid; grid-template-columns: 180px 180px 1fr; gap: 15px; background: #fff; padding: 15px; border-radius: 6px; border: 1px solid #cbd5e0; }
         .editor-pane { display: flex; flex-direction: column; gap: 8px; }
-        .list-select { width: 100%; height: 280px; border: 1px solid #cbd5e0; border-radius: 4px; padding: 5px; font-size: 0.9em; }
+        .list-select { width: 100%; height: 320px; border: 1px solid #cbd5e0; border-radius: 4px; padding: 5px; font-size: 0.9em; }
         .form-row { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: center; margin-bottom: 8px; font-size: 0.85em; }
         .form-row input, .form-row select { padding: 5px; border: 1px solid #cbd5e0; border-radius: 4px; width: 100%; box-sizing: border-box; }
     </style>
@@ -181,17 +181,35 @@
                     
                     <div class="editor-pane" style="background:#f8fafc; padding:20px; border-radius:10px; border:1px solid #cbd5e0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
                         <h4 style="margin: 0 0 15px 0; color:#2b6cb0; font-size: 1.1em; display:flex; justify-content:space-between; align-items:center;">
-                            <span>③ 選手能力パラメーター</span>
+                            <span>③ 選手能力パラメーター・起用編集</span>
                             <span id="ui_player_type_badge" style="font-size:0.75em; padding:3px 8px; border-radius:20px; color:white; background:#718096;">-</span>
                         </h4>
                         
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; background:white; padding:10px; border-radius:6px; border:1px solid #e2e8f0;">
-                            <div class="form-row"><label>選手名</label><input type="text" id="form_name" style="font-weight:bold;"></div>
-                            <div class="form-row"><label>年齢</label><input type="number" id="form_age" disabled style="background:#edf2f7; text-align:center;"></div>
-                            <div class="form-row"><label>現在役割</label><input type="text" id="form_role" disabled style="background:#edf2f7; text-align:center;"></div>
-                            <div class="form-row">
-                                <label>メイン守備</label>
-                                <select id="form_pos">
+                        <div style="display:flex; flex-direction:column; gap: 12px; margin-bottom: 15px; background:white; padding:15px; border-radius:6px; border:1px solid #e2e8f0;">
+                            <div style="display:grid; grid-template-columns: 100px 1fr; align-items:center;">
+                                <label style="font-weight:bold; font-size:0.85em;">選手名</label>
+                                <input type="text" id="form_name" style="font-weight:bold; padding:8px; font-size:1.05em; width:100%; box-sizing:border-box;">
+                            </div>
+                            <div style="display:grid; grid-template-columns: 100px 1fr; align-items:center;">
+                                <label style="font-weight:bold; font-size:0.85em;">年齢</label>
+                                <input type="number" id="form_age" style="padding:6px; text-align:center; width:100px; box-sizing:border-box;">
+                            </div>
+                            <div style="display:grid; grid-template-columns: 100px 1fr; align-items:center;">
+                                <label style="font-weight:bold; font-size:0.85em;">起用法・役割</label>
+                                <select id="form_role" style="padding:6px; width:200px; font-weight:bold;">
+                                    <option value="先発">先発投手</option>
+                                    <option value="リリーフ">リリーフ投手</option>
+                                    <option value="守護神">守護神投手</option>
+                                    <option value="二軍先発">二軍先発</option>
+                                    <option value="二軍リリーフ">二軍リリーフ</option>
+                                    <option value="スタメン">一軍スタメン (自動最適配置)</option>
+                                    <option value="0">一軍ベンチ控え</option>
+                                    <option value="-1">二軍調整中</option>
+                                </select>
+                            </div>
+                            <div style="display:grid; grid-template-columns: 100px 1fr; align-items:center;">
+                                <label style="font-weight:bold; font-size:0.85em;">メイン守備</label>
+                                <select id="form_pos" style="padding:6px; width:150px;">
                                     <option value="捕手">捕手</option><option value="一塁手">一塁手</option>
                                     <option value="二塁手">二塁手</option><option value="三塁手">三塁手</option>
                                     <option value="遊撃手">遊撃手</option><option value="左翼手">左翼手</option>
@@ -202,34 +220,45 @@
                         </div>
 
                         <div id="form_bat_stats" style="display:none;">
-                            <h5 style="margin:10px 0 5px 0; color:#dd6b20;">📈 打撃・選球眼能力</h5>
-                            <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
+                            <h5 style="margin:10px 0 5px 0; color:#dd6b20; text-align:left;">📈 打撃・選球眼能力</h5>
+                            <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                                 <div class="form-row"><label>選球眼 (BB%)</label><input type="number" id="form_bb" step="0.5"></div>
-                                <div class="form-row"><label>コンタクト(SO%)</label><input type="number" id="form_so" step="0.5"></div>
+                                <div class="form-row"><label>三振率 (SO%)</label><input type="number" id="form_so" step="0.5"></div>
                                 <div class="form-row"><label>バレル率 (%)</label><input type="number" id="form_barrel" step="0.5"></div>
                                 <div class="form-row"><label>長打力 (IsoP)</label><input type="number" id="form_isop"></div>
                             </div>
 
-                            <h5 style="margin:15px 0 5px 0; color:#38a169;">🛡️ 守備範囲・守備適性</h5>
-                            <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
+                            <h5 style="margin:15px 0 5px 0; color:#2b6cb0; text-align:left;">⚾ サブポジション適性選択（複数チェック可能）</h5>
+                            <div id="form_sub_pos_checkboxes" style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; font-size:0.85em; text-align:left;">
+                                <label><input type="checkbox" name="sub_pos_check" value="捕手"> 捕手</label>
+                                <label><input type="checkbox" name="sub_pos_check" value="一塁手"> 一塁手</label>
+                                <label><input type="checkbox" name="sub_pos_check" value="二塁手"> 二塁手</label>
+                                <label><input type="checkbox" name="sub_pos_check" value="三塁手"> 三塁手</label>
+                                <label><input type="checkbox" name="sub_pos_check" value="遊撃手"> 遊撃手</label>
+                                <label><input type="checkbox" name="sub_pos_check" value="左翼手"> 左翼手</label>
+                                <label><input type="checkbox" name="sub_pos_check" value="中堅手"> 中堅手</label>
+                                <label><input type="checkbox" name="sub_pos_check" value="右翼手"> 右翼手</label>
+                            </div>
+
+                            <h5 style="margin:15px 0 5px 0; color:#38a169; text-align:left;">🛡️ 守備範囲・守備適性</h5>
+                            <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                                 <div class="form-row"><label>守備範囲 (UZR)</label><input type="number" id="form_uzr" step="0.5"></div>
                                 <div class="form-row"><label>エラー率 (%)</label><input type="number" id="form_err" step="0.1"></div>
-                                <div class="form-row"><label>サブ適性守備</label><input type="text" id="form_sub_pos" placeholder="例: 二塁手, 遊撃手" style="background:#fff; border:1px solid #cbd5e0; padding:5px; border-radius:4px;"></div>
                             </div>
                         </div>
 
                         <div id="form_pit_stats" style="display:none;">
-                            <h5 style="margin:10px 0 5px 0; color:#2b6cb0;">⚾ 投手能力スタッツ</h5>
-                            <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
-                                <div class="form-row"><label>被安打抑制 (H/9)</label><input type="number" id="form_h9"></div>
-                                <div class="form-row"><label>ドクターK (K/9)</label><input type="number" id="form_k9"></div>
-                                <div class="form-row"><label>制球力 (BB/9)</label><input type="number" id="form_bb9"></div>
-                                <div class="form-row"><label>被弾抑制 (HR/9)</label><input type="number" id="form_hr9"></div>
-                                <div class="form-row"><label>スタミナ最大値</label><input type="number" id="form_sta"></div>
+                            <h5 style="margin:10px 0 5px 0; color:#2b6cb0; text-align:left;">⚾ 投手能力スタッツ</h5>
+                            <div style="background:white; padding:12px; border-radius:6px; border:1px solid #e2e8f0; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                                <div class="form-row"><label>被安打 (H/9)</label><input type="number" id="form_h9"></div>
+                                <div class="form-row"><label>奪三振 (K/9)</label><input type="number" id="form_k9"></div>
+                                <div class="form-row"><label>与四球 (BB/9)</label><input type="number" id="form_bb9"></div>
+                                <div class="form-row"><label>被弾抑制(HR/9)</label><input type="number" id="form_hr9"></div>
+                                <div class="form-row" style="grid-column: span 2;"><label>スタミナ最大値</label><input type="number" id="form_sta"></div>
                             </div>
                         </div>
                         
-                        <button class="btn btn-primary" style="width:100%; margin-top:15px; font-size:1em; padding:12px;" onclick="saveEditorData()">💾 編集内容をロスターへ完全適用</button>
+                        <button class="btn btn-primary" style="width:100%; margin-top:20px; font-size:1.05em; padding:12px;" onclick="saveEditorData()">💾 編集内容をロスターへ完全適用</button>
                     </div>
                 </div>
             </div>
@@ -375,29 +404,57 @@ function executeFrontOfficeAI() {
     });
 }
 
+// --- サブポジション対応・3段階層AI配置アルゴリズム ---
 function reassignTeamRoles(t) {
-    const requiredPositions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手"];
-    t.batters.forEach(b => b.role = -1);
-    requiredPositions.forEach((pos, idx) => {
-        let candidate = t.batters.find(b => b.role === -1 && (b.originalPos === pos || (b.subPositions && b.subPositions.includes(pos))));
-        if (candidate) { candidate.role = idx + 1; candidate.currentPos = pos; }
+    const requiredPositions = ["捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "right翼手"];
+    // 役職指定野手(手動固定野手)以外の自動配置枠野手の役割を一度クリア
+    t.batters.forEach(b => {
+        if (b.role === "スタメン" || b.role > 9 || b.role === -1) b.role = -1;
     });
+
+    const rolesReserved = [];
+    t.batters.forEach(b => { if (b.role >= 1 && b.role <= 9) rolesReserved.push(b.role); });
+
+    // 1層目: メインポジションが一致する、役割未指定の野手を優先割り当て
     requiredPositions.forEach((pos, idx) => {
-        if (!t.batters.some(b => b.role === (idx + 1))) {
-            let backup = t.batters.find(b => b.role === -1);
-            if (backup) { backup.role = idx + 1; backup.currentPos = pos; }
-        }
+        let targetRole = idx + 1;
+        if (rolesReserved.includes(targetRole)) return;
+        let candidate = t.batters.find(b => b.role === -1 && b.originalPos === pos);
+        if (candidate) { candidate.role = targetRole; candidate.currentPos = pos; }
     });
+
+    // 2層目: 空席ポジションへ、サブポジション適性を持つ未割当選手を割り当て
+    requiredPositions.forEach((pos, idx) => {
+        let targetRole = idx + 1;
+        if (t.batters.some(b => b.role === targetRole)) return;
+        let candidate = t.batters.find(b => b.role === -1 && b.subPositions && b.subPositions.includes(pos));
+        if (candidate) { candidate.role = targetRole; candidate.currentPos = pos; }
+    });
+
+    // 3層目: それでも空席なら、完全未配属の余り野手を強制コンバート配置
+    requiredPositions.forEach((pos, idx) => {
+        let targetRole = idx + 1;
+        if (t.batters.some(b => b.role === targetRole)) return;
+        let backup = t.batters.find(b => b.role === -1);
+        if (backup) { backup.role = targetRole; backup.currentPos = pos; }
+    });
+
+    // 余剰ロスターのベンチ・二軍仕分け
     let rCount = 0;
     t.batters.forEach(b => {
         if (b.role > 0) return;
         if (rCount < 7) { b.role = 0; rCount++; } else { b.role = -1; }
         b.currentPos = b.originalPos;
     });
+
     t.pitchers.forEach((p, idx) => {
-        if (p.role === "先発" || p.role === "守護神" || p.role === "二軍先発") { p.staCurrent = p.staMax; return; }
-        if (idx < 12) { if (p.role !== "先発" && p.role !== "守護神") p.role = "リリーフ"; }
-        else { if (p.role !== "二軍先発") p.role = "二軍リリーフ"; }
+        if (p.role === "先発" || p.role === "守護神" || p.role === "二軍先発") return;
+        let currentPFirstTeamCount = t.pitchers.filter(x => x.role === "先発" || x.role === "リリーフ" || x.role === "守護神").length;
+        if (currentPFirstTeamCount < 12) {
+            p.role = "リリーフ";
+        } else {
+            p.role = "二軍リリーフ";
+        }
     });
 }
 
@@ -505,6 +562,36 @@ function executeMatchLogic(away, home) {
     return `${away.name} ${awayScore} - ${homeScore} ${home.name}`;
 }
 
+// --- オフシーズン成長変革処理 ---
+function processOffseasonEvolution() {
+    teams.forEach(t => {
+        t.batters.forEach(b => {
+            b.age += 1; b.proYears += 1;
+            if (b.age <= 24) {
+                b.barrel = Math.min(45, b.barrel + Math.floor(Math.random() * 4) + 1); 
+                b.isop = Math.min(65, b.isop + Math.floor(Math.random() * 5) + 2);
+                b.so = Math.max(10, b.so - Math.floor(Math.random() * 2));
+                b.uzr = parseFloat((b.uzr + Math.random() * 2.5).toFixed(1));
+            } else if (b.age <= 29) {
+                if(Math.random() < 0.3) b.barrel = Math.min(45, b.barrel + 1);
+            } else {
+                b.barrel = Math.max(3, b.barrel - (Math.floor(Math.random() * 3) + 1));
+                b.uzr = parseFloat((b.uzr - Math.random() * 2.0).toFixed(1));
+            }
+        });
+        t.pitchers.forEach(p => {
+            p.age += 1; p.proYears += 1;
+            if (p.age <= 24) {
+                p.h9 = Math.min(99, p.h9 + Math.floor(Math.random() * 3) + 1);
+                p.k9 = Math.min(99, p.k9 + Math.floor(Math.random() * 3) + 1);
+            } else if (p.age > 33) {
+                p.h9 = Math.max(20, p.h9 - Math.floor(Math.random() * 4));
+                p.staMax = Math.max(20, p.staMax - 3);
+            }
+        });
+    });
+}
+
 function simulateRound() {
     if (isOffseasonPhase) return null;
     if (totalGamesPlayed >= MAX_GAMES) {
@@ -547,7 +634,7 @@ function playAllSeason() {
 }
 function resetSeason() { totalGamesPlayed = 0; currentYear = 1; initializeLeagueData(); updateUIAll(); }
 
-// --- エディタ関連ロジック ---
+// --- エディタ関連ロジック（UI完全拡張・チェックボックス連動版） ---
 function onEditorTeamChange() {
     let teamSelect = document.getElementById("edit_team_select"); let teamIdx = teamSelect ? parseInt(teamSelect.value) : 0;
     let team = teams[teamIdx]; let playerSelect = document.getElementById("edit_player_select");
@@ -567,21 +654,35 @@ function onEditorPlayerChange() {
     let player = type === "bat" ? teams[teamIdx].batters[idx] : teams[teamIdx].pitchers[idx];
 
     document.getElementById("form_name").value = player.name;
+    document.getElementById("form_age").value = player.age;
+    
     let formPos = document.getElementById("form_pos");
     if (formPos) {
         for (let i = 0; i < formPos.options.length; i++) formPos.options[i].disabled = false;
-        if (type === "bat") {
-            for (let i = 0; i < formPos.options.length; i++) {
-                let optVal = formPos.options[i].value;
-                if (player.originalPos !== optVal && !(player.subPositions && player.subPositions.includes(optVal))) formPos.options[i].disabled = true;
-            }
-        } else {
-            for (let i = 0; i < formPos.options.length; i++) if (formPos.options[i].value !== "投手") formPos.options[i].disabled = true;
-        }
     }
-    document.getElementById("form_pos").value = player.currentPos;
-    document.getElementById("form_age").value = player.age;
-    document.getElementById("form_role").value = player.role >= 1 && player.role <= 9 ? `${player.role}番打者` : (player.role === 0 ? "一軍ベンチ控え" : "二軍調整中");
+    document.getElementById("form_pos").value = player.originalPos;
+
+    // 起用法・役割セレクトの出し分けと初期選択
+    let roleSelect = document.getElementById("form_role");
+    roleSelect.innerHTML = "";
+    if (type === "bat") {
+        roleSelect.innerHTML = `
+            <option value="スタメン">一軍スタメン (自動最適配置)</option>
+            <option value="0">一軍ベンチ控え</option>
+            <option value="-1">二軍調整中</option>
+        `;
+        if (player.role >= 1 && player.role <= 9) roleSelect.value = "スタメン";
+        else roleSelect.value = player.role.toString();
+    } else {
+        roleSelect.innerHTML = `
+            <option value="先発">先発投手</option>
+            <option value="リリーフ">リリーフ投手</option>
+            <option value="守護神">守護神投手</option>
+            <option value="二軍先発">二軍先発</option>
+            <option value="二軍リリーフ">二軍リリーフ</option>
+        `;
+        roleSelect.value = player.role;
+    }
 
     let badge = document.getElementById("ui_player_type_badge");
     if(type === "bat") {
@@ -590,7 +691,12 @@ function onEditorPlayerChange() {
         document.getElementById("form_bb").value = player.bb; document.getElementById("form_so").value = player.so;
         document.getElementById("form_barrel").value = player.barrel; document.getElementById("form_isop").value = player.isop;
         document.getElementById("form_uzr").value = player.uzr; document.getElementById("form_err").value = player.err;
-        document.getElementById("form_sub_pos").value = player.subPositions ? player.subPositions.join(", ") : "なし";
+        
+        // サブポジションチェックボックスへの反映
+        let checkboxes = document.querySelectorAll('input[name="sub_pos_check"]');
+        checkboxes.forEach(cb => {
+            cb.checked = (player.subPositions && player.subPositions.includes(cb.value));
+        });
     } else {
         if(badge) { badge.innerText = `投手(${player.role})`; badge.style.background = "#2b6cb0"; }
         document.getElementById("form_bat_stats").style.display = "none"; document.getElementById("form_pit_stats").style.display = "block";
@@ -605,18 +711,78 @@ function saveEditorData() {
     let playerVal = document.getElementById("edit_player_select").value;
     let type = playerVal.split("_")[0]; let idx = parseInt(playerVal.split("_")[1]);
     let team = teams[teamIdx];
+    
     if(type === "bat") {
-        let p = team.batters[idx]; p.name = document.getElementById("form_name").value; p.originalPos = document.getElementById("form_pos").value; p.currentPos = p.originalPos;
-        p.bb = parseFloat(document.getElementById("form_bb").value); p.so = parseFloat(document.getElementById("form_so").value);
-        p.barrel = parseFloat(document.getElementById("form_barrel").value); p.isop = parseFloat(document.getElementById("form_isop").value);
-        p.uzr = parseFloat(document.getElementById("form_uzr").value); p.err = parseFloat(document.getElementById("form_err").value);
-        let subStr = document.getElementById("form_sub_pos").value; p.subPositions = subStr && subStr !== "なし" ? subStr.split(",").map(s => s.trim()) : [];
+        let p = team.batters[idx]; 
+        p.name = document.getElementById("form_name").value;
+        p.age = parseInt(document.getElementById("form_age").value);
+        
+        let oldPos = p.originalPos;
+        let newPos = document.getElementById("form_pos").value;
+        
+        if (newPos === "投手") {
+            alert("野手を投手に変更する場合はロスターの再構成が必要です。簡易投手スタッツを付与して投手陣へ移行します。");
+            team.pitchers.push({
+                id: team.pitchers.length, name: p.name, role: "二軍リリーフ", currentPos: "投手", originalPos: "投手", condition: "普通",
+                age: p.age, hometown: p.hometown, graduation: p.graduation, proYears: p.proYears, exp: 0,
+                h9: 65, k9: 65, bb9: 70, hr9: 55, staMax: 35, staCurrent: 35,
+                stats: { era: 0, appearances: 0, wins: 0, losses: 0, saves: 0, ipOuts: 0, so: 0, bb: 0, er: 0, war: 0.0 }
+            });
+            team.batters.splice(idx, 1);
+            reassignTeamRoles(team); onEditorTeamChange(); updateUIAll(); return;
+        }
+
+        p.originalPos = newPos;
+        p.currentPos = newPos;
+        
+        let selectedRole = document.getElementById("form_role").value;
+        if (selectedRole === "スタメン") {
+            p.role = -1; // reassignTeamRoles での自動配置対象に戻す
+        } else {
+            p.role = parseInt(selectedRole);
+        }
+
+        p.bb = parseFloat(document.getElementById("form_bb").value); 
+        p.so = parseFloat(document.getElementById("form_so").value);
+        p.barrel = parseFloat(document.getElementById("form_barrel").value); 
+        p.isop = parseFloat(document.getElementById("form_isop").value);
+        p.uzr = parseFloat(document.getElementById("form_uzr").value); 
+        p.err = parseFloat(document.getElementById("form_err").value);
+        
+        // チェックボックスUIからのサブポジション配列抽出
+        let checkedBoxes = document.querySelectorAll('input[name="sub_pos_check"]:checked');
+        p.subPositions = Array.from(checkedBoxes).map(cb => cb.value);
+        
     } else {
-        let p = team.pitchers[idx]; p.name = document.getElementById("form_name").value;
-        p.h9 = parseFloat(document.getElementById("form_h9").value); p.k9 = parseFloat(document.getElementById("form_k9").value);
-        p.bb9 = parseFloat(document.getElementById("form_bb9").value); p.hr9 = parseFloat(document.getElementById("form_hr9").value); p.staMax = parseFloat(document.getElementById("form_sta").value);
+        let p = team.pitchers[idx]; 
+        p.name = document.getElementById("form_name").value;
+        p.age = parseInt(document.getElementById("form_age").value);
+        
+        let newPos = document.getElementById("form_pos").value;
+        if (newPos !== "投手") {
+            alert("投手を野手に変更する場合はロスターの再構成が必要です。簡易野手スタッツを付与して野手陣へ移行します。");
+            team.batters.push({
+                id: team.batters.length, name: p.name, role: -1, originalPos: newPos, currentPos: newPos, subPositions: [], condition: "普通",
+                age: p.age, hometown: p.hometown, graduation: p.graduation, proYears: p.proYears, exp: 0,
+                bb: 6.5, so: 24.0, barrel: 7.5, isop: 10, uzr: 0.0, err: 2.0,
+                stats: { games: 0, ab: 0, hits: 0, hr: 0, rbi: 0, bb: 0, so: 0, war: 0.0 }
+            });
+            team.pitchers.splice(idx, 1);
+            reassignTeamRoles(team); onEditorTeamChange(); updateUIAll(); return;
+        }
+
+        p.role = document.getElementById("form_role").value;
+        p.h9 = parseFloat(document.getElementById("form_h9").value); 
+        p.k9 = parseFloat(document.getElementById("form_k9").value);
+        p.bb9 = parseFloat(document.getElementById("form_bb9").value); 
+        p.hr9 = parseFloat(document.getElementById("form_hr9").value); 
+        p.staMax = parseFloat(document.getElementById("form_sta").value);
     }
-    onEditorTeamChange(); updateUIAll();
+    
+    reassignTeamRoles(team);
+    onEditorTeamChange(); 
+    updateUIAll();
+    alert("ロスター及び起用設定を完全適用しました！");
 }
 
 // --- 画面パーツ描画 ---
@@ -688,36 +854,6 @@ function executeOffseasonRosterEvents() {
         switchTab('tab-draft', tabBtn);
     }
     startUserReleasePhase();
-}
-
-// 【修復】消えていたオフシーズン能力変革・成長システム
-function processOffseasonEvolution() {
-    teams.forEach(t => {
-        t.batters.forEach(b => {
-            b.age += 1; b.proYears += 1;
-            if (b.age <= 24) {
-                b.barrel = Math.min(45, b.barrel + Math.floor(Math.random() * 4) + 1); 
-                b.isop = Math.min(65, b.isop + Math.floor(Math.random() * 5) + 2);
-                b.so = Math.max(10, b.so - Math.floor(Math.random() * 2));
-                b.uzr = parseFloat((b.uzr + Math.random() * 2.5).toFixed(1));
-            } else if (b.age <= 29) {
-                if(Math.random() < 0.3) b.barrel = Math.min(45, b.barrel + 1);
-            } else {
-                b.barrel = Math.max(3, b.barrel - (Math.floor(Math.random() * 3) + 1));
-                b.uzr = parseFloat((b.uzr - Math.random() * 2.0).toFixed(1));
-            }
-        });
-        t.pitchers.forEach(p => {
-            p.age += 1; p.proYears += 1;
-            if (p.age <= 24) {
-                p.h9 = Math.min(99, p.h9 + Math.floor(Math.random() * 3) + 1);
-                p.k9 = Math.min(99, p.k9 + Math.floor(Math.random() * 3) + 1);
-            } else if (p.age > 33) {
-                p.h9 = Math.max(20, p.h9 - Math.floor(Math.random() * 4));
-                p.staMax = Math.max(20, p.staMax - 3);
-            }
-        });
-    });
 }
 
 function startUserReleasePhase() {
@@ -824,6 +960,7 @@ function userSelectDraftPlayer(type, index) {
     
     let resEl = document.getElementById(`my_draft_r${currentDraftRound}`); if (resEl) resEl.innerHTML = `<b>${p.name}</b> <small>(${p.currentPos})</small>`;
     
+    // CPU自動指名ロジック
     teams.forEach(t => {
         if (t.id === userTeamId) return;
         let bWar = t.batters.reduce((sum, b) => sum + (b.stats.war || 0), 0);
